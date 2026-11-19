@@ -1,0 +1,64 @@
+/* SEREN — extra motion pieces: cursor, scroll progress, drips, fruit slice, fly-to-box, colour switcher. */
+
+/* page stays still while the order box is open */
+html.box-open,html.lenis-stopped{overflow:hidden}
+.drawer,.drawer ul{overscroll-behavior:contain}
+
+/* headings keep whole words together while letters animate */
+.wd{display:inline-block;white-space:nowrap}
+
+/* scroll progress line under the nav */
+.progress{position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--butter);transform-origin:0 50%;transform:scaleX(0);pointer-events:none}
+
+/* custom cursor (mouse/trackpad only) */
+.cursor{position:fixed;z-index:95;left:0;top:0;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--butter);pointer-events:none;mix-blend-mode:difference;display:grid;place-items:center;transition:width .35s var(--ease),height .35s var(--ease),margin .35s var(--ease),background .3s;opacity:0}
+.cursor span{font:600 11px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink);opacity:0;transition:opacity .2s}
+.cursor.on{opacity:1}
+.cursor.big{width:74px;height:74px;margin:-37px 0 0 -37px;mix-blend-mode:normal}
+.cursor.big span{opacity:1}
+.cursor.link{width:40px;height:40px;margin:-20px 0 0 -20px}
+@media (hover:none),(pointer:coarse){.cursor{display:none}}
+.has-cursor,.has-cursor a,.has-cursor button{cursor:none}
+
+/* chocolate drip edges between sections */
+.drip{position:absolute;left:0;right:0;top:-1px;height:clamp(40px,6vw,90px);z-index:2;pointer-events:none;color:var(--section-above,var(--butter))}
+.drip svg{width:100%;height:100%;display:block}
+.drip path{fill:currentColor}
+.choc{--section-above:var(--butter)}
+.choc .wrap,.visit .wrap{position:relative;z-index:3}
+.visit{--section-above:var(--caramel)}
+
+/* illusory fruit: a knife-slice wipe on change */
+.fruit-view{overflow:hidden}
+.fruit-view .slice{position:absolute;inset:-10%;z-index:5;pointer-events:none;background:linear-gradient(115deg,transparent 46%,rgba(255,253,248,.9) 50%,transparent 54%);transform:translateX(-120%)}
+
+/* product image flying into the box */
+.fly{position:fixed;z-index:96;width:64px;height:64px;border-radius:50%;object-fit:cover;pointer-events:none;box-shadow:0 14px 30px -8px rgba(0,0,0,.5);background:var(--butter)}
+
+/* parallax photos: moved with the separate `translate` property so hover zoom (transform) still works */
+.pcard .ph img,.slab-card .ph img{translate:0 var(--py,0px);height:calc(100% + 40px);top:-20px}
+.slab-card .ph{position:relative}
+.slab-card .ph img{position:absolute;inset:auto 0;width:100%}
+
+/* hover wobble letters */
+.hero-word span,footer .big span{cursor:default}
+
+/* colour switcher (preview tool) */
+.pal-btn{flex-direction:row-reverse;position:fixed;z-index:60;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:7px;background:var(--cream);color:var(--ink);font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 12px 30px -10px rgba(0,0,0,.5)}
+.pal-btn i{display:flex;width:26px;height:26px;border-radius:50%;overflow:hidden;flex:0 0 auto}
+.pal-btn .t{max-width:0;overflow:hidden;white-space:nowrap;transition:max-width .4s var(--ease)}
+.pal-btn:hover .t,.pal-btn:focus-visible .t,.pal-btn[aria-expanded="true"] .t{max-width:240px}
+.pal-btn i b{flex:1}
+.pal-panel{position:fixed;z-index:61;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(66px + env(safe-area-inset-bottom,0px));width:min(360px,calc(100vw - 32px));max-height:min(70vh,560px);overflow:auto;background:var(--cream);color:var(--ink);border-radius:18px;padding:16px;box-shadow:0 30px 60px -20px rgba(0,0,0,.6);transform:translateY(12px) scale(.98);opacity:0;visibility:hidden;transition:transform .35s var(--ease),opacity .25s,visibility .25s}
+.pal-panel.on{transform:none;opacity:1;visibility:visible}
+.pal-panel h3{font-family:var(--display);font-weight:400;text-transform:uppercase;font-size:26px;margin:0 0 4px;line-height:1}
+.pal-panel p{margin:0 0 12px;font-size:13px;color:var(--muted-dark)}
+.pal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pal-grid button{border:2px solid transparent;border-radius:12px;padding:6px;background:transparent;cursor:pointer;display:grid;gap:5px;text-align:left;font-size:11px;font-weight:600;line-height:1.2}
+.pal-grid button[aria-pressed="true"]{border-color:var(--ink)}
+.pal-grid .sw{display:flex;height:34px;border-radius:8px;overflow:hidden}
+.pal-grid .sw b{flex:1}
+.pal-grid .sw b:nth-child(-n+2){flex:2}
+
+@media (max-width:600px){.pal-btn{bottom:calc(92px + env(safe-area-inset-bottom,0px))}.pal-panel{bottom:calc(142px + env(safe-area-inset-bottom,0px))}}
+@media (prefers-reduced-motion:reduce){.cursor{display:none}.has-cursor,.has-cursor a,.has-cursor button{cursor:auto}}

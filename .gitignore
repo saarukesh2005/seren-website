@@ -1,0 +1,8 @@
+# Private: recipe book extracts, raw PDF images, AI model weights, build scratch
+source/
+tools/models/
+dist/
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store

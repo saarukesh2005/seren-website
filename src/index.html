@@ -1,0 +1,217 @@
+<title>SEREN Entremets</title>
+<meta name="description" content="SEREN — entremets, bomboloni, cookies, illusory fruit desserts, gelato, chocolates and a wood-fired kitchen.">
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#662937">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap">
+<!--STYLES-->
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="burst" viewBox="0 0 100 100"><path fill="currentColor" d="M50 0l5.6 17.3 11.7-14 .3 18.2 15.6-9.4-5 17.5 18-3.2-10.2 15 17.5 5.3-15.4 9.6 15.4 9.6-17.5 5.3 10.2 15-18-3.2 5 17.5-15.6-9.4-.3 18.2-11.7-14L50 100l-5.6-17.3-11.7 14-.3-18.2-15.6 9.4 5-17.5-18 3.2 10.2-15L.5 63.3l15.4-9.6L.5 44.1 18 38.8l-10.2-15 18 3.2-5-17.5 15.6 9.4.3-18.2 11.7 14z"/></symbol>
+  </defs>
+</svg>
+
+<nav class="nav" id="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="SEREN home"><span>S</span><span>E</span><span>R</span><span>E</span><span>N</span></a>
+    <div class="links">
+      <a href="#bomboloni">Bomboloni</a><a href="#cookies">Cookies</a><a href="#illusory-fruit">Illusory fruit</a>
+      <a href="#entremets">Entremets</a><a href="#gelato">Gelato</a><a href="#chocolates">Chocolates</a><a href="#kitchen">Kitchen</a>
+    </div>
+    <button class="box-btn" id="boxBtn" type="button" aria-haspopup="dialog">Your box <b id="boxCount">0</b></button>
+  </div>
+  <div class="progress" id="progress"></div>
+</nav>
+
+<main id="top">
+  <!-- HERO: the cover, alive -->
+  <section class="hero" id="hero" aria-label="SEREN">
+    <div class="half l"></div><div class="half r"></div>
+    <svg class="burst a spin" aria-hidden="true"><use href="#burst"/></svg>
+    <svg class="burst b spin" aria-hidden="true"><use href="#burst"/></svg>
+    <span class="tag tr">ENTREMETS · PATISSERIE · KITCHEN</span>
+    <h1 class="hero-word" aria-label="SEREN"><span>S</span><span>E</span><span>R</span><span>E</span><span>N</span></h1>
+    <svg class="arrow" viewBox="0 0 280 200" fill="none" aria-hidden="true"><path id="heroArrow" d="M20 190c-6-60 20-110 70-120 50-10 70 30 50 55-25 30-70 5-60-35 12-48 70-70 175-40m0 0l-28-28m28 28l-36 22" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span class="tag bl">@SEREN</span>
+    <div class="floater" data-depth="0.6" style="left:12%;top:24%"><span class="fl-p"><img src="img/bonbon-caramel.webp" alt=""></span></div>
+    <div class="floater" data-depth="1.1" style="right:14%;top:20%;width:clamp(56px,8vw,120px)"><span class="fl-p"><img src="img/bonbon-coconut.webp" alt=""></span></div>
+    <div class="floater" data-depth="0.9" style="right:20%;bottom:20%"><span class="fl-p"><img src="img/bonbon-hazelnut.webp" alt=""></span></div>
+    <div class="floater" data-depth="1.4" style="left:26%;bottom:16%;width:clamp(50px,7vw,104px)"><span class="fl-p"><img src="img/bonbon-coffee.webp" alt=""></span></div>
+    <div class="cta">
+      <a class="pill fill" href="#bomboloni">See the menu</a>
+      <a class="pill light" href="#visit">Visit or order</a>
+    </div>
+  </section>
+
+  <div class="marquee" aria-hidden="true"><div class="track" id="marquee"></div></div>
+
+  <!-- INTRO -->
+  <section class="slab intro" aria-labelledby="introTitle">
+    <div class="wrap">
+      <span class="eyebrow" style="color:var(--caramel)">The house of SEREN</span>
+      <p class="big" id="introTitle" data-words>Filled to order. Layered by hand. Fruit that <span class="gold">isn't</span> fruit. Gelato churned every <span class="gold">morning.</span></p>
+      <div class="meta">
+        <div><strong data-count="7">7</strong>Bomboloni</div><div><strong data-count="7">7</strong>Cookies</div><div><strong data-count="9">9</strong>Illusory fruits</div>
+        <div><strong data-count="23">23</strong>Gelato &amp; sorbets</div><div><strong data-count="7">7</strong>Chocolates</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOMBOLONI -->
+  <section class="slab bomb" id="bomboloni" aria-labelledby="bombTitle">
+    <div class="pin" id="bombPin">
+      <div class="wrap head">
+        <div><span class="hand" style="color:var(--caramel)">Italian doughnuts, piped full</span><h2 class="display" id="bombTitle">Bomboloni</h2></div>
+        <p>Brioche dough proofed slowly, fried golden, rolled in sugar and filled the moment you order. Seven fillings, one rule: it should run.</p>
+      </div>
+      <div class="rail" id="bombRail"></div>
+    </div>
+  </section>
+
+  <!-- COOKIES -->
+  <section class="slab cookies" id="cookies" aria-labelledby="cookieTitle">
+    <div class="wrap">
+      <div class="head">
+        <div><span class="hand" style="color:var(--plum)">80 g of dough, 10 g of extra</span><h2 class="display" id="cookieTitle">Cookies</h2></div>
+        <p>Thick, crackled, gooey in the middle. Melted butter and both chopped and whole chocolate, baked at 175°C for 12 minutes. Hover to see inside.</p>
+      </div>
+      <div class="cookie-grid" id="cookieGrid"></div>
+      <div class="science"><span>melted butter</span><span>·</span><span>chopped + whole chocolate</span><span>·</span><span>175°C · 12 min</span></div>
+    </div>
+  </section>
+
+  <!-- ILLUSORY FRUIT -->
+  <section class="slab fruit" id="illusory-fruit" aria-labelledby="fruitTitle">
+    <div class="wrap">
+      <div class="head">
+        <div><span class="hand" style="color:var(--caramel)">Trompe-l'œil</span><h2 class="display" id="fruitTitle">It looks like fruit.<br><em>It isn't.</em></h2></div>
+        <p>A thin chocolate shell, coloured and shaped like the real thing, around a mousse and a hidden centre. Pick one to see what's inside.</p>
+      </div>
+      <div class="fruit-stage">
+        <div class="fruit-view" id="fruitView" aria-live="polite"></div>
+        <div>
+          <div class="fruit-list" id="fruitList" role="tablist" aria-label="Illusory fruit"></div>
+          <div class="fruit-detail" id="fruitDetail"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ENTREMETS -->
+  <section class="slab ent" id="entremets" aria-labelledby="entTitle">
+    <div class="wrap">
+      <div class="head">
+        <div><span class="hand" style="color:var(--butter)">Petit gâteau</span><h2 class="display" id="entTitle">Entremets</h2></div>
+        <p>Our namesake. Five layers built from the bottom up, frozen, then glazed to a mirror. Choose one to watch it stack.</p>
+      </div>
+      <div class="ent-stage">
+        <div class="cake" id="cake"><div class="stack" id="cakeStack"></div><div class="plate"></div></div>
+        <div>
+          <div class="ent-tabs" id="entTabs" role="tablist" aria-label="Entremets"></div>
+          <p class="ent-note">Mousse outside, a frozen insert in the middle, a crunchy layer for texture and a soft sponge at the base.</p>
+          <div style="margin-top:18px" id="entAdd"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PASTRY -->
+  <section class="slab pastry" id="pastry" aria-labelledby="pastryTitle">
+    <div class="wrap">
+      <div class="head">
+        <div><span class="hand" style="color:var(--caramel-deep)">Choux, tarts &amp; tiramisù</span><h2 class="display" id="pastryTitle">The pastry case</h2></div>
+        <p>Craquelin-topped choux, tarts with crisp shells and a tiramisù that's mostly mascarpone. Hover the choux to cut one open.</p>
+      </div>
+      <div class="pastry-grid" id="pastryGrid"></div>
+    </div>
+  </section>
+
+  <!-- GELATO -->
+  <section class="slab gelato" id="gelato" aria-labelledby="gelatoTitle">
+    <div class="wrap">
+      <div class="head">
+        <div><span class="hand" style="color:var(--plum)">Made the Italian way</span><h2 class="display" id="gelatoTitle">Gelato &amp; sorbet</h2></div>
+        <p>Denser and silkier than ice cream: more milk, less cream, less air. Signature flavours you won't find anywhere else, the classics done right, and dairy-free sorbets.</p>
+      </div>
+      <div class="g-tabs" id="gTabs" role="tablist" aria-label="Gelato range">
+        <button type="button" role="tab" id="g-signature" data-k="signature" aria-selected="true">Signature</button>
+        <button type="button" role="tab" id="g-classic" data-k="classic" aria-selected="false">Classic</button>
+        <button type="button" role="tab" id="g-sorbet" data-k="sorbet" aria-selected="false">Sorbet</button>
+      </div>
+      <div class="scoops" id="scoops"></div>
+      <div class="g-facts">
+        <div><strong>6–10%</strong>fat, so the flavour comes first</div>
+        <div><strong>&lt;25%</strong>air churned in, for a dense, silky scoop</div>
+        <div><strong>83°C</strong>pasteurised fresh in-house</div>
+        <div><strong>100%</strong>natural flavours</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHOCOLATES -->
+  <section class="slab choc" id="chocolates" aria-labelledby="chocTitle">
+    <div class="drip" aria-hidden="true"><svg viewBox="0 0 1440 90" preserveAspectRatio="none"><path/></svg></div>
+    <div class="wrap">
+      <div class="head">
+        <div><span class="hand" style="color:var(--caramel)">Bonbons &amp; truffles</span><h2 class="display" id="chocTitle">Chocolate collection</h2></div>
+        <p>"Bonbon" comes from the French bon, meaning good, said twice. Hand-painted shells in Callebaut chocolate, filled with caramel, praline, ganache or liquid espresso.</p>
+      </div>
+      <div class="bonbon-row" id="bonbons"></div>
+      <div class="truffles" id="truffles"></div>
+    </div>
+  </section>
+
+  <!-- KITCHEN -->
+  <section class="slab kitchen" id="kitchen" aria-labelledby="kitchenTitle">
+    <div class="wrap">
+      <div class="head">
+        <div><span class="hand" style="color:var(--plum)">Focaccia slabs &amp; the kitchen</span><h2 class="display" id="kitchenTitle">Savoury side</h2></div>
+        <p>Single-serve focaccia slabs from a 72-hour dough, plus a full kitchen. <span class="mark veg" aria-hidden="true"></span> vegetarian &nbsp; <span class="mark non" aria-hidden="true"></span> non-vegetarian</p>
+      </div>
+      <div class="slabs" id="slabs"></div>
+      <div class="kmenu" id="kmenu"></div>
+    </div>
+  </section>
+
+  <!-- VISIT -->
+  <section class="slab visit" id="visit" aria-labelledby="visitTitle">
+    <div class="drip" aria-hidden="true"><svg viewBox="0 0 1440 90" preserveAspectRatio="none"><path/></svg></div>
+    <div class="wrap">
+      <span class="hand" style="color:var(--caramel);font-size:30px">In store &amp; online</span>
+      <h2 class="display" id="visitTitle">Come hungry</h2>
+      <p>Build a box of anything on this page, then send it to us to order for pickup or delivery. Or just walk in: the case is full from opening.</p>
+      <div class="facts" id="visitFacts"></div>
+      <div class="cta">
+        <button class="pill fill" type="button" id="openBox2" style="background:var(--butter);color:var(--ink);border-color:var(--butter)">Open your box</button>
+        <a class="pill light" id="igLink" href="https://instagram.com/seren" target="_blank" rel="noopener">Follow @seren</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p class="big" aria-hidden="true"><span>S</span><span>E</span><span>R</span><span>E</span><span>N</span></p>
+  <div class="wrap base"><span>SEREN Entremets</span><span>Bomboloni · Cookies · Entremets · Gelato · Chocolates · Kitchen</span></div>
+</footer>
+
+<!-- order box -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true" inert data-lenis-prevent>
+  <header><h2 id="drawerTitle">Your box</h2><button class="close" id="closeBox" type="button" aria-label="Close your box">×</button></header>
+  <ul id="boxList"></ul>
+  <footer>
+    <a class="pill fill" id="waBtn" href="#" target="_blank" rel="noopener" hidden>Send order on WhatsApp</a>
+    <button class="pill" type="button" id="copyBtn">Copy order</button>
+    <div class="status" id="boxStatus"></div>
+  </footer>
+</aside>
+<div class="peekimg" id="peek"><img alt=""></div>
+<div class="cursor" id="cursor" aria-hidden="true"><span></span></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+<!--SCRIPTS-->
