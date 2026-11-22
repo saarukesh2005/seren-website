@@ -7,6 +7,7 @@ window.SEREN_CONFIG = {
   address: "",                 // store address
   hours: "",                   // e.g. "Tue–Sun · 11am–11pm"
   currency: "₹",
+  api: "",                     // the order system's web address (Cloudflare Worker). Empty = orders go by WhatsApp / copy.
   palette: "SEREN Original",    // the site's colours: any name from palettes.js
   showPalettePicker: true,     // preview tool; set false before launch
 };

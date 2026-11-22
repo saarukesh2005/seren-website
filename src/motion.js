@@ -48,8 +48,9 @@
     // Each floater has three layers so the three motions never fight:
     // .floater = scroll, .fl-p = pointer, img = idle bob + intro.
     const out = gsap.timeline({ scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: true } });
-    out.to(letters.slice(0, 2), { xPercent: -40, ease: "none" }, 0)
-      .to(letters.slice(2), { xPercent: 40, ease: "none" }, 0)
+    const left = Number(document.querySelector(".hero-word").dataset.left || 2); // SE|REN in English, செ|ரென் in Tamil
+    out.to(letters.slice(0, left), { xPercent: -40, ease: "none" }, 0)
+      .to(letters.slice(left), { xPercent: 40, ease: "none" }, 0)
       .to(".hero .half.l", { xPercent: -30, ease: "none" }, 0)
       .to(".hero .half.r", { xPercent: 30, ease: "none" }, 0)
       .to(".hero .floater", { y: (i) => -120 - i * 60, rotate: (i) => (i % 2 ? 30 : -30), ease: "none" }, 0);
@@ -76,6 +77,10 @@
     }));
   }
 
+  // Splits text into whole letters as people see them (a Tamil letter with its vowel sign stays together).
+  const segmenter = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : null;
+  const graphemes = (s) => (segmenter ? [...segmenter.segment(s)].map((x) => x.segment) : [...s]);
+
   /* ---------- big headings rise letter by letter (whole words never split across lines) ---------- */
   function headings() {
     document.querySelectorAll(".head h2.display").forEach((h) => {
@@ -88,7 +93,7 @@
               if (!word) return;
               if (!word.trim()) { frag.appendChild(document.createTextNode(" ")); return; }
               const w = document.createElement("span"); w.className = "wd";
-              [...word].forEach((ch) => { const s = document.createElement("span"); s.className = "ch"; s.style.display = "inline-block"; s.textContent = ch; w.appendChild(s); });
+              graphemes(word).forEach((ch) => { const s = document.createElement("span"); s.className = "ch"; s.style.display = "inline-block"; s.textContent = ch; w.appendChild(s); });
               frag.appendChild(w);
             });
             n.replaceWith(frag);

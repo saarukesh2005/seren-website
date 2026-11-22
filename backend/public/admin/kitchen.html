@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#140C0E">
+<title>SEREN Kitchen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,500;9..40,700&display=swap">
+<link rel="stylesheet" href="kitchen.css">
+</head>
+<body>
+<header class="k-top">
+  <span class="k-brand">SEREN · Kitchen</span>
+  <span class="k-clock" id="clock"></span>
+  <label class="k-auto"><input type="checkbox" id="autoPrint"> Print a ticket for each new order</label>
+  <a class="k-btn" href="./">Dashboard</a>
+</header>
+<p class="k-msg" id="msg" hidden></p>
+<main class="k-cols">
+  <section><h2>To make <b id="nTodo">0</b></h2><div class="k-list" id="todo"></div></section>
+  <section><h2>Being made <b id="nDoing">0</b></h2><div class="k-list" id="doing"></div></section>
+  <section><h2>Ready <b id="nReady">0</b></h2><div class="k-list" id="ready"></div></section>
+</main>
+<div class="k-toast" id="toast" role="status"></div>
+<script src="kitchen.js"></script>
+</body>
+</html>

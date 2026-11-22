@@ -374,6 +374,201 @@ html.box-open,html.lenis-stopped{overflow:hidden}
 @media (max-width:600px){.pal-btn{bottom:calc(92px + env(safe-area-inset-bottom,0px))}.pal-panel{bottom:calc(142px + env(safe-area-inset-bottom,0px))}}
 @media (prefers-reduced-motion:reduce){.cursor{display:none}.has-cursor,.has-cursor a,.has-cursor button{cursor:auto}}
 
+/* ---------- online ordering: prices, checkout form, UPI payment (order box + order page) ---------- */
+.add.off{opacity:.55;cursor:not-allowed;text-decoration:none}
+.drawer li .n small{display:block;font-weight:500;color:var(--muted-dark);font-size:13px;margin-top:2px}
+.drawer.co-on #boxList,.drawer.co-on > footer{display:none}
+.drawer .sum{display:flex;justify-content:space-between;align-items:baseline;font-size:15px}
+.drawer .sum b{font-family:var(--display);font-weight:400;font-size:28px;letter-spacing:.01em}
+.drawer .sum .warn{color:var(--nonveg);font-size:13px;line-height:1.35}
+.drawer footer .pill:disabled{opacity:.5;cursor:not-allowed}
+.linkish{all:unset;cursor:pointer;color:var(--plum);font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px;justify-self:center}
+.linkish:focus-visible{outline:2px solid var(--plum);outline-offset:3px;border-radius:4px}
+
+.co{flex:1;overflow:auto;padding:14px 2px 4px;display:grid;align-content:start;gap:14px;overscroll-behavior:contain}
+.co .back{justify-self:start}
+.co-form{display:grid;gap:12px}
+.co-form label{display:grid;gap:5px;font-size:13px;font-weight:600;letter-spacing:.01em}
+.co-form input[readonly]{background:var(--butter);font-weight:700}
+.co-form .opt{font-weight:400;color:var(--muted-dark)}
+.co-form input,.co-form select,.co-form textarea,.utr input{font:500 16px/1.3 var(--body);color:var(--ink);background:var(--white);border:1.5px solid color-mix(in srgb,var(--ink) 22%,transparent);border-radius:12px;padding:11px 12px;width:100%;transition:border-color .2s,box-shadow .2s}
+.co-form textarea{resize:vertical;min-height:44px}
+.co-form :is(input,select,textarea):focus,.utr input:focus{outline:none;border-color:var(--plum);box-shadow:0 0 0 3px color-mix(in srgb,var(--plum) 18%,transparent)}
+.co-form .when{display:grid;grid-template-columns:1.2fr 1fr;gap:10px}
+.co-form .hint{margin:-4px 0 0;font-size:13px;color:var(--muted-dark)}
+.modes{border:0;padding:0;margin:0;display:flex;gap:8px}
+.modes legend{font-size:13px;font-weight:600;margin-bottom:6px;padding:0}
+.modes label{flex:1;display:block;cursor:pointer;min-width:0}
+.modes input{position:absolute;opacity:0;pointer-events:none}
+.modes span{display:block;text-align:center;padding:12px 6px;white-space:nowrap;border-radius:999px;border:1.5px solid var(--ink);font-weight:600;font-size:15px;transition:background .25s var(--ease),color .25s var(--ease)}
+.modes input:checked + span{background:var(--ink);color:var(--butter)}
+.modes input:focus-visible + span{outline:2px solid var(--plum);outline-offset:3px}
+.co-total{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid var(--ink);padding-top:12px;font-weight:600}
+.co-total b{font-family:var(--display);font-weight:400;font-size:28px}
+.co-form .pill,.pay .pill{justify-content:center}
+.co-form .pill:disabled{opacity:.6;cursor:progress}
+.err{margin:0;color:var(--nonveg);font-size:14px;font-weight:600;min-height:1em}
+.err:empty{display:none}
+
+.pay{display:grid;gap:12px;text-align:center}
+.pay-amt{margin:0;font-family:var(--display);font-size:54px;line-height:1;text-transform:uppercase}
+.pay-amt span{font-size:22px;vertical-align:middle;color:var(--plum);margin-right:6px}
+.pay-note,.pay-id{margin:0;font-size:14px;color:var(--muted-dark)}
+.pay-id b{color:var(--ink);word-break:break-all}
+.pay-qr{justify-self:center;width:min(240px,70vw);aspect-ratio:1;display:grid;place-items:center;background:var(--white);border-radius:18px;padding:10px;box-shadow:0 12px 30px -16px rgba(20,12,14,.45);animation:qr-in .7s var(--ease) both}
+.pay-qr svg{width:100%;height:100%}
+.pay-qr span{font-size:14px;color:var(--muted-dark)}
+@keyframes qr-in{from{transform:scale(.92) rotate(-2deg);opacity:0}}
+.utr{display:grid;gap:8px;text-align:left;border-top:1px dashed color-mix(in srgb,var(--ink) 30%,transparent);padding-top:14px}
+.utr label{font-size:13px;line-height:1.4}
+.utr-row{display:flex;gap:8px}
+.utr-row input{letter-spacing:.08em}
+.utr-row .pill{flex:none}
+
+.done{display:grid;gap:12px;justify-items:center;text-align:center;padding-top:20px}
+.done svg{width:90px;height:90px;color:var(--plum);animation:done-spin 1.2s var(--ease) both}
+.done .hand{font-size:40px;color:var(--plum);margin:0;line-height:1}
+.done p{margin:0;max-width:34ch}
+@keyframes done-spin{from{transform:rotate(-120deg) scale(.4);opacity:0}}
+@media (prefers-reduced-motion:reduce){.pay-qr,.done svg{animation:none}}
+
+/* ---------- upgrade: coupons, offers opt-in, WhatsApp order, table bar & tab, ratings, new products ---------- */
+.coupon-row{display:flex;gap:8px}
+.coupon-row input{text-transform:uppercase;letter-spacing:.06em}
+.coupon-row .pill{flex:none;padding:10px 16px}
+.coupon .hint{margin:4px 0 0}
+.co-form label.optin{display:flex;align-items:flex-start;gap:8px;font-weight:500;font-size:13px;line-height:1.35}
+.co-form label.optin input{width:auto;margin-top:2px;accent-color:var(--plum)}
+.pill.wa{justify-content:center;border-color:#1f7a45;color:#1f7a45}
+.pill.wa:hover{background:#1f7a45;color:#fff}
+
+.tablebar{position:fixed;z-index:70;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:6px;
+  background:var(--ink);color:var(--cream);border-radius:999px;padding:6px;box-shadow:0 16px 40px -16px rgba(0,0,0,.7);max-width:calc(100% - 24px);animation:tb-in .7s var(--ease) both}
+.tablebar .tb-t{font-family:var(--display);text-transform:uppercase;font-size:18px;padding:0 10px;white-space:nowrap;color:var(--butter)}
+.tablebar button{border:0;border-radius:999px;padding:10px 13px;background:color-mix(in srgb,var(--cream) 12%,transparent);color:var(--cream);font:600 13px/1 var(--body);cursor:pointer;white-space:nowrap}
+.tablebar button:hover,.tablebar button:focus-visible{background:var(--butter);color:var(--ink);outline:none}
+.tablebar button:disabled{opacity:.5}
+@keyframes tb-in{from{transform:translate(-50%,40px);opacity:0}}
+body:has(.tablebar) .pal-btn{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+@media (max-width:420px){.tablebar .tb-t{font-size:15px;padding:0 6px}.tablebar button{padding:9px 9px;font-size:12px}}
+.tabsheet{border:0;padding:0;border-radius:26px 26px 0 0;width:min(520px,100%);max-height:88vh;margin:auto auto 0;background:var(--cream);color:var(--ink)}
+.tabsheet[open]{animation:tb-sheet .45s var(--ease) both}
+.tabsheet::backdrop{background:rgba(20,12,14,.55)}
+@keyframes tb-sheet{from{transform:translateY(40px);opacity:0}}
+@media (min-width:700px){.tabsheet{border-radius:26px;margin:auto}}
+.ts-in{padding:20px 18px calc(24px + env(safe-area-inset-bottom,0px));display:grid;gap:14px}
+.ts-head{display:flex;justify-content:space-between;align-items:center}
+.ts-head h2{font-family:var(--display);font-weight:400;text-transform:uppercase;font-size:40px;margin:0;line-height:1}
+.ts-head .close{border:0;background:var(--ink);color:var(--cream);width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:18px}
+.ts-lines,.ts-rounds{list-style:none;margin:0;padding:0}
+.ts-lines li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid color-mix(in srgb,var(--ink) 12%,transparent)}
+.ts-lines .tot{border:0;border-top:2px solid var(--ink);font-weight:700}
+.ts-rounds{font-size:12px;color:var(--muted-dark);display:grid;gap:2px}
+.ts-pay{border:1.5px dashed color-mix(in srgb,var(--ink) 30%,transparent);border-radius:20px;padding:16px 12px}
+
+.op-lines .off{color:#1f7a45}
+.review{display:grid;gap:8px;justify-items:start;border-top:1px dashed color-mix(in srgb,var(--ink) 30%,transparent);padding-top:14px}
+.review .hand{margin:0;font-size:28px;color:var(--plum)}
+.stars{display:flex;gap:4px}
+.stars button{all:unset;cursor:pointer;font-size:34px;line-height:1;color:color-mix(in srgb,var(--ink) 20%,transparent);transition:transform .2s var(--ease),color .2s}
+.stars button.on{color:#e0a526}
+.stars button:hover{transform:scale(1.18) rotate(-6deg)}
+.stars button:focus-visible{outline:2px solid var(--plum);outline-offset:2px;border-radius:4px}
+.review textarea{width:100%;font:500 15px/1.35 var(--body);border:1.5px solid color-mix(in srgb,var(--ink) 22%,transparent);border-radius:12px;padding:10px;background:var(--white);color:var(--ink)}
+.review-note{margin:0;font-size:14px}
+.review-note a{color:var(--plum);font-weight:700}
+
+.extras{background:var(--butter);color:var(--ink);padding:110px 0 120px}
+.extras .eyebrow{color:var(--plum)}
+.extras h2{font-size:clamp(60px,12vw,180px);margin:6px 0 40px}
+.extras-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:26px}
+.extra .ph{display:grid;place-items:center;background:var(--cream)}
+.extra .ph .hand{font-size:30px;color:var(--plum);text-align:center;padding:20px}
+@media (prefers-reduced-motion:reduce){.tablebar,.tabsheet[open]{animation:none}}
+
+/* ---------- English / தமிழ் switch ---------- */
+.lang-btn{display:inline-flex;align-items:center;gap:7px;border:1.5px solid color-mix(in srgb,var(--cream) 45%,transparent);background:color-mix(in srgb,var(--ink) 35%,transparent);
+  color:var(--cream);border-radius:999px;padding:4px 12px 4px 4px;font:600 13px/1 var(--body);cursor:pointer;pointer-events:auto;white-space:nowrap;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:background .25s var(--ease),border-color .25s,transform .2s var(--ease)}
+.lang-btn:hover{background:var(--cream);color:var(--ink);border-color:var(--cream)}
+.lang-btn:active{transform:scale(.96)}
+.lang-btn:focus-visible{outline:2px solid var(--butter);outline-offset:3px}
+.lang-btn .lb-a{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--butter);color:var(--ink);font:700 13px/1 "Noto Sans Tamil",var(--body)}
+.lang-btn .lb-b{font-family:"Noto Sans Tamil",var(--body)}
+/* header: logo · section links (centred in the space) · language switch + box, as before */
+.nav .links{margin-inline:auto}
+.nav .lang-btn{margin-left:0}
+/* when there isn't room for the section links, they tuck away (as on phones) and the buttons move right */
+@media (max-width:960px){.nav .links{display:none}.nav .lang-btn{margin-left:auto}}
+@media (max-width:1180px){html[lang="ta"] .nav .links{display:none}html[lang="ta"] .nav .lang-btn{margin-left:auto}}
+.op-top .lang-btn{margin-left:auto;margin-right:8px}
+/* small phones: the switch shrinks to its round badge (EN / த) so the top bar stays on one line */
+@media (max-width:420px){.lang-btn{padding:4px}.lang-btn .lb-b{display:none}}
+html[lang="ta"] .box-btn{white-space:nowrap}
+@media (max-width:420px){html[lang="ta"] .box-btn{font-size:12.5px;padding:8px 12px}}
+html.lang-leaving body{opacity:0;transition:opacity .2s ease}
+
+/* ---------- Tamil typography: Tamil letters are taller and wider, and have no capitals ---------- */
+html[lang="ta"]{
+  --display:"Anton","Catamaran",Impact,"Arial Narrow",sans-serif;
+  --body:"DM Sans","Noto Sans Tamil",ui-sans-serif,system-ui,sans-serif;
+  --hand:"Caveat","Kavivanar",cursive;
+}
+html[lang="ta"] body{line-height:1.7}
+html[lang="ta"] .display{line-height:1.22;letter-spacing:0}
+html[lang="ta"] .head h2{font-size:clamp(36px,5.8vw,92px)}
+html[lang="ta"] .visit h2{font-size:clamp(40px,7vw,110px)}
+html[lang="ta"] .fruit .head h2 em{display:inline-block}
+html[lang="ta"] .intro p.big{font-size:clamp(24px,3.6vw,52px);line-height:1.35;max-width:24ch}
+html[lang="ta"] .hand{font-weight:400;line-height:1.35}
+html[lang="ta"] .head .hand{font-size:1.15em}
+html[lang="ta"] .head p{font-size:15px;line-height:1.75}
+html[lang="ta"] .eyebrow{letter-spacing:.04em}
+html[lang="ta"] .paper h3,html[lang="ta"] .cookie h3,html[lang="ta"] .pcard h3,html[lang="ta"] .truffle h3,html[lang="ta"] .slab-card h3,html[lang="ta"] .bonbon h3{font-size:19px;line-height:1.35}
+html[lang="ta"] .scoop h3{font-size:15px;line-height:1.35}
+html[lang="ta"] .paper .it{font-size:19px}
+html[lang="ta"] .fruit-list button{font-size:clamp(19px,2.2vw,28px);line-height:1.3}
+html[lang="ta"] .fruit-view .layers li,html[lang="ta"] .cake .layer span{font-size:17px}
+html[lang="ta"] .ent-tabs b{font-size:21px;line-height:1.3}
+html[lang="ta"] .marquee span{font-size:clamp(20px,2.6vw,34px);line-height:1.3}
+html[lang="ta"] .science{font-size:20px}
+html[lang="ta"] .kmenu h3{font-size:26px}
+html[lang="ta"] .drawer h2{font-size:30px;line-height:1.25}
+html[lang="ta"] .g-facts div,html[lang="ta"] .intro .meta div{font-size:13px;line-height:1.5}
+html[lang="ta"] .add,html[lang="ta"] .pill,html[lang="ta"] .box-btn{font-size:13px;line-height:1.3}
+html[lang="ta"] .g-tabs button{font-size:14px}
+html[lang="ta"] .links{gap:16px;font-size:13px}
+html[lang="ta"] .pay-amt{font-size:46px;line-height:1.2}
+html[lang="ta"] .pay-amt span{font-size:18px}
+html[lang="ta"] .co-form label,html[lang="ta"] .modes legend{font-size:13px;line-height:1.5}
+html[lang="ta"] .modes span{font-size:12.5px;padding:9px 6px;white-space:normal;line-height:1.3;height:100%;display:grid;place-items:center}
+html[lang="ta"] .tablebar button{font-size:12px}
+html[lang="ta"] .tablebar .tb-t{font-size:15px}
+html[lang="ta"] .ts-head h2{font-size:30px;line-height:1.25}
+html[lang="ta"] .op-card h1{font-size:clamp(30px,8vw,52px);line-height:1.25}
+html[lang="ta"] .steps{font-size:10px;line-height:1.35}
+html[lang="ta"] .extras h2{font-size:clamp(40px,8vw,110px)}
+/* the Tamil wordmark: செ on the dark side, ரென் on the light side (like SE | REN) */
+.wordmark-ta{font-family:"Catamaran","Noto Sans Tamil",sans-serif!important;font-weight:900!important}
+.hero-word.wordmark-ta{font-size:clamp(56px,20vw,320px);line-height:1.18;letter-spacing:-.03em;padding-bottom:.05em}
+.hero-word.wordmark-ta span{color:var(--butter)}
+.hero-word.wordmark-ta span:first-child{color:var(--aubergine)}
+.logo.wordmark-ta{font-size:22px;line-height:1.25;letter-spacing:0}
+.logo.wordmark-ta span{color:var(--butter)}
+.logo.wordmark-ta span:first-child{color:var(--aubergine)}
+.nav.solid .logo.wordmark-ta span:first-child{color:var(--caramel)}
+footer .big.wordmark-ta{font-size:clamp(56px,21vw,340px);line-height:1.2;letter-spacing:-.03em}
+footer .big.wordmark-ta span{color:var(--plum)}
+footer .big.wordmark-ta span:first-child{color:inherit}
+
+@media (max-width:600px){
+  html[lang="ta"] .head h2{font-size:clamp(32px,9vw,48px)}
+  html[lang="ta"] .cake .layer span{font-size:13px;white-space:normal;width:36vw;line-height:1.2}
+  html[lang="ta"] .fruit-view .layers li{font-size:14px;white-space:normal}
+  html[lang="ta"] .links{display:none}
+  html[lang="ta"] .modes{flex-wrap:wrap}
+}
+
 </style>
 
 </head>
@@ -572,10 +767,14 @@ html.box-open,html.lenis-stopped{overflow:hidden}
 <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true" inert data-lenis-prevent>
   <header><h2 id="drawerTitle">Your box</h2><button class="close" id="closeBox" type="button" aria-label="Close your box">×</button></header>
   <ul id="boxList"></ul>
+  <div class="co" id="checkout" hidden></div>
   <footer>
+    <div class="sum" id="boxSum" hidden></div>
+    <button class="pill fill" id="checkoutBtn" type="button" hidden>Checkout</button>
     <a class="pill fill" id="waBtn" href="#" target="_blank" rel="noopener" hidden>Send order on WhatsApp</a>
     <button class="pill" type="button" id="copyBtn">Copy order</button>
     <div class="status" id="boxStatus"></div>
+    <a class="linkish" id="lastOrder" href="#" hidden>Track your last order →</a>
   </footer>
 </aside>
 <div class="peekimg" id="peek"><img alt=""></div>
@@ -595,6 +794,7 @@ window.SEREN_CONFIG = {
   address: "",                 // store address
   hours: "",                   // e.g. "Tue–Sun · 11am–11pm"
   currency: "₹",
+  api: "",                     // the order system's web address (Cloudflare Worker). Empty = orders go by WhatsApp / copy.
   palette: "SEREN Original",    // the site's colours: any name from palettes.js
   showPalettePicker: true,     // preview tool; set false before launch
 };
@@ -723,6 +923,760 @@ window.SEREN_MENU = {
   ],
 };
 
+/* Tamil text for the customer website. Keys are the English text exactly as it appears; values are the Tamil.
+   To change a translation, edit the Tamil on the right. Product names follow the menu in src/menu.js. */
+(function () {
+  "use strict";
+  const words = {
+    /* page */
+    "SEREN Entremets": "செரென் ஆன்ட்ரமே",
+    "SEREN — entremets, bomboloni, cookies, illusory fruit desserts, gelato, chocolates and a wood-fired kitchen.": "செரென் — ஆன்ட்ரமே கேக்குகள், பொம்பொலோனி, குக்கீஸ், மாயப் பழ இனிப்புகள், ஜெலாட்டோ, சாக்லேட்டுகள் மற்றும் விறகடுப்பு சமையலறை.",
+    "Your SEREN order": "உங்கள் செரென் ஆர்டர்",
+    "Track your SEREN order and pay by UPI.": "உங்கள் செரென் ஆர்டரைப் பின்தொடர்ந்து UPI மூலம் பணம் செலுத்துங்கள்.",
+
+    /* navigation + sections */
+    "Main": "முதன்மை",
+    "SEREN home": "செரென் முகப்பு",
+    "Bomboloni": "பொம்பொலோனி",
+    "Cookies": "குக்கீஸ்",
+    "Illusory fruit": "மாயப் பழங்கள்",
+    "Illusory fruits": "மாயப் பழங்கள்",
+    "Entremets": "ஆன்ட்ரமே",
+    "Gelato": "ஜெலாட்டோ",
+    "Chocolates": "சாக்லேட்டுகள்",
+    "Kitchen": "சமையலறை",
+    "Bonbons": "போன்போன்கள்",
+    "Choux": "ஷூ",
+    "Focaccia": "ஃபொகாச்சா",
+    "Your box": "உங்கள் பெட்டி",
+    "ENTREMETS · PATISSERIE · KITCHEN": "ஆன்ட்ரமே · பேஸ்ட்ரி · சமையலறை",
+    "See the menu": "மெனுவைப் பாருங்கள்",
+    "Visit or order": "வருகை / ஆர்டர்",
+    "The house of SEREN": "செரென் இல்லம்",
+    "Filled to order. Layered by hand. Fruit that": "ஆர்டருக்கு ஏற்ப நிரப்பப்படும். கையால் அடுக்கப்படும். பழம் போலத் தெரியும், ஆனால் பழம்",
+    "isn't": "அல்ல.",
+    "fruit. Gelato churned every": "ஒவ்வொரு",
+    "morning.": "காலையும் புதிதாகக் கடையப்படும் ஜெலாட்டோ.",
+    "Gelato & sorbets": "ஜெலாட்டோ & சார்பே",
+
+    "Italian doughnuts, piped full": "நிரம்ப நிரப்பிய இத்தாலிய டோனட்கள்",
+    "Brioche dough proofed slowly, fried golden, rolled in sugar and filled the moment you order. Seven fillings, one rule: it should run.": "மெதுவாகப் புளிக்கவைத்த பிரியோஷ் மாவு, பொன்னிறமாகப் பொரித்து, சர்க்கரையில் புரட்டி, நீங்கள் ஆர்டர் செய்த நொடியில் நிரப்பப்படுகிறது. ஏழு சுவைகள், ஒரே விதி: கடித்ததும் வழிய வேண்டும்.",
+    "80 g of dough, 10 g of extra": "80 கி மாவு, 10 கி கூடுதல்",
+    "Thick, crackled, gooey in the middle. Melted butter and both chopped and whole chocolate, baked at 175°C for 12 minutes. Hover to see inside.": "தடிமனான, மேலே வெடித்த, நடுவில் மென்மையான குக்கீ. உருக்கிய வெண்ணெய், நறுக்கிய மற்றும் முழு சாக்லேட், 175°C-ல் 12 நிமிடம் சுடப்படுகிறது. உள்ளே பார்க்க மேலே வையுங்கள்.",
+    "melted butter": "உருக்கிய வெண்ணெய்",
+    "chopped + whole chocolate": "நறுக்கிய + முழு சாக்லேட்",
+    "175°C · 12 min": "175°C · 12 நிமிடம்",
+    "Trompe-l'œil": "கண்ணை ஏமாற்றும் கலை",
+    "It looks like fruit.": "பழம் போலத் தெரியும்.",
+    "It isn't.": "ஆனால் பழம் அல்ல.",
+    "A thin chocolate shell, coloured and shaped like the real thing, around a mousse and a hidden centre. Pick one to see what's inside.": "உண்மையான பழம் போலவே நிறமும் வடிவமும் கொண்ட மெல்லிய சாக்லேட் ஓடு, உள்ளே மூஸும் மறைந்திருக்கும் நடுப்பகுதியும். உள்ளே என்ன இருக்கிறது என்று பார்க்க ஒன்றைத் தேர்ந்தெடுங்கள்.",
+    "Petit gâteau": "சிறு கேக்",
+    "Our namesake. Five layers built from the bottom up, frozen, then glazed to a mirror. Choose one to watch it stack.": "எங்கள் பெயருக்குக் காரணமானது. கீழிருந்து மேலாக ஐந்து அடுக்குகள், உறையவைத்து, கண்ணாடி போல மெருகூட்டப்படுகிறது. அடுக்குகள் உருவாவதைப் பார்க்க ஒன்றைத் தேர்ந்தெடுங்கள்.",
+    "Mousse outside, a frozen insert in the middle, a crunchy layer for texture and a soft sponge at the base.": "வெளியே மூஸ், நடுவில் உறைந்த நிரப்பு, மொறுமொறுப்புக்கு ஒரு அடுக்கு, அடியில் மென்மையான ஸ்பாஞ்ச்.",
+    "Choux, tarts & tiramisù": "ஷூ, டார்ட் & டிராமிசு",
+    "The pastry case": "பேஸ்ட்ரி அலமாரி",
+    "Craquelin-topped choux, tarts with crisp shells and a tiramisù that's mostly mascarpone. Hover the choux to cut one open.": "மேலே கிராக்லின் கொண்ட ஷூ, மொறுமொறு ஓடுடைய டார்ட்கள், பெரும்பாலும் மஸ்கார்போனே நிறைந்த டிராமிசு. ஷூவை வெட்டிப் பார்க்க அதன் மேல் வையுங்கள்.",
+    "Made the Italian way": "இத்தாலிய முறையில் தயாரிப்பு",
+    "Gelato & sorbet": "ஜெலாட்டோ & சார்பே",
+    "Denser and silkier than ice cream: more milk, less cream, less air. Signature flavours you won't find anywhere else, the classics done right, and dairy-free sorbets.": "ஐஸ்கிரீமை விட அடர்த்தியானது, மென்மையானது: அதிக பால், குறைந்த க்ரீம், குறைந்த காற்று. வேறெங்கும் கிடைக்காத சிறப்புச் சுவைகள், சரியாகச் செய்த பாரம்பரியச் சுவைகள், பால் இல்லாத சார்பே.",
+    "Gelato range": "ஜெலாட்டோ வகைகள்",
+    "Signature": "சிறப்பு",
+    "Classic": "பாரம்பரியம்",
+    "Sorbet": "சார்பே",
+    "fat, so the flavour comes first": "கொழுப்பு, அதனால் சுவை முதலில்",
+    "air churned in, for a dense, silky scoop": "காற்று மட்டும், அடர்த்தியான மென்மையான ஸ்கூப்புக்கு",
+    "pasteurised fresh in-house": "எங்கள் சமையலறையிலேயே பாஸ்சரைஸ் செய்யப்படுகிறது",
+    "natural flavours": "இயற்கைச் சுவைகள்",
+    "Bonbons & truffles": "போன்போன்கள் & ட்ரஃபுள்கள்",
+    "Chocolate collection": "சாக்லேட் தொகுப்பு",
+    "\"Bonbon\" comes from the French bon, meaning good, said twice. Hand-painted shells in Callebaut chocolate, filled with caramel, praline, ganache or liquid espresso.": "\"போன்போன்\" என்பது பிரெஞ்சு மொழியில் \"நல்லது\" என்பதை இருமுறை சொல்வது. கையால் வண்ணம் தீட்டிய கல்லபாட் சாக்லேட் ஓடுகள், உள்ளே கேரமல், பிராலின், கனாஷ் அல்லது திரவ எஸ்பிரெசோ.",
+    "Focaccia slabs & the kitchen": "ஃபொகாச்சா துண்டுகள் & சமையலறை",
+    "Savoury side": "காரச் சுவைகள்",
+    "Single-serve focaccia slabs from a 72-hour dough, plus a full kitchen.": "72 மணி நேரம் புளிக்கவைத்த மாவில் ஒருவருக்கான ஃபொகாச்சா துண்டுகள், கூடவே முழு சமையலறை.",
+    "vegetarian": "சைவம்",
+    "non-vegetarian": "அசைவம்",
+    "Vegetarian": "சைவம்",
+    "Non-vegetarian": "அசைவம்",
+    "In store & online": "கடையிலும் ஆன்லைனிலும்",
+    "Come hungry": "பசியோடு வாருங்கள்",
+    "Build a box of anything on this page, then send it to us to order for pickup or delivery. Or just walk in: the case is full from opening.": "இந்தப் பக்கத்தில் உள்ள எதையும் பெட்டியில் சேர்த்து, பிக்கப் அல்லது டெலிவரிக்கு எங்களுக்கு அனுப்புங்கள். அல்லது நேரே வாருங்கள்: கடை திறந்ததிலிருந்தே அலமாரி நிறைந்திருக்கும்.",
+    "Open your box": "உங்கள் பெட்டியைத் திறக்கவும்",
+    "Bomboloni · Cookies · Entremets · Gelato · Chocolates · Kitchen": "பொம்பொலோனி · குக்கீஸ் · ஆன்ட்ரமே · ஜெலாட்டோ · சாக்லேட்டுகள் · சமையலறை",
+    "hover to cut open": "வெட்டிப் பார்க்க மேலே வையுங்கள்",
+    "Instagram": "இன்ஸ்டாகிராம்",
+    "Address": "முகவரி",
+    "Hours": "நேரம்",
+    "Phone": "தொலைபேசி",
+    "Fresh from the kitchen": "சமையலறையிலிருந்து புதிதாக",
+    "Choux & tarts": "ஷூ & டார்ட்",
+    "Focaccia slabs": "ஃபொகாச்சா துண்டுகள்",
+    /* common units the owner types next to prices */
+    "per piece": "ஒன்றுக்கு",
+    "piece": "ஒன்று",
+    "per scoop": "ஒரு ஸ்கூப்",
+    "per slab": "ஒரு துண்டு",
+    "per box": "ஒரு பெட்டி",
+    "box of 4": "4 கொண்ட பெட்டி",
+    "box of 6": "6 கொண்ட பெட்டி",
+    "box of 9": "9 கொண்ட பெட்டி",
+    "box of 12": "12 கொண்ட பெட்டி",
+    "6-inch cake": "6 அங்குல கேக்",
+    "8-inch cake": "8 அங்குல கேக்",
+    "500 ml tub": "500 மி.லி. டப்",
+    "per plate": "ஒரு தட்டு",
+    "per bowl": "ஒரு கிண்ணம்",
+    "New at SEREN": "செரெனில் புதியவை",
+
+    /* order box */
+    "+ Add to box": "+ பெட்டியில் சேர்",
+    "Sold out today": "இன்று தீர்ந்துவிட்டது",
+    "Sold out": "தீர்ந்துவிட்டது",
+    "Coming soon": "விரைவில்",
+    "Your box is empty": "உங்கள் பெட்டி காலியாக உள்ளது",
+    "Tap \"+ Add to box\" on anything you'd like.": "பிடித்தவற்றின் மேல் \"+ பெட்டியில் சேர்\" என்பதைத் தட்டுங்கள்.",
+    "Close your box": "பெட்டியை மூடு",
+    "Send order on WhatsApp": "வாட்ஸ்அப்பில் ஆர்டர் அனுப்பு",
+    "Copy order": "ஆர்டரை நகலெடு",
+    "Order copied. Paste it into a message to SEREN.": "ஆர்டர் நகலெடுக்கப்பட்டது. செரெனுக்கான செய்தியில் ஒட்டுங்கள்.",
+    "Track your last order →": "கடைசி ஆர்டரைப் பின்தொடர் →",
+    "Not available right now": "இப்போது கிடைக்காது",
+    "Subtotal": "துணைத் தொகை",
+    "Checkout": "செக்அவுட்",
+
+    /* checkout */
+    "← Back to your box": "← உங்கள் பெட்டிக்குத் திரும்பு",
+    "How would you like it?": "எப்படி வேண்டும்?",
+    "Dine-in": "இங்கேயே சாப்பிட",
+    "Pickup": "பிக்கப்",
+    "Delivery": "டெலிவரி",
+    "Your name": "உங்கள் பெயர்",
+    "Table number": "மேசை எண்",
+    "The number on your table": "உங்கள் மேசையில் உள்ள எண்",
+    "Mobile number": "மொபைல் எண்",
+    "10-digit mobile": "10 இலக்க மொபைல் எண்",
+    "(optional, for your bill on WhatsApp)": "(விருப்பம், வாட்ஸ்அப்பில் பில் பெற)",
+    "Delivery address": "டெலிவரி முகவரி",
+    "Pincode": "பின்கோடு",
+    "Day": "நாள்",
+    "Time": "நேரம்",
+    "Loading days…": "நாட்கள் ஏற்றப்படுகின்றன…",
+    "No days open right now": "இப்போது திறந்த நாட்கள் இல்லை",
+    "Anything we should know?": "நாங்கள் தெரிந்துகொள்ள வேண்டியது ஏதேனும்?",
+    "(optional)": "(விருப்பம்)",
+    "Message on the cake, allergies, gate code…": "கேக்கில் எழுத வேண்டியது, ஒவ்வாமை, வாயில் குறியீடு…",
+    "When will you pay?": "எப்போது பணம் செலுத்துவீர்கள்?",
+    "At the end": "இறுதியில்",
+    "Now, by UPI": "இப்போதே, UPI மூலம்",
+    "Have a code?": "கூப்பன் குறியீடு உள்ளதா?",
+    "e.g. WELCOME10": "எ.கா. WELCOME10",
+    "Apply": "பயன்படுத்து",
+    "Send me SEREN offers on WhatsApp": "செரென் சலுகைகளை வாட்ஸ்அப்பில் அனுப்புங்கள்",
+    "(you can stop any time)": "(எப்போது வேண்டுமானாலும் நிறுத்தலாம்)",
+    "Total": "மொத்தம்",
+    "Send to the kitchen": "சமையலறைக்கு அனுப்பு",
+    "Send to kitchen & pay by UPI": "சமையலறைக்கு அனுப்பி UPI-ல் செலுத்து",
+    "Place order & pay by UPI": "ஆர்டர் செய்து UPI-ல் செலுத்து",
+    "Placing your order…": "உங்கள் ஆர்டர் பதிவாகிறது…",
+    "Order on WhatsApp instead": "பதிலாக வாட்ஸ்அப்பில் ஆர்டர் செய்",
+    "Choose how you'd like your order": "ஆர்டரை எப்படிப் பெற விரும்புகிறீர்கள் என்று தேர்ந்தெடுங்கள்",
+    "Please tell us your name": "தயவுசெய்து உங்கள் பெயரைச் சொல்லுங்கள்",
+    "Please enter your table number": "தயவுசெய்து மேசை எண்ணை உள்ளிடுங்கள்",
+    "Please enter a 10-digit mobile number": "தயவுசெய்து 10 இலக்க மொபைல் எண்ணை உள்ளிடுங்கள்",
+    "Please enter your full delivery address": "தயவுசெய்து முழு டெலிவரி முகவரியை உள்ளிடுங்கள்",
+    "Please enter a 6-digit pincode": "தயவுசெய்து 6 இலக்க பின்கோடை உள்ளிடுங்கள்",
+    "Please choose a day and time": "தயவுசெய்து நாளையும் நேரத்தையும் தேர்ந்தெடுங்கள்",
+    "Pay by UPI": "UPI மூலம் செலுத்துங்கள்",
+    "Thank you": "நன்றி",
+    "In the kitchen": "சமையலறையில்",
+    "Pay later or track this order →": "பிறகு செலுத்த / ஆர்டரைப் பின்தொடர →",
+    "We're checking your payment for order": "ஆர்டர்",
+    ". You'll see it confirmed on your order page, usually within a few minutes.": "க்கான உங்கள் கட்டணம் சரிபார்க்கப்படுகிறது. பொதுவாகச் சில நிமிடங்களில் உங்கள் ஆர்டர் பக்கத்தில் உறுதிசெய்யப்படும்.",
+    "Track your order": "ஆர்டரைப் பின்தொடர்",
+    "Start a new box": "புதிய பெட்டி தொடங்கு",
+    "Order": "ஆர்டர்",
+    "is with the kitchen. Order more any time; when you're done, tap": "சமையலறையில் உள்ளது. எப்போது வேண்டுமானாலும் மேலும் ஆர்டர் செய்யலாம்; முடிந்ததும், திரையின் கீழே உள்ள",
+    "Ask for the bill": "பில் கேளுங்கள்",
+    "at the bottom of the screen.": "என்பதைத் தட்டுங்கள்.",
+    "Order something else": "வேறு ஏதாவது ஆர்டர் செய்",
+
+    /* payment */
+    "Pay": "செலுத்துங்கள்",
+    "Pay with GPay, PhonePe or any UPI app": "GPay, PhonePe அல்லது எந்த UPI ஆப்பிலும் செலுத்துங்கள்",
+    "Loading QR…": "QR ஏற்றப்படுகிறது…",
+    "Or pay to": "அல்லது இதற்குச் செலுத்துங்கள்:",
+    "Scan with any UPI app, or pay to": "எந்த UPI ஆப்பிலும் ஸ்கேன் செய்யுங்கள், அல்லது இதற்குச் செலுத்துங்கள்:",
+    "Copy UPI ID": "UPI ஐடியை நகலெடு",
+    "Copied": "நகலெடுக்கப்பட்டது",
+    "Select and copy the ID": "ஐடியைத் தேர்ந்தெடுத்து நகலெடுங்கள்",
+    "After paying, enter the 12-digit": "பணம் செலுத்திய பிறகு, உங்கள் ரசீதில் உள்ள 12 இலக்க",
+    "UPI Ref No. / UTR": "UPI Ref No. / UTR",
+    "from your payment receipt": "எண்ணை உள்ளிடுங்கள்",
+    "e.g. 412345678901": "எ.கா. 412345678901",
+    "I've paid": "செலுத்திவிட்டேன்",
+    "QR code couldn't load. Use the UPI ID below.": "QR ஏற்றப்படவில்லை. கீழே உள்ள UPI ஐடியைப் பயன்படுத்துங்கள்.",
+    "The UPI reference is 12 digits. Find it in your payment app's receipt.": "UPI குறிப்பு எண் 12 இலக்கங்கள். உங்கள் கட்டண ஆப்பின் ரசீதில் பாருங்கள்.",
+    "Online ordering isn't switched on yet.": "ஆன்லைன் ஆர்டர் இன்னும் தொடங்கவில்லை.",
+    "Couldn't reach SEREN. Check your internet and try again.": "செரெனை அணுக முடியவில்லை. இணையத்தைச் சரிபார்த்து மீண்டும் முயலுங்கள்.",
+    "Something went wrong. Please try again.": "ஏதோ தவறு நடந்தது. மீண்டும் முயலுங்கள்.",
+    "Too many tries. Please wait a few minutes and try again.": "அதிக முயற்சிகள். சில நிமிடங்கள் கழித்து மீண்டும் முயலுங்கள்.",
+
+    /* table bar */
+    "Call waiter": "சர்வரை அழை",
+    "Our tab": "எங்கள் கணக்கு",
+    "Your table's tab": "உங்கள் மேசைக் கணக்கு",
+    "Loading your tab…": "உங்கள் கணக்கு ஏற்றப்படுகிறது…",
+    "Close": "மூடு",
+    "Total so far": "இதுவரை மொத்தம்",
+    "Paid. Thank you!": "செலுத்தப்பட்டது. நன்றி!",
+    "See your bill": "உங்கள் பில்லைப் பாருங்கள்",
+    "When you're ready, tap": "தயாரானதும்,",
+    ". We'll make one bill for the whole table.": "என்பதைத் தட்டுங்கள். முழு மேசைக்கும் ஒரே பில் தருவோம்.",
+    "We already know. Someone's coming!": "எங்களுக்குத் தெரியும். யாராவது வருகிறார்கள்!",
+    "We're bringing your bill": "உங்கள் பில்லைக் கொண்டு வருகிறோம்",
+    "A waiter is on the way": "சர்வர் வந்துகொண்டிருக்கிறார்",
+    "Nothing on your tab yet.": "உங்கள் கணக்கில் இன்னும் எதுவும் இல்லை.",
+    "Order from the menu and choose": "மெனுவிலிருந்து ஆர்டர் செய்து",
+    "Pay at the end": "இறுதியில் செலுத்து",
+    "Please scan the QR code on your table again": "உங்கள் மேசையில் உள்ள QR குறியீட்டை மீண்டும் ஸ்கேன் செய்யுங்கள்",
+
+    /* order page */
+    "Back to the menu": "மெனுவுக்குத் திரும்பு",
+    "Finding your order…": "உங்கள் ஆர்டரைத் தேடுகிறோம்…",
+    "Orders on this phone": "இந்த போனில் உள்ள ஆர்டர்கள்",
+    "Your orders": "உங்கள் ஆர்டர்கள்",
+    "Pick an order below.": "கீழே ஒரு ஆர்டரைத் தேர்ந்தெடுங்கள்.",
+    "Orders you place on this phone show up here. Open the link from your order to see it.": "இந்த போனில் நீங்கள் செய்யும் ஆர்டர்கள் இங்கே தெரியும். பார்க்க உங்கள் ஆர்டர் இணைப்பைத் திறக்கவும்.",
+    "Hmm.": "ம்ம்.",
+    "Try again": "மீண்டும் முயல்",
+    "Order not found": "ஆர்டர் கிடைக்கவில்லை",
+    "Order placed": "ஆர்டர் பதிவானது",
+    "Payment sent": "பணம் அனுப்பப்பட்டது",
+    "Payment confirmed": "பணம் உறுதியானது",
+    "Being made": "தயாராகிறது",
+    "Ready": "தயார்",
+    "Done": "முடிந்தது",
+    "On the way": "வந்துகொண்டிருக்கிறது",
+    "Ready to go": "அனுப்பத் தயார்",
+    "Coming to you": "உங்களிடம் வருகிறது",
+    "Served": "பரிமாறப்பட்டது",
+    "Waiting for payment": "பணத்திற்காகக் காத்திருக்கிறது",
+    "Payment sent, checking": "பணம் அனுப்பப்பட்டது, சரிபார்க்கிறோம்",
+    "Paid, confirmed": "செலுத்தப்பட்டது, உறுதியானது",
+    "Sent to kitchen, pay at the end": "சமையலறைக்கு அனுப்பப்பட்டது, இறுதியில் செலுத்தலாம்",
+    "Out for delivery": "டெலிவரிக்குப் புறப்பட்டது",
+    "Completed": "நிறைவுற்றது",
+    "Cancelled": "ரத்துசெய்யப்பட்டது",
+    "Expired (not paid)": "காலாவதியானது (செலுத்தவில்லை)",
+    "This order wasn't paid in time. If you've already paid, enter your UPI reference below and we'll sort it out.": "இந்த ஆர்டருக்கு நேரத்தில் பணம் செலுத்தப்படவில்லை. ஏற்கனவே செலுத்தியிருந்தால், கீழே UPI குறிப்பு எண்ணை உள்ளிடுங்கள், நாங்கள் சரிசெய்கிறோம்.",
+    "This order was cancelled. If you paid, we'll refund you. Questions? Call us.": "இந்த ஆர்டர் ரத்துசெய்யப்பட்டது. நீங்கள் செலுத்தியிருந்தால் திருப்பித் தருவோம். கேள்விகளா? எங்களை அழையுங்கள்.",
+    "You're paying at the end. Tap": "நீங்கள் இறுதியில் செலுத்துகிறீர்கள். தயாரானதும் மெனு பக்கத்தில்",
+    "on the menu page when you're ready.": "என்பதைத் தட்டுங்கள்.",
+    "We have your UPI reference": "உங்கள் UPI குறிப்பு எண்",
+    "and we're checking it with the bank.": "எங்களிடம் உள்ளது, வங்கியுடன் சரிபார்க்கிறோம்.",
+    "Need help?": "உதவி வேண்டுமா?",
+    "Need help? Call": "உதவி வேண்டுமா? அழையுங்கள்",
+    "Nothing on your tab yet. Order from the menu and choose": "உங்கள் கணக்கில் இன்னும் எதுவும் இல்லை. மெனுவிலிருந்து ஆர்டர் செய்து இதைத் தேர்ந்தெடுங்கள்:",
+    /* messages from the order system */
+    "Your box is empty.": "உங்கள் பெட்டி காலியாக உள்ளது.",
+    "That code doesn't exist": "அந்தக் குறியீடு இல்லை",
+    "That code isn't active yet": "அந்தக் குறியீடு இன்னும் செயல்படவில்லை",
+    "That code has expired": "அந்தக் குறியீடு காலாவதியாகிவிட்டது",
+    "That code has been fully used": "அந்தக் குறியீடு முழுமையாகப் பயன்படுத்தப்பட்டுவிட்டது",
+    "That code has just been fully used": "அந்தக் குறியீடு இப்போதுதான் முழுமையாகப் பயன்படுத்தப்பட்டது",
+    "You've already used this code": "இந்தக் குறியீட்டை ஏற்கனவே பயன்படுத்திவிட்டீர்கள்",
+    "Online orders are paused right now. Please message us instead.": "ஆன்லைன் ஆர்டர்கள் தற்போது நிறுத்தப்பட்டுள்ளன. தயவுசெய்து எங்களுக்குச் செய்தி அனுப்புங்கள்.",
+    "We're very busy right now. Please try again in a few minutes or message us.": "இப்போது மிகவும் பரபரப்பாக உள்ளோம். சில நிமிடங்கள் கழித்து முயலுங்கள் அல்லது செய்தி அனுப்புங்கள்.",
+    "We're very busy right now. Please try again in a few minutes.": "இப்போது மிகவும் பரபரப்பாக உள்ளோம். சில நிமிடங்கள் கழித்து முயலுங்கள்.",
+    "Sorry, we don't deliver to that pincode yet. Pickup is available.": "மன்னிக்கவும், அந்தப் பின்கோடுக்கு இன்னும் டெலிவரி இல்லை. பிக்கப் உண்டு.",
+    "We're not taking orders for that day": "அந்த நாளுக்கு ஆர்டர் எடுப்பதில்லை",
+    "That time isn't available any more. Please pick another.": "அந்த நேரம் இப்போது கிடைக்காது. வேறு நேரத்தைத் தேர்ந்தெடுங்கள்.",
+    "Entremets are made to order, so they can't be ordered at the table. Ask us, or pre-order for pickup.": "ஆன்ட்ரமே கேக்குகள் ஆர்டருக்கு ஏற்பச் செய்யப்படுவதால் மேசையிலிருந்து ஆர்டர் செய்ய முடியாது. எங்களிடம் கேளுங்கள், அல்லது பிக்கப்புக்கு முன்பதிவு செய்யுங்கள்.",
+    "To pay at the end, ask our staff to open your table. Or choose \"Now, by UPI\".": "இறுதியில் செலுத்த, உங்கள் மேசையைத் திறக்க எங்கள் ஊழியரிடம் கேளுங்கள். அல்லது \"இப்போதே, UPI மூலம்\" என்பதைத் தேர்ந்தெடுங்கள்.",
+    "Your table's bill has already been made. Please pay it, or ask us to add more.": "உங்கள் மேசையின் பில் ஏற்கனவே தயாராகிவிட்டது. அதைச் செலுத்துங்கள், அல்லது மேலும் சேர்க்க எங்களிடம் கேளுங்கள்.",
+    "Your table's bill is being made right now. Please ask us to add this.": "உங்கள் மேசையின் பில் இப்போது தயாராகிறது. இதைச் சேர்க்க எங்களிடம் கேளுங்கள்.",
+    "That UPI reference was already used for another order. Please check the number.": "அந்த UPI குறிப்பு எண் ஏற்கனவே வேறு ஆர்டருக்குப் பயன்படுத்தப்பட்டது. எண்ணைச் சரிபாருங்கள்.",
+    "We already have your payment reference. We're checking it.": "உங்கள் கட்டணக் குறிப்பு எண் ஏற்கனவே எங்களிடம் உள்ளது. சரிபார்க்கிறோம்.",
+    "This order can't take a payment now.": "இந்த ஆர்டருக்கு இப்போது பணம் செலுத்த முடியாது.",
+    "Choose dine-in, pickup or delivery": "இங்கேயே சாப்பிட, பிக்கப் அல்லது டெலிவரி என்பதைத் தேர்ந்தெடுங்கள்",
+    "Please choose a day and time.": "தயவுசெய்து நாளையும் நேரத்தையும் தேர்ந்தெடுங்கள்.",
+    "Something just sold out. Please check your box.": "ஏதோ ஒன்று இப்போதுதான் தீர்ந்துவிட்டது. உங்கள் பெட்டியைச் சரிபாருங்கள்.",
+    "A product in your box is no longer on the menu": "உங்கள் பெட்டியில் உள்ள ஒரு பொருள் இப்போது மெனுவில் இல்லை",
+    "Paying at the end only works from the QR code on your table": "இறுதியில் செலுத்துவது உங்கள் மேசையில் உள்ள QR குறியீட்டிலிருந்து மட்டுமே",
+    "You can rate an order once it's paid": "பணம் செலுத்திய பிறகுதான் மதிப்பிட முடியும்",
+    "Choose 1 to 5 stars": "1 முதல் 5 நட்சத்திரங்கள் தேர்ந்தெடுங்கள்",
+    "Call": "அழையுங்கள்",
+    "or": "அல்லது",
+    "WhatsApp us": "வாட்ஸ்அப்பில் தொடர்புகொள்ளுங்கள்",
+    "Order history": "ஆர்டர் வரலாறு",
+    "How was it?": "எப்படி இருந்தது?",
+    "Thanks for your rating!": "உங்கள் மதிப்பீட்டுக்கு நன்றி!",
+    "Your rating": "உங்கள் மதிப்பீடு",
+    "Tell us more (optional)": "மேலும் சொல்லுங்கள் (விருப்பம்)",
+    "Update": "புதுப்பி",
+    "Send": "அனுப்பு",
+    "Tap the stars first": "முதலில் நட்சத்திரங்களைத் தட்டுங்கள்",
+    "Thank you! We read every message.": "நன்றி! ஒவ்வொரு செய்தியையும் படிக்கிறோம்.",
+    "Thank you! Would you share it on Google?": "நன்றி! இதை கூகுளில் பகிர்வீர்களா?",
+    "Write a Google review →": "கூகுள் மதிப்புரை எழுதுங்கள் →",
+
+    /* menu: bomboloni */
+    "Bombolone al Tiramisù": "டிராமிசு பொம்பொலோனே",
+    "Bombolone alla Cheesecake ai Mirtilli": "புளூபெர்ரி சீஸ்கேக் பொம்பொலோனே",
+    "Bombolone alla Vaniglia": "வெனிலா பொம்பொலோனே",
+    "Bombolone alla Nocciola": "ஹேசல்நட் பொம்பொலோனே",
+    "Bombolone alla Fragola": "ஸ்ட்ராபெர்ரி பொம்பொலோனே",
+    "Bombolone al Cioccolato": "சாக்லேட் பொம்பொலோனே",
+    "Miso-Caramel Bombolone": "மிசோ-கேரமல் பொம்பொலோனே",
+    "Tiramisu": "டிராமிசு",
+    "Blueberry cheesecake": "புளூபெர்ரி சீஸ்கேக்",
+    "Vanilla": "வெனிலா",
+    "Hazelnut": "ஹேசல்நட்",
+    "Strawberry": "ஸ்ட்ராபெர்ரி",
+    "Chocolate": "சாக்லேட்",
+    "Miso caramel": "மிசோ கேரமல்",
+    "Mascarpone & coffee cream, espresso-Kahlúa soak, ladyfinger crumb.": "மஸ்கார்போனே & காபி க்ரீம், எஸ்பிரெசோ ஊறல், லேடிஃபிங்கர் தூள்.",
+    "Cream cheese filling with a bright blueberry compote.": "க்ரீம் சீஸ் நிரப்புடன் பளிச்சென்ற புளூபெர்ரி கம்போட்.",
+    "Silky vanilla pastry cream that runs when you bite.": "கடித்ததும் வழியும் மென்மையான வெனிலா பேஸ்ட்ரி க்ரீம்.",
+    "Roasted hazelnut ganache, rich and nutty.": "வறுத்த ஹேசல்நட் கனாஷ், செழுமையான கொட்டைச் சுவை.",
+    "Strawberry cream with a ribbon of strawberry compote.": "ஸ்ட்ராபெர்ரி கம்போட் கோடுடன் ஸ்ட்ராபெர்ரி க்ரீம்.",
+    "Glossy dark chocolate ganache, finished with butter.": "வெண்ணெய் சேர்த்த பளபளப்பான டார்க் சாக்லேட் கனாஷ்.",
+    "White-miso caramel over a chocolate crémeux. Salty, sweet, deep.": "சாக்லேட் க்ரெமு மேல் வெள்ளை மிசோ கேரமல். உப்பு, இனிப்பு, ஆழமான சுவை.",
+    "Mascarpone cream": "மஸ்கார்போனே க்ரீம்",
+    "Coffee soak": "காபி ஊறல்",
+    "Cream cheese": "க்ரீம் சீஸ்",
+    "Blueberry compote": "புளூபெர்ரி கம்போட்",
+    "Vanilla pastry cream": "வெனிலா பேஸ்ட்ரி க்ரீம்",
+    "Hazelnut ganache": "ஹேசல்நட் கனாஷ்",
+    "Strawberry cream": "ஸ்ட்ராபெர்ரி க்ரீம்",
+    "Compote": "கம்போட்",
+    "Chocolate ganache": "சாக்லேட் கனாஷ்",
+    "Chocolate crémeux": "சாக்லேட் க்ரெமு",
+
+    /* cookies */
+    "Biscoff": "பிஸ்காஃப்",
+    "Sea Salt Chocochip": "கடல் உப்பு சாக்கோசிப்",
+    "Brownie": "பிரவுனி",
+    "Red Velvet Cream Cheese": "ரெட் வெல்வெட் க்ரீம் சீஸ்",
+    "Matcha": "மாட்சா",
+    "Triple Chocolate": "டிரிபிள் சாக்லேட்",
+    "Brown-butter dough, Biscoff spread centre, cinnamon.": "பழுப்பு வெண்ணெய் மாவு, நடுவில் பிஸ்காஃப் ஸ்ப்ரெட், இலவங்கப்பட்டை.",
+    "Chopped and whole dark chocolate, flaky salt on top.": "நறுக்கிய மற்றும் முழு டார்க் சாக்லேட், மேலே கடல் உப்புத் துகள்கள்.",
+    "70% dark chocolate, crackled top, fudgy middle.": "70% டார்க் சாக்லேட், வெடித்த மேற்பரப்பு, மென்மையான நடுப்பகுதி.",
+    "Cocoa red velvet stuffed with cream cheese.": "க்ரீம் சீஸ் நிரப்பிய கோகோ ரெட் வெல்வெட்.",
+    "Chocolate dough with a hazelnut spread core.": "நடுவில் ஹேசல்நட் ஸ்ப்ரெட் கொண்ட சாக்லேட் மாவு.",
+    "Matcha dough, white chocolate chunks and ganache.": "மாட்சா மாவு, வெள்ளை சாக்லேட் துண்டுகள் மற்றும் கனாஷ்.",
+    "Charcoal-dark dough with dark, milk and white chocolate.": "கரி நிற மாவில் டார்க், மில்க் மற்றும் வெள்ளை சாக்லேட்.",
+
+    /* illusory fruit */
+    "Cocoa Pod": "கோகோ காய்",
+    "Pear": "பேரிக்காய்",
+    "Banana": "வாழைப்பழம்",
+    "Coconut": "தேங்காய்",
+    "Coffee Bean × Tiramisu": "காபி கொட்டை × டிராமிசு",
+    "Mango": "மாம்பழம்",
+    "Blueberry": "புளூபெர்ரி",
+    "Almond": "பாதாம்",
+    "Strawberry mousse around a strawberry centre, in a ruby shell.": "மாணிக்க நிற ஓட்டுக்குள் ஸ்ட்ராபெர்ரி மூஸ், நடுவில் ஸ்ட்ராபெர்ரி.",
+    "Dark chocolate mousse, hazelnut praline, cocoa sponge.": "டார்க் சாக்லேட் மூஸ், ஹேசல்நட் பிராலின், கோகோ ஸ்பாஞ்ச்.",
+    "Pear mousse with a pear jelly heart on sponge.": "ஸ்பாஞ்ச் மேல் பேரிக்காய் ஜெல்லி நடுவுடன் பேரிக்காய் மூஸ்.",
+    "Banana mousse with a salted caramel core.": "நடுவில் உப்பு கேரமலுடன் வாழைப்பழ மூஸ்.",
+    "Coconut mousse hiding a burst of liquid coconut water.": "உள்ளே இளநீர் வெடிப்பை மறைத்திருக்கும் தேங்காய் மூஸ்.",
+    "Coffee mousse and caramel ganache in dark chocolate.": "டார்க் சாக்லேட்டுக்குள் காபி மூஸ் மற்றும் கேரமல் கனாஷ்.",
+    "Mango cream-cheese mousse around a mango-lime insert.": "மாம்பழ-எலுமிச்சை நடுவைச் சுற்றி மாம்பழ க்ரீம் சீஸ் மூஸ்.",
+    "Blueberry mousse with a whole-berry insert.": "முழு பெர்ரி நடுவுடன் புளூபெர்ரி மூஸ்.",
+    "Almond mousse, almond praline and a caramel core.": "பாதாம் மூஸ், பாதாம் பிராலின், நடுவில் கேரமல்.",
+    "Red shell": "சிவப்பு ஓடு",
+    "Strawberry mousse": "ஸ்ட்ராபெர்ரி மூஸ்",
+    "Strawberry filling": "ஸ்ட்ராபெர்ரி நிரப்பு",
+    "Cocoa shell": "கோகோ ஓடு",
+    "Dark chocolate mousse": "டார்க் சாக்லேட் மூஸ்",
+    "Hazelnut praline": "ஹேசல்நட் பிராலின்",
+    "Pear shell": "பேரிக்காய் ஓடு",
+    "Pear mousse": "பேரிக்காய் மூஸ்",
+    "Pear jelly insert": "பேரிக்காய் ஜெல்லி நடு",
+    "Sponge": "ஸ்பாஞ்ச்",
+    "Banana shell": "வாழைப்பழ ஓடு",
+    "Banana mousse": "வாழைப்பழ மூஸ்",
+    "Salted caramel": "உப்பு கேரமல்",
+    "White shell": "வெள்ளை ஓடு",
+    "Coconut mousse": "தேங்காய் மூஸ்",
+    "Coconut water sphere": "இளநீர் உருண்டை",
+    "Dark chocolate shell": "டார்க் சாக்லேட் ஓடு",
+    "Coffee mousse": "காபி மூஸ்",
+    "Caramel ganache": "கேரமல் கனாஷ்",
+    "Mango shell": "மாம்பழ ஓடு",
+    "Mango mousse": "மாம்பழ மூஸ்",
+    "Mango insert": "மாம்பழ நடு",
+    "Blue shell": "நீல ஓடு",
+    "Blueberry mousse": "புளூபெர்ரி மூஸ்",
+    "Blueberry insert": "புளூபெர்ரி நடு",
+    "Almond shell": "பாதாம் ஓடு",
+    "Almond mousse": "பாதாம் மூஸ்",
+    "Praline": "பிராலின்",
+    "Caramel core": "கேரமல் நடு",
+
+    /* entremets */
+    "Hazelnut Symphony": "ஹேசல்நட் சிம்பொனி",
+    "Strawberry Entremet": "ஸ்ட்ராபெர்ரி ஆன்ட்ரமே",
+    "White Chocolate × Biscoff": "வெள்ளை சாக்லேட் × பிஸ்காஃப்",
+    "Hazelnut × Biscoff": "ஹேசல்நட் × பிஸ்காஃப்",
+    "Hazelnut chocolate entremet": "ஹேசல்நட் சாக்லேட் ஆன்ட்ரமே",
+    "Bright and airy": "பளிச்சென்ற, லேசான சுவை",
+    "Toasted white chocolate": "வறுத்த வெள்ளை சாக்லேட்",
+    "Nutty, spiced, crunchy": "கொட்டை, மசாலா, மொறுமொறுப்பு",
+    "Chocolate mirror glaze": "சாக்லேட் கண்ணாடி மெருகு",
+    "Hazelnut mousse": "ஹேசல்நட் மூஸ்",
+    "Milk chocolate crémeux": "மில்க் சாக்லேட் க்ரெமு",
+    "Hazelnut praline crunch": "ஹேசல்நட் பிராலின் மொறுமொறுப்பு",
+    "Vanilla sponge": "வெனிலா ஸ்பாஞ்ச்",
+    "Strawberry mirror glaze": "ஸ்ட்ராபெர்ரி கண்ணாடி மெருகு",
+    "Strawberry crémeux": "ஸ்ட்ராபெர்ரி க்ரெமு",
+    "Strawberry gel": "ஸ்ட்ராபெர்ரி ஜெல்",
+    "Dark chocolate glaze": "டார்க் சாக்லேட் மெருகு",
+    "Chocolate mousse": "சாக்லேட் மூஸ்",
+    "Biscuit ganache": "பிஸ்கட் கனாஷ்",
+    "Chocolate sponge": "சாக்லேட் ஸ்பாஞ்ச்",
+    "Chocolate wafer crust": "சாக்லேட் வேஃபர் அடி",
+    "Hazelnut chocolate mousse": "ஹேசல்நட் சாக்லேட் மூஸ்",
+    "Biscoff ganache": "பிஸ்காஃப் கனாஷ்",
+    "Cocoa sponge": "கோகோ ஸ்பாஞ்ச்",
+
+    /* pastry */
+    "Almond Praline Choux": "பாதாம் பிராலின் ஷூ",
+    "Matcha Choux": "மாட்சா ஷூ",
+    "Choux au Craquelin": "கிராக்லின் ஷூ",
+    "Hazelnut Tart": "ஹேசல்நட் டார்ட்",
+    "Citron Tart": "எலுமிச்சை டார்ட்",
+    "Classic Tiramisù": "கிளாசிக் டிராமிசு",
+    "Charcoal craquelin, almond praline heart, vanilla cream.": "கரி கிராக்லின், பாதாம் பிராலின் நடு, வெனிலா க்ரீம்.",
+    "Matcha craquelin, matcha cream, white chocolate ganache.": "மாட்சா கிராக்லின், மாட்சா க்ரீம், வெள்ளை சாக்லேட் கனாஷ்.",
+    "Crisp sugared crust over a light choux puff.": "லேசான ஷூ பஃப் மேல் மொறுமொறுப்பான சர்க்கரை மேல்தோல்.",
+    "Hazelnut chocolate filling in a crisp tart shell.": "மொறுமொறு டார்ட் ஓட்டில் ஹேசல்நட் சாக்லேட் நிரப்பு.",
+    "Lemon curd, almond frangipane, meringue, citron glaze.": "எலுமிச்சை கர்ட், பாதாம் ஃப்ராஞ்சிபேன், மெரிங்க், எலுமிச்சை மெருகு.",
+    "Mascarpone cream and espresso-soaked ladyfingers.": "மஸ்கார்போனே க்ரீம், எஸ்பிரெசோவில் ஊறிய லேடிஃபிங்கர்ஸ்.",
+
+    /* gelato & sorbet */
+    "Salted Caramel & Charcoal": "உப்பு கேரமல் & கரி",
+    "Mango & Cream Cheese": "மாம்பழம் & க்ரீம் சீஸ்",
+    "Filter Coffee": "ஃபில்டர் காபி",
+    "Caramelised Pineapple": "கேரமல் அன்னாசி",
+    "Lotus Biscoff": "லோட்டஸ் பிஸ்காஃப்",
+    "Caramelised Banana": "கேரமல் வாழைப்பழம்",
+    "Honey Caramelised Peach": "தேன் கேரமல் பீச்",
+    "Pistachio": "பிஸ்தா",
+    "Fior di Latte": "ஃபியோர் டி லாட்டே (பால்)",
+    "Vanilla Bean": "வெனிலா பீன்",
+    "Sapota (Chikoo)": "சப்போட்டா",
+    "Jackfruit": "பலாப்பழம்",
+    "Peach": "பீச்",
+    "Strawberry Mint": "ஸ்ட்ராபெர்ரி புதினா",
+    "Pineapple": "அன்னாசி",
+    "Coco Colada": "கோகோ கொலாடா",
+    "Raw Mango & Chilli": "மாங்காய் & மிளகாய்",
+    "Mango, Lime & Coconut Sundae": "மாம்பழம், எலுமிச்சை & தேங்காய் சண்டே",
+
+    /* chocolates */
+    "Traditional Chocolate Truffle": "பாரம்பரிய சாக்லேட் ட்ரஃபுள்",
+    "Praline Feuilletine Truffle": "பிராலின் ஃபுயேட்டின் ட்ரஃபுள்",
+    "Sea Salt Caramel": "கடல் உப்பு கேரமல்",
+    "Roasted Almond Praline": "வறுத்த பாதாம் பிராலின்",
+    "Hazelnut Praline": "ஹேசல்நட் பிராலின்",
+    "Coffee Espresso": "காபி எஸ்பிரெசோ",
+    "Silky ganache, cocoa-dusted, flaky salt.": "மென்மையான கனாஷ், கோகோ தூவல், உப்புத் துகள்கள்.",
+    "Hazelnut praline with crisp feuilletine.": "மொறுமொறு ஃபுயேட்டினுடன் ஹேசல்நட் பிராலின்.",
+    "Fleur de sel caramel in a dark shell.": "டார்க் ஓட்டுக்குள் கடல் உப்பு கேரமல்.",
+    "Roasted almond praline, amber shell.": "வறுத்த பாதாம் பிராலின், அம்பர் நிற ஓடு.",
+    "Toasted coconut ganache, white shell.": "வறுத்த தேங்காய் கனாஷ், வெள்ளை ஓடு.",
+    "Hazelnut praline over 811 ganache.": "811 கனாஷ் மேல் ஹேசல்நட் பிராலின்.",
+    "A liquid espresso centre. Bite carefully.": "நடுவில் திரவ எஸ்பிரெசோ. கவனமாகக் கடியுங்கள்.",
+
+    /* focaccia + kitchen */
+    "Roasted Garlic Chicken & Jalapeño": "வறுத்த பூண்டு சிக்கன் & ஜலபீனோ",
+    "Black Pepper Chicken & Charred Onion": "மிளகு சிக்கன் & கருக்கிய வெங்காயம்",
+    "Spicy Peri Peri Paneer": "காரமான பெரி பெரி பனீர்",
+    "Mixed Vegetable Supreme": "கலப்புக் காய்கறி சுப்ரீம்",
+    "Garlic-butter chicken, triple cheese, jalapeños, Tabasco honey.": "பூண்டு வெண்ணெய் சிக்கன், மூன்று வகை சீஸ், ஜலபீனோ, டபாஸ்கோ தேன்.",
+    "Cracked pepper chicken, charred onion, garlic cream, curry leaf oil.": "மிளகு சிக்கன், கருக்கிய வெங்காயம், பூண்டு க்ரீம், கறிவேப்பிலை எண்ணெய்.",
+    "Charred paneer, onion jam, mint labneh, smoked paprika oil.": "கருக்கிய பனீர், வெங்காய ஜாம், புதினா லப்னே, புகைத்த பாப்ரிகா எண்ணெய்.",
+    "Seasonal vegetables, mozzarella, herb-infused olive oil.": "பருவகாலக் காய்கறிகள், மொஸரெல்லா, மூலிகை ஆலிவ் எண்ணெய்.",
+    "Soups": "சூப்கள்",
+    "To begin": "தொடக்க உணவுகள்",
+    "Mains": "முதன்மை உணவுகள்",
+    "Outer coastal": "கடற்கரைச் சுவைகள்",
+    "Roasted Chicken & Burnt Garlic Velouté": "வறுத்த சிக்கன் & கருக்கிய பூண்டு சூப்",
+    "Roasted Tomato & Charred Pepper": "வறுத்த தக்காளி & கருக்கிய குடைமிளகாய் சூப்",
+    "Mushroom Arancini, Garlic Aioli": "காளான் அரான்சினி, பூண்டு அயோலி",
+    "Smoked Cheddar & Potato Croquettes, Sweet Chilli Jam": "புகைத்த செடார் & உருளைக்கிழங்கு குரோக்கெட், இனிப்பு மிளகாய் ஜாம்",
+    "The Charred: Chicken & Smoked Cheese, Cold Honey-Lemon": "தி சார்டு: சிக்கன் & புகைத்த சீஸ், குளிர் தேன்-எலுமிச்சை",
+    "The Charred: Paneer & Caramelised Onion, Roasted Garlic Cream": "தி சார்டு: பனீர் & கேரமல் வெங்காயம், வறுத்த பூண்டு க்ரீம்",
+    "Chargrilled Chicken Brochette, Honey-Mustard": "தணலில் சுட்ட சிக்கன் குச்சி, தேன்-கடுகு",
+    "French Onion Mousse & Potato Crisps": "ஃப்ரெஞ்ச் வெங்காய மூஸ் & உருளைக்கிழங்கு சிப்ஸ்",
+    "Burrata & Hot Honey, Charred Sourdough": "புர்ராட்டா & காரத் தேன், கருக்கிய சோர்டோ ரொட்டி",
+    "Charcoal Risotto, Wild Mushroom, Parmesan Foam": "கரி ரிசோட்டோ, காட்டுக் காளான், பார்மேசன் நுரை",
+    "Prawn Bisque Risotto, Aged Parmigiano Foam": "இறால் பிஸ்க் ரிசோட்டோ, பார்மிஜானோ நுரை",
+    "Chicken Parmigiana": "சிக்கன் பார்மிஜானா",
+    "Roasted Vegetable Lasagna al Forno": "வறுத்த காய்கறி லசானியா",
+    "Suprême de Volaille, White Wine Velouté": "சிக்கன் சுப்ரீம், ஒயிட் ஒயின் சாஸ்",
+    "Smoked & Fried Quail, BBQ Lacquer": "புகைத்து பொரித்த காடை, BBQ மெருகு",
+    "Pollo Asado Tacos": "பொல்லோ அசாடோ டாக்கோஸ்",
+    "Charred Corn Ribs, Smoked Brown Butter": "கருக்கிய சோள விலா, புகைத்த பழுப்பு வெண்ணெய்",
+    "Original Fried Chicken Wings, Tabasco Honey": "பொரித்த சிக்கன் விங்ஸ், டபாஸ்கோ தேன்",
+    "Tater Tots": "டேட்டர் டாட்ஸ்",
+  };
+
+  const rupees = (s) => s; // amounts like ₹180 read the same in Tamil
+  const patterns = [
+    [/^(.+) added to your box$/, (m, name) => `${name(m[1])} உங்கள் பெட்டியில் சேர்க்கப்பட்டது`],
+    [/^✓ In box \((\d+)\)$/, (m) => `✓ பெட்டியில் (${m[1]})`],
+    [/^\+ Add · (₹[\d,.]+)$/, (m) => `+ சேர் · ${rupees(m[1])}`],
+    [/^\+ Add · (₹[\d,.]+) · (\d+) left$/, (m) => `+ சேர் · ${m[1]} · ${m[2]} மீதம்`],
+    [/^Checkout · (₹[\d,.]+)$/, (m) => `செக்அவுட் · ${m[1]}`],
+    [/^(₹[\d,.]+) · (.+)$/, (m) => `${m[1]} · ${words[m[2]] || m[2]}`],
+    [/^(.+), cut open$/, (m, name) => `${name(m[1])}, வெட்டிப் பார்த்தால்`],
+    [/^\. Your food is on its way to table (.+)\.$/, (m) => `க்கான கட்டணம் சரிபார்க்கப்படுகிறது. உங்கள் உணவு மேசை ${m[1]}-க்கு வந்துகொண்டிருக்கிறது.`],
+    [/^This code works on orders of (₹[\d,.]+) or more$/, (m) => `இந்தக் குறியீடு ${m[1]} அல்லது அதற்கு மேற்பட்ட ஆர்டர்களுக்கு மட்டும்`],
+    [/^Delivery orders start at (₹[\d,.]+)$/, (m) => `டெலிவரி ஆர்டர்கள் ${m[1]} முதல்`],
+    [/^The kitchen is closed right now\. We're open (.+)\.$/, (m) => `சமையலறை இப்போது மூடப்பட்டுள்ளது. நாங்கள் திறந்திருக்கும் நேரம்: ${m[1]}.`],
+    [/^Cakes need (\d+) days' notice\. Please pick a later day\.$/, (m) => `கேக்குகளுக்கு ${m[1]} நாட்கள் முன்னறிவிப்பு தேவை. பிந்தைய நாளைத் தேர்ந்தெடுங்கள்.`],
+    [/^Only (\d+) (.+) left for that day$/, (m, name) => `அந்த நாளுக்கு ${name(m[2])} ${m[1]} மட்டுமே உள்ளது`],
+    [/^(.+) is sold out for that day$/, (m, name) => `அந்த நாளுக்கு ${name(m[1])} தீர்ந்துவிட்டது`],
+    [/^(.+) isn't available right now$/, (m, name) => `${name(m[1])} இப்போது கிடைக்காது`],
+    [/^Couldn't copy automatically\. Here's your order: (.+)$/, (m) => `தானாக நகலெடுக்க முடியவில்லை. உங்கள் ஆர்டர்: ${m[1]}`],
+    [/^(\d+) × (.+)$/, (m, name) => `${m[1]} × ${name(m[2])}`],
+    [/^Follow @(.+)$/, (m) => `@${m[1]} -ஐப் பின்தொடருங்கள்`],
+    [/^Ordering for table (.+)$/, (m) => `மேசை ${m[1]}-க்கான ஆர்டர்`],
+    [/^Table (.+)$/, (m) => `மேசை ${m[1]}`],
+    [/^Order (SRN-[A-Z0-9]{6})$/, (m) => `ஆர்டர் ${m[1]}`],
+    [/^· please pay within (\d+) min$/, (m) => `· ${m[1]} நிமிடத்திற்குள் செலுத்துங்கள்`],
+    [/^One fewer (.+)$/, (m, name) => `${name(m[1])} ஒன்று குறை`],
+    [/^One more (.+)$/, (m, name) => `${name(m[1])} ஒன்று கூட்டு`],
+    [/^Got it, (.+)!$/, (m) => `கிடைத்தது, ${m[1]}!`],
+    [/^On its way, (.+)!$/, (m) => `வந்துகொண்டிருக்கிறது, ${m[1]}!`],
+    [/^Entremets are made to order, so the earliest day is (\d+) days from today\.$/, (m) => `ஆன்ட்ரமே கேக்குகள் ஆர்டருக்கு ஏற்பச் செய்யப்படுவதால், இன்றிலிருந்து குறைந்தது ${m[1]} நாட்கள் கழித்துதான் கிடைக்கும்.`],
+    [/^Delivery (₹[\d,.]+)(?:, free above (₹[\d,.]+))?(?: · minimum order (₹[\d,.]+))?$/, (m) => `டெலிவரி ${m[1]}${m[2] ? `, ${m[2]}-க்கு மேல் இலவசம்` : ""}${m[3] ? ` · குறைந்தபட்ச ஆர்டர் ${m[3]}` : ""}`],
+    [/^(₹[\d,.]+) \((.+)\)$/, (m) => `${m[1]} (${m[2].replace(/incl\. (₹[\d,.]+) delivery/, "$1 டெலிவரி உட்பட").replace(/(₹[\d,.]+) off/, "$1 தள்ளுபடி")})`],
+    [/^(\d+)% off · −(₹[\d,.]+)$/, (m) => `${m[1]}% தள்ளுபடி · −${m[2]}`],
+    [/^(₹[\d,.]+) off · −(₹[\d,.]+)$/, (m) => `${m[1]} தள்ளுபடி · −${m[2]}`],
+    [/^Discount(?: \((.+)\))?$/, (m) => `தள்ளுபடி${m[1] ? ` (${m[1]})` : ""}`],
+    [/^View & print bill(?: · (.+))?$/, (m) => `பில்லைப் பார்த்து அச்சிடு${m[1] ? ` · ${m[1]}` : ""}`],
+    [/^Not available online right now: (.+)\. Remove (?:it|them) to check out\.$/, (m) => `இப்போது ஆன்லைனில் கிடைக்காதவை: ${m[1]}. செக்அவுட் செய்ய அவற்றை நீக்குங்கள்.`],
+    [/^This order was refunded \(credit note (.+)\)\.$/, (m) => `இந்த ஆர்டருக்குப் பணம் திருப்பித் தரப்பட்டது (கிரெடிட் நோட் ${m[1]}).`],
+    [/^UPI QR code for (₹[\d,.]+)$/, (m) => `${m[1]}-க்கான UPI QR குறியீடு`],
+    [/^(\d) stars?$/, (m) => `${m[1]} நட்சத்திரம்`],
+    [/^(.+) bombolone cut open$/, (m) => `வெட்டிய ${words[m[1]] || m[1]} பொம்பொலோனே`],
+    [/^(.+) illusory fruit dessert$/, (m) => `${words[m[1]] || m[1]} மாயப் பழ இனிப்பு`],
+    [/^(.+) focaccia slab$/, (m) => `${words[m[1]] || m[1]} ஃபொகாச்சா துண்டு`],
+    [/^(.+) (cookie|bonbon)$/, (m) => `${words[m[1]] || m[1]} ${m[2] === "cookie" ? "குக்கீ" : "போன்போன்"}`],
+  ];
+  // the catalog adds a word after some names ("Biscoff cookie"): translate the name, then add the Tamil word
+  const suffixes = [["illusory fruit", "மாயப் பழம்"], ["cookie", "குக்கீ"], ["gelato", "ஜெலாட்டோ"], ["sorbet", "சார்பே"], ["bonbon", "போன்போன்"], ["slab", "ஃபொகாச்சா"]];
+  window.SEREN_TA = { words, patterns, suffixes };
+})();
+
+/* English / தமிழ் switch for the whole customer website.
+   English is the default; a visitor's choice is remembered on their device.
+   Every piece of text on the page (and anything shown later: box, checkout, payment, messages)
+   is looked up in the Tamil dictionary (i18n-ta.js) and swapped in, so the page code stays in English. */
+(function () {
+  "use strict";
+  const KEY = "seren-lang-v1";
+  const FONTS = "https://fonts.googleapis.com/css2?family=Catamaran:wght@800;900&family=Kavivanar&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap";
+  const WORDMARK_TA = "செரென்"; // SEREN in Tamil: செ | ரென் mirrors SE | REN
+
+  function saved() {
+    try { return localStorage.getItem(KEY) === "ta" ? "ta" : "en"; } catch (e) { return "en"; }
+  }
+  const lang = saved();
+  window.SEREN_LANG = lang;
+  window.serenLocale = () => (lang === "ta" ? "ta-IN" : "en-IN");
+  // "16:30" -> "4:30 pm", or in Tamil "மாலை 4:30" (morning / noon / evening / night)
+  window.serenTimeLabel = (hhmm) => {
+    const [h, m] = String(hhmm).split(":").map(Number);
+    const clock = `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")}`;
+    if (lang !== "ta") return `${clock} ${h < 12 ? "am" : "pm"}`;
+    const part = h < 12 ? "காலை" : h < 16 ? "மதியம்" : h < 19 ? "மாலை" : "இரவு";
+    return `${part} ${clock}`;
+  };
+
+  const TA = window.SEREN_TA || { words: {}, patterns: [] };
+  const words = TA.words;
+  const norm = (s) => s.replace(/\s+/g, " ").trim();
+
+  // Translates one string (exact phrase first, then the patterns for text with numbers or names in it).
+  function tr(text) {
+    const key = norm(text);
+    if (!key) return null;
+    if (Object.prototype.hasOwnProperty.call(words, key)) return words[key];
+    for (const [re, fn] of TA.patterns) {
+      const m = key.match(re);
+      if (m) return fn(m, name);
+    }
+    const asName = name(key); // e.g. "Mango sorbet" in the box
+    return asName !== key ? asName : null;
+  }
+  // product names, including the catalog's "… cookie", "… gelato" style names
+  function name(n) {
+    const key = norm(n);
+    if (Object.prototype.hasOwnProperty.call(words, key)) return words[key];
+    for (const [suffix, ta] of TA.suffixes || []) {
+      if (key.endsWith(` ${suffix}`)) {
+        const base = key.slice(0, -suffix.length - 1);
+        return `${Object.prototype.hasOwnProperty.call(words, base) ? words[base] : base} ${ta}`;
+      }
+    }
+    return key;
+  }
+  window.serenT = (s) => (lang === "ta" ? tr(s) ?? s : s);
+
+  /* ---------- the switch button ---------- */
+  function addSwitch() {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "lang-btn";
+    btn.setAttribute("data-no-i18n", "");
+    btn.lang = lang === "ta" ? "en" : "ta";
+    btn.setAttribute("aria-label", lang === "ta" ? "Switch to English" : "தமிழுக்கு மாற்றவும் (Switch to Tamil)");
+    btn.innerHTML = lang === "ta" ? `<span class="lb-a">EN</span><span class="lb-b">English</span>` : `<span class="lb-a">த</span><span class="lb-b">தமிழ்</span>`;
+    btn.addEventListener("click", () => {
+      try { localStorage.setItem(KEY, lang === "ta" ? "en" : "ta"); } catch (e) { /* storage blocked: switch for this visit only */ }
+      document.documentElement.classList.add("lang-leaving");
+      setTimeout(() => location.reload(), 220);
+    });
+    const spot = document.querySelector(".nav .box-btn") || document.querySelector(".op-top .pill");
+    if (spot) spot.parentNode.insertBefore(btn, spot);
+  }
+  addSwitch();
+  if (lang !== "ta") return;
+
+  /* ---------- Tamil: fonts, page language, and translating text as it appears ---------- */
+  document.documentElement.lang = "ta";
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = FONTS;
+  document.head.appendChild(link);
+  if (words[document.title]) document.title = words[document.title];
+  const meta = document.querySelector('meta[name="description"]');
+  if (meta && words[meta.content]) meta.content = words[meta.content];
+
+  const ATTRS = ["placeholder", "aria-label", "alt", "title"];
+  const SKIP = new Set(["SCRIPT", "STYLE", "TEXTAREA", "INPUT", "SELECT", "CODE"]);
+
+  function translateNode(node) {
+    if (node.nodeType === 3) {
+      const out = tr(node.data);
+      if (out !== null && out !== norm(node.data)) {
+        const lead = node.data.match(/^\s*/)[0];
+        const trail = node.data.match(/\s*$/)[0];
+        node.data = lead + out + trail;
+      }
+      return;
+    }
+    if (node.nodeType !== 1 || SKIP.has(node.tagName) || node.closest("[data-no-i18n]")) return;
+    for (const a of ATTRS) {
+      const v = node.getAttribute(a);
+      if (v) { const out = tr(v); if (out !== null && out !== v) node.setAttribute(a, out); }
+    }
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
+      acceptNode: (n) => (n.nodeType === 1 && (SKIP.has(n.tagName) || n.hasAttribute("data-no-i18n")) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    });
+    let n = walker.nextNode();
+    while (n) {
+      if (n.nodeType === 3) translateNode(n);
+      else for (const a of ATTRS) { const v = n.getAttribute(a); if (v) { const out = tr(v); if (out !== null && out !== v) n.setAttribute(a, out); } }
+      n = walker.nextNode();
+    }
+    // form boxes: translate their hints, never what the customer typed
+    node.querySelectorAll("input[placeholder], textarea[placeholder], input[aria-label], select[aria-label]").forEach((f) => {
+      for (const a of ["placeholder", "aria-label"]) { const v = f.getAttribute(a); if (v) { const out = tr(v); if (out !== null && out !== v) f.setAttribute(a, out); } }
+    });
+  }
+  window.serenTranslate = translateNode;
+
+  // Tamil names and descriptions the owner typed in the dashboard (for renamed and new products)
+  const api = String((window.SEREN_CONFIG || {}).api || "").replace(/\/+$/, "");
+  if (api) {
+    fetch(`${api}/api/menu`).then((r) => (r.ok ? r.json() : null)).then((data) => {
+      if (!data || !Array.isArray(data.products)) return;
+      let added = false;
+      for (const p of data.products) {
+        if (p.nameTa) { words[norm(p.name)] = p.nameTa; added = true; }
+        if (p.descriptionTa && p.description) { words[norm(p.description)] = p.descriptionTa; added = true; }
+      }
+      if (added) translateNode(document.body);
+    }).catch(() => { /* offline: built-in Tamil still shows */ });
+  }
+
+  // product details in the menu data (so cards, tabs and layers are built in Tamil)
+  const M = window.SEREN_MENU;
+  if (M) {
+    const item = (i) => ({ ...i, desc: i.desc ? tr(i.desc) ?? i.desc : i.desc, kicker: i.kicker ? tr(i.kicker) ?? i.kicker : i.kicker,
+      notes: (i.notes || []).map((x) => tr(x) ?? x), layers: Array.isArray(i.layers) ? i.layers.map((l) => (Array.isArray(l) ? [tr(l[0]) ?? l[0], l[1]] : tr(l) ?? l)) : i.layers });
+    window.SEREN_MENU = {
+      ...M,
+      bomboloni: M.bomboloni.map((b) => ({ ...item(b), en: tr(b.en) ?? b.en })),
+      cookies: M.cookies.map(item), fruit: M.fruit.map(item), entremets: M.entremets.map(item), pastry: M.pastry.map(item), focaccia: M.focaccia.map(item),
+      chocolates: { truffles: M.chocolates.truffles.map(item), bonbons: M.chocolates.bonbons.map(item) },
+      kitchen: M.kitchen.map((g) => ({ ...g, group: tr(g.group) ?? g.group })),
+    };
+  }
+
+  // The big SEREN (opening animation, logo, footer) rebuilt from whole Tamil letters, one span each,
+  // so the rise-in, wobble and scroll-split animations work exactly as in English.
+  function wordmark() {
+    const seg = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter("ta", { granularity: "grapheme" }) : null;
+    const letters = seg ? [...seg.segment(WORDMARK_TA)].map((x) => x.segment) : ["செ", "ரெ", "ன்"];
+    document.querySelectorAll(".hero-word, .logo, footer .big").forEach((el) => {
+      el.replaceChildren(...letters.map((ch) => { const s = document.createElement("span"); s.textContent = ch; return s; }));
+      el.dataset.left = "1"; // how many letters sit on the dark side of the seam
+      el.classList.add("wordmark-ta");
+      if (el.hasAttribute("aria-label")) el.setAttribute("aria-label", el.classList.contains("logo") ? "செரென் முகப்பு" : WORDMARK_TA);
+    });
+  }
+  wordmark();
+
+  translateNode(document.body); // the page as written, before the animations split headings into letters
+  new MutationObserver((list) => {
+    for (const m of list) {
+      if (m.type === "characterData") translateNode(m.target);
+      else if (m.type === "attributes") translateNode(m.target.nodeType === 1 ? m.target : m.target.parentNode);
+      else m.addedNodes.forEach(translateNode);
+    }
+  }).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+})();
+
+/* Every product a customer can put in the box, built from SEREN_MENU.
+   The website and the order backend both read this list, so ids and names always match.
+   Prices are not here: the owner sets them in the dashboard. */
+(function (root) {
+  "use strict";
+  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  function buildCatalog(menu) {
+    const out = [];
+    const add = (category, id, name, img, veg) => out.push({ id, name, category, img: img || null, veg: veg === undefined ? null : veg });
+    menu.bomboloni.forEach((b) => add("bomboloni", b.id, b.name, b.img));
+    menu.cookies.forEach((c) => add("cookies", c.id, `${c.name} cookie`, c.img));
+    menu.fruit.forEach((f) => add("fruit", f.id, `${f.name} illusory fruit`, f.img));
+    menu.entremets.forEach((e) => add("entremets", e.id, e.name, null));
+    menu.pastry.forEach((p) => add("pastry", p.id, p.name, p.img));
+    ["signature", "classic", "sorbet"].forEach((kind) =>
+      menu.gelato[kind].forEach(([name]) => add("gelato", `gelato-${kind}-${slug(name)}`, kind === "sorbet" ? `${name} sorbet` : `${name} gelato`, null)));
+    menu.chocolates.bonbons.forEach((b) => add("chocolates", b.id, `${b.name} bonbon`, b.img));
+    menu.chocolates.truffles.forEach((t) => add("chocolates", t.id, t.name, t.img));
+    menu.focaccia.forEach((s) => add("focaccia", s.id, `${s.name} slab`, s.img, s.veg));
+    return out;
+  }
+
+  const CATEGORIES = {
+    bomboloni: "Bomboloni", cookies: "Cookies", fruit: "Illusory fruit", entremets: "Entremets",
+    pastry: "Choux & tarts", gelato: "Gelato & sorbet", chocolates: "Chocolates", focaccia: "Focaccia slabs",
+  };
+
+  root.SEREN_CATEGORIES = CATEGORIES;
+  root.SEREN_CATALOG = buildCatalog(root.SEREN_MENU);
+  root.serenGelatoId = (kind, name) => `gelato-${kind}-${slug(name)}`;
+})(typeof window !== "undefined" ? window : globalThis);
+
 /* SEREN colour palettes + the preview switcher.
    Roles: caramel = warm light section, plum = deep section, aubergine = dark accent/text,
    butter = highlight, cream = light background, ink = darkest background. */
@@ -803,6 +1757,8 @@ window.SEREN_PALETTES = [
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const img = (name) => (name ? `img/${name}.webp` : "");
   const STORE_KEY = "seren-box-v1";
+  const CAT = new Map((window.SEREN_CATALOG || []).map((c) => [c.id, c]));
+  const money = (paise) => `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: paise % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
   /* ---------- order box state (immutable updates) ---------- */
   let box = loadBox();
@@ -828,8 +1784,12 @@ window.SEREN_PALETTES = [
   }
   const count = () => Object.values(box).reduce((n, i) => n + i.qty, 0);
 
-  const addBtn = (item) =>
-    `<button class="add" type="button" data-add='${esc(JSON.stringify({ id: item.id, name: item.name, img: item.img || null }))}'>+ Add to box</button>`;
+  // Every "Add" button reads its name and picture from the shared catalog (src/catalog.js).
+  const addBtn = (id) => {
+    const item = CAT.get(id);
+    if (!item) throw new Error(`Product ${id} is missing from the catalog`);
+    return `<button class="add" type="button" data-add='${esc(JSON.stringify({ id: item.id, name: item.name, img: item.img, photo: item.photo || null }))}'>+ Add to box</button>`;
+  };
 
   /* ---------- sections ---------- */
   function marquee() {
@@ -840,21 +1800,21 @@ window.SEREN_PALETTES = [
 
   function bomboloni() {
     $("#bombRail").innerHTML = MENU.bomboloni.map((b, i) => `
-      <article class="paper" style="--r:${i % 2 ? 1.2 : -1.2}deg">
+      <article class="paper" data-pid="${esc(b.id)}" style="--r:${i % 2 ? 1.2 : -1.2}deg">
         <div class="ph"><img src="${img(b.img)}" alt="${esc(b.en)} bombolone cut open" loading="lazy"></div>
         <span class="it">${esc(b.en)}</span>
         <h3>${esc(b.name)}</h3>
         <p>${esc(b.desc)}</p>
-        <div class="row">${addBtn({ id: b.id, name: b.name, img: b.img })}</div>
+        <div class="row">${addBtn(b.id)}</div>
       </article>`).join("");
   }
 
   function cookies() {
     $("#cookieGrid").innerHTML = MENU.cookies.map((c) => `
-      <article class="cookie">
+      <article class="cookie" data-pid="${esc(c.id)}">
         <div class="disc"><img src="${img(c.img)}" alt="${esc(c.name)} cookie" loading="lazy">${c.hover ? `<img class="alt" src="${img(c.hover)}" alt="" loading="lazy">` : ""}</div>
         <h3>${esc(c.name)}</h3><p>${esc(c.desc)}</p>
-        ${addBtn({ id: c.id, name: `${c.name} cookie`, img: c.img })}
+        ${addBtn(c.id)}
       </article>`).join("");
   }
 
@@ -873,7 +1833,8 @@ window.SEREN_PALETTES = [
     document.querySelectorAll("#fruitList button").forEach((b) => b.setAttribute("aria-selected", String(Number(b.dataset.i) === i)));
     const visual = f.img ? `<img src="${img(f.img)}" alt="${esc(f.name)} illusory fruit dessert">` : `<div class="blob">${esc(f.name)}</div>`;
     $("#fruitView").innerHTML = `<div class="ring"></div>${visual}<ul class="layers">${f.layers.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`;
-    $("#fruitDetail").innerHTML = `<span class="hand" style="font-size:26px">${esc(f.name)}, cut open</span>${addBtn({ id: f.id, name: `${f.name} illusory fruit`, img: f.img })}`;
+    $("#fruitDetail").innerHTML = `<span class="hand" style="font-size:26px">${esc(f.name)}, cut open</span>${addBtn(f.id)}`;
+    renderBox(); // fresh buttons need their price / "in box" labels
     if (!first) document.dispatchEvent(new CustomEvent("seren:fruit"));
   }
 
@@ -891,15 +1852,16 @@ window.SEREN_PALETTES = [
     const e = MENU.entremets[i];
     document.querySelectorAll("#entTabs button").forEach((b) => b.setAttribute("aria-selected", String(Number(b.dataset.i) === i)));
     $("#cakeStack").innerHTML = e.layers.map(([label, color]) => `<div class="layer" style="background-color:${esc(color)}"><span>${esc(label)}</span></div>`).join("");
-    $("#entAdd").innerHTML = addBtn({ id: e.id, name: e.name, img: null });
+    $("#entAdd").innerHTML = addBtn(e.id);
+    renderBox(); // fresh buttons need their price / "in box" labels
     if (!first) document.dispatchEvent(new CustomEvent("seren:cake"));
   }
 
   function pastry() {
     $("#pastryGrid").innerHTML = MENU.pastry.map((p) => `
-      <article class="pcard">
+      <article class="pcard" data-pid="${esc(p.id)}">
         <div class="ph"><img src="${img(p.img)}" alt="${esc(p.name)}" loading="lazy">${p.hover ? `<img class="alt" src="${img(p.hover)}" alt=""><span class="peek">hover to cut open</span>` : ""}</div>
-        <div class="row"><h3>${esc(p.name)}</h3>${addBtn({ id: p.id, name: p.name, img: p.img })}</div>
+        <div class="row"><h3>${esc(p.name)}</h3>${addBtn(p.id)}</div>
         <p>${esc(p.desc)}</p>
       </article>`).join("");
   }
@@ -907,32 +1869,32 @@ window.SEREN_PALETTES = [
   function gelato(kind) {
     const list = MENU.gelato[kind];
     $("#scoops").innerHTML = list.map(([name, base, fleck]) => {
-      const id = `gelato-${kind}-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-      const label = kind === "sorbet" ? `${name} sorbet` : `${name} gelato`;
-      return `<article class="scoop">
+      const id = window.serenGelatoId(kind, name);
+      return `<article class="scoop" data-pid="${esc(id)}">
         <div class="drop"><div class="ball" style="background:${esc(base)};--fleck:${esc(fleck)}"><i></i><b></b></div></div><div class="cone"></div>
-        <h3>${esc(name)}</h3>${addBtn({ id, name: label, img: null })}
+        <h3>${esc(name)}</h3>${addBtn(id)}
       </article>`;
     }).join("");
     document.querySelectorAll("#gTabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.k === kind)));
+    renderBox(); // fresh buttons need their price / "in box" labels
     document.dispatchEvent(new CustomEvent("seren:scoops"));
   }
 
   function chocolates() {
     $("#bonbons").innerHTML = MENU.chocolates.bonbons.map((b) => `
-      <article class="bonbon"><span class="bob"><img src="${img(b.img)}" alt="${esc(b.name)} bonbon" loading="lazy"></span><h3>${esc(b.name)}</h3><p>${esc(b.desc)}</p>
-      ${addBtn({ id: b.id, name: `${b.name} bonbon`, img: b.img })}</article>`).join("");
+      <article class="bonbon" data-pid="${esc(b.id)}"><span class="bob"><img src="${img(b.img)}" alt="${esc(b.name)} bonbon" loading="lazy"></span><h3>${esc(b.name)}</h3><p>${esc(b.desc)}</p>
+      ${addBtn(b.id)}</article>`).join("");
     $("#truffles").innerHTML = MENU.chocolates.truffles.map((t) => `
-      <article class="truffle"><img src="${img(t.img)}" alt="${esc(t.name)}" loading="lazy">
-      <div><h3>${esc(t.name)}</h3><p>${esc(t.desc)}</p>${addBtn({ id: t.id, name: t.name, img: t.img })}</div></article>`).join("");
+      <article class="truffle" data-pid="${esc(t.id)}"><img src="${img(t.img)}" alt="${esc(t.name)}" loading="lazy">
+      <div><h3>${esc(t.name)}</h3><p>${esc(t.desc)}</p>${addBtn(t.id)}</div></article>`).join("");
   }
 
   const mark = (veg) => (veg === null || veg === undefined ? `<span class="mark-gap"></span>` : `<span class="mark ${veg ? "veg" : "non"}" role="img" aria-label="${veg ? "Vegetarian" : "Non-vegetarian"}"></span>`);
 
   function kitchen() {
     $("#slabs").innerHTML = MENU.focaccia.map((s) => `
-      <article class="slab-card"><div class="ph"><img src="${img(s.img)}" alt="${esc(s.name)} focaccia slab" loading="lazy"></div>
-      <div class="body"><h3>${mark(s.veg)}${esc(s.name)}</h3><p>${esc(s.desc)}</p>${addBtn({ id: s.id, name: `${s.name} slab`, img: s.img })}</div></article>`).join("");
+      <article class="slab-card" data-pid="${esc(s.id)}"><div class="ph"><img src="${img(s.img)}" alt="${esc(s.name)} focaccia slab" loading="lazy"></div>
+      <div class="body"><h3>${mark(s.veg)}${esc(s.name)}</h3><p>${esc(s.desc)}</p>${addBtn(s.id)}</div></article>`).join("");
     $("#kmenu").innerHTML = MENU.kitchen.map((g) => `
       <div><h3>${esc(g.group)}</h3><ul>${g.items.map((it) => `<li ${it.img ? `data-img="${img(it.img)}"` : ""}>${mark(it.veg)}<span>${esc(it.name)}</span></li>`).join("")}</ul></div>`).join("");
     peekImages();
@@ -971,8 +1933,8 @@ window.SEREN_PALETTES = [
     if (!items.length) {
       list.innerHTML = `<li class="empty" style="display:grid;border:0"><span class="hand">Your box is empty</span><span>Tap "+ Add to box" on anything you'd like.</span></li>`;
     } else {
-      list.innerHTML = items.map((i) => `<li>${i.img ? `<img src="${img(i.img)}" alt="">` : `<img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">`}
-        <span class="n">${esc(i.name)}</span>
+      list.innerHTML = items.map((i) => `<li>${i.photo ? `<img src="${esc(photoUrl(i.photo))}" alt="">` : i.img ? `<img src="${img(i.img)}" alt="">` : `<img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">`}
+        <span class="n">${esc(i.name)}${linePrice(i)}</span>
         <span class="qty"><button type="button" data-q="${esc(i.id)}" data-d="-1" aria-label="One fewer ${esc(i.name)}">−</button><b>${i.qty}</b><button type="button" data-q="${esc(i.id)}" data-d="1" aria-label="One more ${esc(i.name)}">+</button></span></li>`).join("");
     }
     const wa = $("#waBtn");
@@ -980,12 +1942,25 @@ window.SEREN_PALETTES = [
     wa.hidden = !hasWa;
     if (hasWa) wa.href = `https://wa.me/${encodeURIComponent(CFG.whatsapp)}?text=${encodeURIComponent(orderText())}`;
     $("#copyBtn").disabled = !items.length;
+    const shop = window.SEREN_SHOP; // set by checkout.js when the order system is online
     document.querySelectorAll(".add[data-add]").forEach((b) => {
       const id = JSON.parse(b.dataset.add).id;
       const inBox = Boolean(box[id]);
+      const p = shop && shop.prices[id];
+      const soldOut = Boolean(p && p.left === 0);
+      const blocked = Boolean(shop && shop.live && (!p || !p.available || soldOut));
+      b.disabled = blocked && !inBox;
       b.classList.toggle("added", inBox);
-      b.textContent = inBox ? `✓ In box (${box[id].qty})` : "+ Add to box";
+      b.classList.toggle("off", b.disabled);
+      const few = p && p.left !== undefined && p.left <= 5 ? ` · ${p.left} left` : "";
+      b.textContent = inBox ? `✓ In box (${box[id].qty})` : blocked ? (soldOut ? "Sold out today" : p ? "Sold out" : "Coming soon") : p ? `+ Add · ${money(p.price)}${few}` : "+ Add to box";
     });
+    document.dispatchEvent(new CustomEvent("seren:box"));
+  }
+  function linePrice(i) {
+    const p = window.SEREN_SHOP && window.SEREN_SHOP.prices[i.id];
+    if (!p) return "";
+    return `<small>${p.available ? `${esc(money(p.price * i.qty))}${p.unit ? ` · ${esc(p.unit)}` : ""}` : "Not available right now"}</small>`;
   }
   function setDrawer(on) {
     const d = $("#drawer");
@@ -1062,6 +2037,22 @@ window.SEREN_PALETTES = [
     $("#gTabs").addEventListener("click", (e) => { const b = e.target.closest("button[data-k]"); if (b) gelato(b.dataset.k); });
   }
 
+  // photos the owner uploads in the dashboard are served by the order system
+  function photoUrl(key) { return `${String(CFG.api || "").replace(/\/+$/, "")}/img/${encodeURIComponent(key)}`; }
+
+  // Dashboard edits (new name or photo): later "Add" buttons and the box use the new details.
+  function updateItem(item) {
+    CAT.set(item.id, { ...(CAT.get(item.id) || {}), ...item });
+    document.querySelectorAll(".add[data-add]").forEach((b) => {
+      const d = JSON.parse(b.dataset.add);
+      if (d.id === item.id) b.dataset.add = JSON.stringify({ ...d, name: item.name, photo: item.photo || null });
+    });
+    if (box[item.id]) saveBox({ ...box, [item.id]: { ...box[item.id], name: item.name, photo: item.photo || null } });
+  }
+
+  // the online-ordering scripts (checkout.js, products.js) use these
+  window.SEREN_BOX = { items: () => Object.values(box), clear: () => saveBox({}), rerender: renderBox, addBtn, updateItem, photoUrl };
+
   drips(); marquee(); bomboloni(); cookies(); fruit(); entremets(); pastry(); gelato("signature"); chocolates(); kitchen(); visit();
   wire(); renderBox();
 })();
@@ -1116,8 +2107,9 @@ window.SEREN_PALETTES = [
     // Each floater has three layers so the three motions never fight:
     // .floater = scroll, .fl-p = pointer, img = idle bob + intro.
     const out = gsap.timeline({ scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: true } });
-    out.to(letters.slice(0, 2), { xPercent: -40, ease: "none" }, 0)
-      .to(letters.slice(2), { xPercent: 40, ease: "none" }, 0)
+    const left = Number(document.querySelector(".hero-word").dataset.left || 2); // SE|REN in English, செ|ரென் in Tamil
+    out.to(letters.slice(0, left), { xPercent: -40, ease: "none" }, 0)
+      .to(letters.slice(left), { xPercent: 40, ease: "none" }, 0)
       .to(".hero .half.l", { xPercent: -30, ease: "none" }, 0)
       .to(".hero .half.r", { xPercent: 30, ease: "none" }, 0)
       .to(".hero .floater", { y: (i) => -120 - i * 60, rotate: (i) => (i % 2 ? 30 : -30), ease: "none" }, 0);
@@ -1144,6 +2136,10 @@ window.SEREN_PALETTES = [
     }));
   }
 
+  // Splits text into whole letters as people see them (a Tamil letter with its vowel sign stays together).
+  const segmenter = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : null;
+  const graphemes = (s) => (segmenter ? [...segmenter.segment(s)].map((x) => x.segment) : [...s]);
+
   /* ---------- big headings rise letter by letter (whole words never split across lines) ---------- */
   function headings() {
     document.querySelectorAll(".head h2.display").forEach((h) => {
@@ -1156,7 +2152,7 @@ window.SEREN_PALETTES = [
               if (!word) return;
               if (!word.trim()) { frag.appendChild(document.createTextNode(" ")); return; }
               const w = document.createElement("span"); w.className = "wd";
-              [...word].forEach((ch) => { const s = document.createElement("span"); s.className = "ch"; s.style.display = "inline-block"; s.textContent = ch; w.appendChild(s); });
+              graphemes(word).forEach((ch) => { const s = document.createElement("span"); s.className = "ch"; s.style.display = "inline-block"; s.textContent = ch; w.appendChild(s); });
               frag.appendChild(w);
             });
             n.replaceWith(frag);
@@ -1379,6 +2375,593 @@ window.SEREN_PALETTES = [
     });
     el.addEventListener("pointerleave", () => { mx(0); my(0); });
   });
+})();
+
+/* Shared by the order box and the order page: talking to the order system and the UPI payment panel. */
+window.SerenPay = (function () {
+  "use strict";
+  const API = String((window.SEREN_CONFIG || {}).api || "").replace(/\/+$/, "");
+  const ORDERS_KEY = "seren-orders-v1";
+  const QR_SRC = "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";
+  const QR_SRI = "sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1";
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const money = (paise) => `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: paise % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+
+  async function api(path, opts = {}) {
+    if (!API) throw new Error("Online ordering isn't switched on yet.");
+    let res;
+    try {
+      res = await fetch(API + path, {
+        method: opts.method || "GET",
+        headers: opts.body ? { "Content-Type": "application/json" } : {},
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+      });
+    } catch (e) {
+      throw new Error("Couldn't reach SEREN. Check your internet and try again.");
+    }
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* not JSON */ }
+    if (!res.ok) throw new Error(data.error || "Something went wrong. Please try again.");
+    return data;
+  }
+
+  /* orders placed on this device, newest first, so customers can find them again */
+  function savedOrders() {
+    try { const v = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]"); return Array.isArray(v) ? v : []; }
+    catch (e) { return []; }
+  }
+  function rememberOrder(code, token) {
+    const next = [{ code, token, at: Date.now() }, ...savedOrders().filter((o) => o.code !== code)].slice(0, 10);
+    try { localStorage.setItem(ORDERS_KEY, JSON.stringify(next)); } catch (e) { /* private mode: the link still works */ }
+  }
+  const orderUrl = (code, token) => `order.html#${encodeURIComponent(code)}.${encodeURIComponent(token)}`;
+  const invoiceUrl = (code, token) => `${API}/invoice/${encodeURIComponent(code)}?t=${encodeURIComponent(token)}`;
+
+  let qrLoading;
+  function loadQr() {
+    if (window.qrcode) return Promise.resolve();
+    qrLoading = qrLoading || new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = QR_SRC; s.integrity = QR_SRI; s.crossOrigin = "anonymous";
+      s.onload = resolve; s.onerror = () => { qrLoading = null; reject(new Error("QR code didn't load")); };
+      document.head.appendChild(s);
+    });
+    return qrLoading;
+  }
+
+  const isPhone = () => window.matchMedia("(pointer:coarse)").matches || window.innerWidth < 700;
+
+  /**
+   * Draws the "pay with UPI" panel into `el`.
+   * pay = { code, token, total, upi, upiId, upiName, expiresAt }; onSubmitted runs after the customer sends their UPI ref.
+   */
+  function payPanel(el, pay, onSubmitted) {
+    const mins = pay.expiresAt ? Math.max(0, Math.round((new Date(pay.expiresAt) - Date.now()) / 60000)) : null;
+    el.innerHTML = `
+      <div class="pay">
+        <p class="pay-amt"><span>Pay</span> ${esc(money(pay.total))}</p>
+        <p class="pay-note">Order <b>${esc(pay.code)}</b>${mins ? ` · please pay within ${mins} min` : ""}</p>
+        ${isPhone() ? `<a class="pill fill pay-app" href="${esc(pay.upi)}">Pay with GPay, PhonePe or any UPI app</a>` : ""}
+        <div class="pay-qr" aria-label="UPI QR code for ${esc(money(pay.total))}"><span class="hand">Loading QR…</span></div>
+        <p class="pay-id">${isPhone() ? "Or pay" : "Scan with any UPI app, or pay"} to <b>${esc(pay.upiId)}</b> (${esc(pay.upiName)})
+          <button type="button" class="linkish" data-copy="${esc(pay.upiId)}">Copy UPI ID</button></p>
+        <form class="utr" novalidate>
+          <label for="utr-${esc(pay.code)}">After paying, enter the 12-digit <b>UPI Ref No. / UTR</b> from your payment receipt</label>
+          <div class="utr-row">
+            <input id="utr-${esc(pay.code)}" name="utr" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="e.g. 412345678901" required>
+            <button class="pill fill" type="submit">I've paid</button>
+          </div>
+          <p class="err" role="alert"></p>
+        </form>
+      </div>`;
+    loadQr()
+      .then(() => {
+        const qr = window.qrcode(0, "M");
+        qr.addData(pay.upi);
+        qr.make();
+        el.querySelector(".pay-qr").innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+      })
+      .catch(() => { el.querySelector(".pay-qr").innerHTML = `<span>QR code couldn't load. Use the UPI ID below.</span>`; });
+
+    el.querySelector("[data-copy]").addEventListener("click", async (e) => {
+      try { await navigator.clipboard.writeText(e.currentTarget.dataset.copy); e.currentTarget.textContent = "Copied"; }
+      catch (err) { e.currentTarget.textContent = "Select and copy the ID"; }
+    });
+    const form = el.querySelector("form.utr");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector("button");
+      const err = form.querySelector(".err");
+      const utr = form.utr.value.replace(/\s+/g, "");
+      if (!/^\d{12}$/.test(utr)) { err.textContent = "The UPI reference is 12 digits. Find it in your payment app's receipt."; form.utr.focus(); return; }
+      btn.disabled = true; err.textContent = "";
+      try {
+        await api(`/api/orders/${encodeURIComponent(pay.code)}/payment`, { method: "POST", body: { t: pay.token, utr } });
+        onSubmitted();
+      } catch (ex) {
+        err.textContent = ex.message; btn.disabled = false;
+      }
+    });
+  }
+
+  return { enabled: Boolean(API), api, money, esc, savedOrders, rememberOrder, orderUrl, invoiceUrl, payPanel };
+})();
+
+/* Online ordering inside the order box: live prices, checkout form, UPI payment.
+   If the order system is off or unreachable, the box keeps working the old way (WhatsApp / copy). */
+(function () {
+  "use strict";
+  const P = window.SerenPay;
+  const BOX = window.SEREN_BOX;
+  const CAT = new Map((window.SEREN_CATALOG || []).map((c) => [c.id, c]));
+  const $ = (s, r = document) => r.querySelector(s);
+  const { esc, money } = P;
+  let shop = null;      // { live, settings, prices }
+  let view = "box";     // box | form | pay | done
+  let form = null;      // what the customer typed, kept if they go back
+  let placed = null;    // the order waiting for payment
+  let coupon = null;    // { code, discount, label } once a code is applied
+  const { table, k: tableKey } = tableFromLink(); // set when a guest scanned the QR code on their table
+  window.SEREN_TABLE = table ? { table, k: tableKey } : null;
+
+  // Table QR codes open the site as ...?table=5&k=<signature>. Remembered for this visit only.
+  function tableFromLink() {
+    const ok = (t) => (/^[A-Za-z0-9][A-Za-z0-9 -]{0,9}$/.test(t || "") ? t : "");
+    const okKey = (v) => (/^[A-Za-z0-9_-]{12}$/.test(v || "") ? v : "");
+    const q = new URLSearchParams(location.search);
+    let t = ok(q.get("table"));
+    let k = t ? okKey(q.get("k")) : "";
+    try {
+      if (t) sessionStorage.setItem("seren-table", JSON.stringify({ t, k }));
+      else ({ t, k } = JSON.parse(sessionStorage.getItem("seren-table") || "{}"));
+    } catch (e) { /* storage blocked: the link still works on this page */ }
+    return { table: ok(t), k: okKey(k) };
+  }
+
+  async function loadShop() {
+    if (!P.enabled) return;
+    try {
+      const data = await P.api("/api/menu");
+      shop = { live: Boolean(data.settings.acceptingOrders), settings: data.settings, prices: data.prices, products: data.products };
+    } catch (e) {
+      shop = null; // fall back to WhatsApp / copy
+    }
+    window.SEREN_SHOP = shop;
+    document.dispatchEvent(new CustomEvent("seren:shop"));
+  }
+
+  /* ---------- the box footer: subtotal + checkout button ---------- */
+  function boxTotals(items) {
+    let total = 0;
+    const problems = [];
+    for (const it of items) {
+      const p = shop.prices[it.id];
+      if (!p || !p.available || p.left === 0 || (p.left !== undefined && p.left < it.qty)) problems.push(it.name);
+      else total += p.price * it.qty;
+    }
+    return { total, problems };
+  }
+
+  function updateFooter() {
+    const items = BOX.items();
+    const sum = $("#boxSum");
+    const btn = $("#checkoutBtn");
+    const live = Boolean(shop && shop.live && items.length);
+    sum.hidden = !live; btn.hidden = !live;
+    if (!live) return;
+    const { total, problems } = boxTotals(items);
+    sum.innerHTML = problems.length
+      ? `<span class="warn">Not available online right now: ${esc(problems.join(", "))}. Remove ${problems.length > 1 ? "them" : "it"} to check out.</span>`
+      : `<span>Subtotal</span><b>${esc(money(total))}</b>`;
+    btn.disabled = problems.length > 0;
+    btn.textContent = `Checkout · ${money(total)}`;
+  }
+
+  /* ---------- switching views inside the drawer ---------- */
+  function show(next) {
+    view = next;
+    const drawer = $("#drawer");
+    drawer.classList.toggle("co-on", next !== "box");
+    $("#checkout").hidden = next === "box";
+    $("#drawerTitle").textContent = { box: "Your box", form: "Checkout", pay: "Pay by UPI", done: "Thank you" }[next];
+    if (next === "done" && placed && placed.onTab) $("#drawerTitle").textContent = "In the kitchen";
+    if (next === "box") { BOX.rerender(); return; }
+    ({ form: renderForm, pay: renderPay, done: renderDone })[next]();
+    const first = $("#checkout").querySelector("input, select, button, a");
+    if (first && drawer.classList.contains("on")) first.focus({ preventScroll: true });
+  }
+
+  const needsNotice = (items) => items.some((it) => shop.settings.preorderCategories.includes(CAT.get(it.id)?.category));
+  const locale = () => (window.serenLocale ? window.serenLocale() : "en-IN");
+  const dayLabel = (ymd) => new Date(`${ymd}T00:00:00`).toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" });
+  const timeLabel = (hhmm) => (window.serenTimeLabel ? window.serenTimeLabel(hhmm) : hhmm);
+
+  async function renderForm() {
+    const s = shop.settings;
+    const items = BOX.items();
+    const notice = needsNotice(items);
+    const firstMode = table && s.dineIn ? "dinein" : s.pickup ? "pickup" : s.delivery ? "delivery" : "dinein";
+    const f = form || { name: "", phone: "", mode: firstMode, table, address: "", pincode: "", notes: "", date: "", time: "" };
+    const el = $("#checkout");
+    el.innerHTML = `
+      <button type="button" class="linkish back">← Back to your box</button>
+      <form class="co-form" novalidate>
+        <fieldset class="modes"><legend>How would you like it?</legend>
+          ${s.dineIn ? `<label><input type="radio" name="mode" value="dinein" ${f.mode === "dinein" ? "checked" : ""}><span>Dine-in</span></label>` : ""}
+          ${s.pickup ? `<label><input type="radio" name="mode" value="pickup" ${f.mode === "pickup" ? "checked" : ""}><span>Pickup</span></label>` : ""}
+          ${s.delivery ? `<label><input type="radio" name="mode" value="delivery" ${f.mode === "delivery" ? "checked" : ""}><span>Delivery</span></label>` : ""}
+        </fieldset>
+        <label>Your name<input name="name" autocomplete="name" maxlength="60" required value="${esc(f.name)}"></label>
+        <label class="tbl" ${f.mode === "dinein" ? "" : "hidden"}>Table number<input name="table" maxlength="10" autocomplete="off" value="${esc(f.table || table)}" ${table ? "readonly" : ""} placeholder="The number on your table"></label>
+        <label>Mobile number <span class="opt dine-opt" ${f.mode === "dinein" ? "" : "hidden"}>(optional, for your bill on WhatsApp)</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel-national" maxlength="14" value="${esc(f.phone)}" placeholder="10-digit mobile"></label>
+        <div class="addr" ${f.mode === "delivery" ? "" : "hidden"}>
+          <label>Delivery address<textarea name="address" rows="3" maxlength="300" autocomplete="street-address">${esc(f.address)}</textarea></label>
+          <label>Pincode<input name="pincode" inputmode="numeric" autocomplete="postal-code" maxlength="6" value="${esc(f.pincode)}"></label>
+          ${s.deliveryFee ? `<p class="hint">Delivery ${esc(money(s.deliveryFee))}${s.freeDeliveryAbove ? `, free above ${esc(money(s.freeDeliveryAbove))}` : ""}${s.minOrder ? ` · minimum order ${esc(money(s.minOrder))}` : ""}</p>` : ""}
+        </div>
+        <div class="when" ${f.mode === "dinein" ? "hidden" : ""}>
+          <label>Day<select name="date"><option value="">Loading days…</option></select></label>
+          <label>Time<select name="time"></select></label>
+        </div>
+        ${notice ? `<p class="hint notice-hint" ${f.mode === "dinein" ? "hidden" : ""}>Entremets are made to order, so the earliest day is ${s.preorderNoticeDays} days from today.</p>` : ""}
+        <label>Anything we should know? <span class="opt">(optional)</span><textarea name="notes" rows="2" maxlength="300" placeholder="Message on the cake, allergies, gate code…">${esc(f.notes)}</textarea></label>
+        ${payLaterOk() ? `<fieldset class="modes paywhen" ${f.mode === "dinein" ? "" : "hidden"}><legend>When will you pay?</legend>
+          <label><input type="radio" name="when" value="later" ${f.when !== "now" ? "checked" : ""}><span>At the end</span></label>
+          <label><input type="radio" name="when" value="now" ${f.when === "now" ? "checked" : ""}><span>Now, by UPI</span></label></fieldset>` : ""}
+        <div class="coupon" ${laterChosen(f) ? "hidden" : ""}>
+          <label>Have a code? <span class="opt">(optional)</span><span class="coupon-row"><input name="coupon" maxlength="20" autocomplete="off" value="${esc(coupon ? coupon.code : "")}" placeholder="e.g. WELCOME10"><button type="button" class="pill apply">Apply</button></span></label>
+          <p class="hint coupon-note">${coupon ? `${esc(coupon.label)} · −${esc(money(coupon.discount))}` : ""}</p>
+        </div>
+        <label class="optin"><input type="checkbox" name="optIn" ${f.optIn ? "checked" : ""}><span>Send me SEREN offers on WhatsApp <span class="opt">(you can stop any time)</span></span></label>
+        <div class="co-total"><span>Total</span><b></b></div>
+        <p class="err" role="alert"></p>
+        <button class="pill fill" type="submit">${submitLabel(f)}</button>
+        ${s.whatsapp ? `<button class="pill wa" type="button" data-wa>Order on WhatsApp instead</button>` : ""}
+      </form>`;
+    const fm = el.querySelector("form");
+    let days = [];
+    el.querySelector(".back").addEventListener("click", () => { form = readForm(fm); show("box"); });
+    fm.querySelector(".apply").addEventListener("click", () => applyCoupon(fm));
+    const wa = fm.querySelector("[data-wa]");
+    if (wa) wa.addEventListener("click", () => submit(fm, "whatsapp"));
+    fm.addEventListener("change", (e) => {
+      if (e.target.name === "mode" || e.target.name === "when") { modeChanged(fm, readForm(fm)); total(fm); }
+      if (e.target.name === "date") fillTimes(fm, days, "");
+    });
+    fm.addEventListener("submit", (e) => { e.preventDefault(); submit(fm); });
+    total(fm);
+
+    try {
+      days = (await P.api(`/api/slots?notice=${notice ? 1 : 0}`)).days;
+    } catch (e) {
+      fm.querySelector(".err").textContent = e.message;
+    }
+    const sel = field(fm, "date");
+    sel.innerHTML = days.length
+      ? days.map((d) => `<option value="${esc(d.date)}" ${d.date === f.date ? "selected" : ""}>${esc(dayLabel(d.date))}</option>`).join("")
+      : `<option value="">No days open right now</option>`;
+    fillTimes(fm, days, f.time);
+  }
+
+  const payLaterOk = () => Boolean(shop.settings.dineInPayLater && table && tableKey && window.SEREN_TABLE && window.SEREN_TABLE.open);
+  const laterChosen = (f) => f.mode === "dinein" && payLaterOk() && f.when !== "now";
+  const submitLabel = (f) => (laterChosen(f) ? "Send to the kitchen" : f.mode === "dinein" ? "Send to kitchen & pay by UPI" : "Place order & pay by UPI");
+
+  async function applyCoupon(fm) {
+    const note = fm.querySelector(".coupon-note");
+    const code = field(fm, "coupon").value.trim();
+    if (!code) { coupon = null; note.textContent = ""; total(fm); return; }
+    try {
+      const r = await P.api("/api/coupons/check", { method: "POST", body: { code, itemsTotal: boxTotals(BOX.items()).total } });
+      coupon = { code: r.code, discount: r.discount, label: r.label };
+      note.textContent = `${r.label} · −${money(r.discount)}`;
+    } catch (e) {
+      coupon = null;
+      note.textContent = e.message;
+    }
+    total(fm);
+  }
+
+  function modeChanged(fm, f) {
+    const mode = f.mode;
+    const paywhen = fm.querySelector(".paywhen");
+    if (paywhen) paywhen.hidden = mode !== "dinein";
+    fm.querySelector(".coupon").hidden = laterChosen(f);
+    fm.querySelector(".addr").hidden = mode !== "delivery";
+    fm.querySelector(".tbl").hidden = mode !== "dinein";
+    fm.querySelector(".dine-opt").hidden = mode !== "dinein";
+    fm.querySelector(".when").hidden = mode === "dinein";
+    const notice = fm.querySelector(".notice-hint");
+    if (notice) notice.hidden = mode === "dinein";
+    fm.querySelector('button[type="submit"]').textContent = submitLabel(f);
+  }
+
+  function fillTimes(fm, days, keep) {
+    const day = days.find((d) => d.date === field(fm, "date").value);
+    field(fm, "time").innerHTML = day ? day.times.map((t) => `<option value="${esc(t)}" ${t === keep ? "selected" : ""}>${esc(timeLabel(t))}</option>`).join("") : "";
+  }
+
+  function total(fm) {
+    const s = shop.settings;
+    const sub = boxTotals(BOX.items()).total;
+    const delivery = fm.querySelector('[name="mode"]:checked')?.value === "delivery";
+    const fee = delivery && s.deliveryFee && !(s.freeDeliveryAbove && sub >= s.freeDeliveryAbove) ? s.deliveryFee : 0;
+    const off = coupon && !laterChosen(readForm(fm)) ? Math.min(coupon.discount, sub) : 0;
+    const extras = [fee ? `incl. ${money(fee)} delivery` : "", off ? `${money(off)} off` : ""].filter(Boolean).join(", ");
+    fm.querySelector(".co-total b").textContent = money(sub + fee - off) + (extras ? ` (${extras})` : "");
+  }
+
+  // form.elements.namedItem, because form.name is the form's own name attribute
+  const field = (fm, n) => fm.elements.namedItem(n);
+  const readForm = (fm) => ({
+    mode: fm.querySelector('[name="mode"]:checked')?.value || "",
+    when: fm.querySelector('[name="when"]:checked')?.value || "now",
+    optIn: field(fm, "optIn").checked,
+    table: field(fm, "table").value.trim(),
+    name: field(fm, "name").value.trim(), phone: field(fm, "phone").value.trim(), address: field(fm, "address").value.trim(),
+    pincode: field(fm, "pincode").value.trim(), notes: field(fm, "notes").value.trim(), date: field(fm, "date").value, time: field(fm, "time").value,
+  });
+
+  async function submit(fm, channel = "web") {
+    const err = fm.querySelector(".err");
+    const btn = fm.querySelector('button[type="submit"]');
+    form = readForm(fm);
+    const local = quickCheck(form);
+    if (local) { err.textContent = local; return; }
+    const later = laterChosen(form);
+    // open WhatsApp's window now: browsers block windows opened after waiting for the server
+    const waWin = channel === "whatsapp" ? window.open("about:blank", "_blank") : null;
+    btn.disabled = true; err.textContent = ""; btn.textContent = "Placing your order…";
+    try {
+      const items = BOX.items();
+      const res = await P.api("/api/orders", {
+        method: "POST",
+        body: {
+          ...form, channel, items: items.map((i) => ({ id: i.id, qty: i.qty })),
+          ...(later ? { payLater: true, k: tableKey } : coupon ? { coupon: coupon.code } : {}),
+        },
+      });
+      P.rememberOrder(res.code, res.token);
+      placed = res;
+      if (waWin) waWin.location.href = whatsappToShop(res, items);
+      form = { ...form, notes: "" };
+      coupon = null;
+      BOX.clear();
+      show(res.onTab ? "done" : "pay");
+    } catch (e) {
+      if (waWin) waWin.close();
+      err.textContent = e.message;
+      btn.disabled = false; btn.textContent = submitLabel(form);
+    }
+  }
+
+  // The order, written out for SEREN's WhatsApp, with the link to pay and track it.
+  function whatsappToShop(res, items) {
+    const link = new URL(P.orderUrl(res.code, res.token), location.href).toString();
+    const lines = items.map((i) => `${i.qty} × ${i.name}`).join("\n");
+    const how = form.mode === "dinein" ? `Dine-in, table ${form.table}` : `${form.mode === "delivery" ? "Delivery" : "Pickup"} ${form.date} ${form.time}`;
+    const text = `Hi SEREN! Order ${res.code}\n${lines}\nTotal ${money(res.total)}\n${how}\nName: ${form.name}\nPay / track: ${link}`;
+    return `https://wa.me/${encodeURIComponent(shop.settings.whatsapp)}?text=${encodeURIComponent(text)}`;
+  }
+
+  // Friendly checks before we bother the server (the server checks everything again).
+  function quickCheck(f) {
+    if (!f.mode) return "Choose how you'd like your order";
+    if (f.name.length < 2) return "Please tell us your name";
+    if (f.mode === "dinein" && !/^[A-Za-z0-9][A-Za-z0-9 -]{0,9}$/.test(f.table)) return "Please enter your table number";
+    if (f.mode === "dinein" && !f.phone) return "";
+    if (!/^[6-9]\d{9}$/.test(f.phone.replace(/[\s-]/g, "").replace(/^(\+?91|0)(?=\d{10}$)/, ""))) return "Please enter a 10-digit mobile number";
+    if (f.mode === "delivery" && f.address.length < 10) return "Please enter your full delivery address";
+    if (f.mode === "delivery" && !/^\d{6}$/.test(f.pincode)) return "Please enter a 6-digit pincode";
+    if (f.mode !== "dinein" && (!f.date || !f.time)) return "Please choose a day and time";
+    return "";
+  }
+
+  function renderPay() {
+    const el = $("#checkout");
+    el.innerHTML = `<div class="pay-host"></div><a class="linkish" href="${esc(P.orderUrl(placed.code, placed.token))}">Pay later or track this order →</a>`;
+    P.payPanel(el.querySelector(".pay-host"), placed, () => show("done"));
+  }
+
+  function renderDone() {
+    if (placed.onTab) {
+      $("#checkout").innerHTML = `
+        <div class="done">
+          <svg aria-hidden="true"><use href="#burst"/></svg>
+          <p class="hand">On its way, ${esc((form && form.name.split(" ")[0]) || "friend")}!</p>
+          <p>Order <b>${esc(placed.code)}</b> is with the kitchen. Order more any time; when you're done, tap <b>Ask for the bill</b> at the bottom of the screen.</p>
+          <button type="button" class="pill fill again">Order something else</button>
+        </div>`;
+      $("#checkout .again").addEventListener("click", () => { placed = null; show("box"); });
+      return;
+    }
+    $("#checkout").innerHTML = `
+      <div class="done">
+        <svg aria-hidden="true"><use href="#burst"/></svg>
+        <p class="hand">Got it, ${esc((form && form.name.split(" ")[0]) || "friend")}!</p>
+        <p>We're checking your payment for order <b>${esc(placed.code)}</b>${form && form.mode === "dinein" ? `. Your food is on its way to table ${esc(form.table)}` : ". You'll see it confirmed on your order page, usually within a few minutes"}.</p>
+        <a class="pill fill" href="${esc(P.orderUrl(placed.code, placed.token))}">Track your order</a>
+        <button type="button" class="linkish again">Start a new box</button>
+      </div>`;
+    $("#checkout .again").addEventListener("click", () => { placed = null; show("box"); });
+  }
+
+  function lastOrderLink() {
+    const last = P.savedOrders()[0];
+    const el = $("#lastOrder");
+    if (!el) return;
+    el.hidden = !last;
+    if (last) el.href = P.orderUrl(last.code, last.token);
+  }
+
+  document.addEventListener("seren:box", () => { if (shop) updateFooter(); lastOrderLink(); });
+  document.addEventListener("seren:shop", () => { BOX.rerender(); });
+  $("#checkoutBtn").addEventListener("click", () => show("form"));
+  // re-opening the drawer after paying shows the box again
+  document.addEventListener("seren:drawer", (e) => { if (e.detail.open && view === "done") { placed = null; show("box"); } });
+  loadShop();
+  lastOrderLink();
+  if (table) $("#boxStatus").textContent = `Ordering for table ${table}`;
+})();
+
+/* Shows the owner's dashboard edits on the website: renamed or hidden products, new photos,
+   and brand-new products (in a "New at SEREN" section). Runs once the order system has answered. */
+(function () {
+  "use strict";
+  const BOX = window.SEREN_BOX;
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const CATS = window.SEREN_CATEGORIES || {};
+  let applied = false;
+
+  function editCard(p) {
+    const card = document.querySelector(`[data-pid="${CSS.escape(p.id)}"]`);
+    const tab = document.getElementById(`tab-${p.id}`);
+    if (p.hidden) {
+      if (card) card.hidden = true;
+      if (tab) tab.hidden = true;
+      return;
+    }
+    if (card) {
+      const h = card.querySelector("h3");
+      const d = card.querySelector("p");
+      if (h) h.lastChild.textContent = p.name; // keeps the veg / non-veg mark in front
+      if (d && p.description) d.textContent = p.description;
+      const pic = card.querySelector("img:not(.alt)");
+      if (pic && p.photo) pic.src = BOX.photoUrl(p.photo);
+    }
+    if (tab) {
+      const title = tab.querySelector("b") || tab.firstChild;
+      if (title) title.textContent = p.name;
+      const small = tab.querySelector("small");
+      if (small && p.description) small.textContent = p.description;
+    }
+  }
+
+  function newProducts(list) {
+    const fresh = list.filter((p) => p.custom && !p.hidden);
+    if (!fresh.length) return;
+    const section = document.createElement("section");
+    section.className = "slab extras";
+    section.id = "new";
+    section.setAttribute("aria-labelledby", "newTitle");
+    section.innerHTML = `<div class="wrap">
+        <p class="eyebrow">Fresh from the kitchen</p>
+        <h2 class="display" id="newTitle">New at SEREN</h2>
+        <div class="extras-grid">${fresh.map((p) => `
+          <article class="paper extra" data-pid="${esc(p.id)}">
+            <div class="ph">${p.photo ? `<img src="${esc(BOX.photoUrl(p.photo))}" alt="${esc(p.name)}" loading="lazy">` : `<span class="hand">${esc(p.name)}</span>`}</div>
+            <span class="it">${esc(CATS[p.category] || "")}</span>
+            <h3>${esc(p.name)}</h3>
+            ${p.description ? `<p>${esc(p.description)}</p>` : ""}
+            <div class="row">${BOX.addBtn(p.id)}</div>
+          </article>`).join("")}</div>
+      </div>`;
+    const visit = document.getElementById("visit");
+    visit.parentNode.insertBefore(section, visit);
+  }
+
+  document.addEventListener("seren:shop", () => {
+    const shop = window.SEREN_SHOP;
+    if (!shop || applied || !Array.isArray(shop.products)) return;
+    applied = true;
+    for (const p of shop.products) {
+      BOX.updateItem({ id: p.id, name: p.name, category: p.category, photo: p.photo, veg: p.veg, ...(p.custom ? { img: null } : {}) });
+      if (!p.custom) editCard(p);
+    }
+    newProducts(shop.products);
+    BOX.rerender();
+  });
+})();
+
+/* For guests who scanned their table's QR code: a bar to call a waiter, ask for the bill,
+   and see the table's running tab (and pay it by UPI once the bill is made). */
+(function () {
+  "use strict";
+  const P = window.SerenPay;
+  const T = window.SEREN_TABLE;
+  if (!T || !T.k || !P.enabled) return;
+  const { esc, money } = P;
+  const path = (extra = "") => `/api/tables/${encodeURIComponent(T.table)}${extra}`;
+
+  const bar = document.createElement("div");
+  bar.className = "tablebar";
+  bar.setAttribute("role", "region");
+  bar.setAttribute("aria-label", `Table ${T.table}`);
+  bar.innerHTML = `<span class="tb-t">Table ${esc(T.table)}</span>
+    <button type="button" data-call="waiter">Call waiter</button>
+    <button type="button" data-call="bill">Ask for the bill</button>
+    <button type="button" data-tab>Our tab</button>`;
+  const sheet = document.createElement("dialog");
+  sheet.className = "tabsheet";
+  sheet.setAttribute("data-lenis-prevent", "");
+  sheet.setAttribute("aria-label", "Your table's tab");
+  document.body.append(bar, sheet);
+
+  let toastTimer;
+  function note(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("on");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 2600);
+  }
+
+  bar.addEventListener("click", async (e) => {
+    const call = e.target.closest("[data-call]");
+    if (call) {
+      call.disabled = true;
+      try {
+        const r = await P.api(path("/call"), { method: "POST", body: { k: T.k, kind: call.dataset.call } });
+        note(r.already ? "We already know. Someone's coming!" : call.dataset.call === "bill" ? "We're bringing your bill" : "A waiter is on the way");
+      } catch (ex) { note(ex.message); }
+      setTimeout(() => { call.disabled = false; }, 4000);
+      return;
+    }
+    if (e.target.closest("[data-tab]")) openTab();
+  });
+
+  async function openTab() {
+    sheet.innerHTML = `<div class="ts-in"><p class="hand">Loading your tab…</p></div>`;
+    if (!sheet.open) sheet.showModal();
+    try {
+      render(await P.api(`${path()}?k=${encodeURIComponent(T.k)}`));
+    } catch (e) {
+      sheet.innerHTML = `<div class="ts-in"><p>${esc(e.message)}</p><button class="pill fill" type="button" data-close>Close</button></div>`;
+    }
+  }
+
+  function render(d) {
+    const head = `<div class="ts-head"><h2>Table ${esc(d.table)}</h2><button class="close" type="button" data-close aria-label="Close">×</button></div>`;
+    if (!d.tab) {
+      sheet.innerHTML = `<div class="ts-in">${head}<p>Nothing on your tab yet.${d.payLater ? " Order from the menu and choose <b>Pay at the end</b>." : ""}</p></div>`;
+      return;
+    }
+    const t = d.tab;
+    sheet.innerHTML = `<div class="ts-in">${head}
+      <ul class="ts-lines">${t.lines.map((l) => `<li><span>${l.qty} × ${esc(l.name)}</span><b>${esc(money(l.amount))}</b></li>`).join("")}
+        <li class="tot"><span>Total so far</span><b>${esc(money(t.total))}</b></li></ul>
+      <ul class="ts-rounds">${t.rounds.map((r) => `<li>${esc(r.code)} · ${esc(r.status)}</li>`).join("")}</ul>
+      ${d.bill ? (d.bill.paid ? `<p class="hand">Paid. Thank you!</p><a class="pill fill" href="${esc(P.invoiceUrl(d.bill.code, d.bill.token))}" target="_blank" rel="noopener">See your bill</a>` : `<div class="ts-pay"></div>`)
+        : `<p class="hint">When you're ready, tap <b>Ask for the bill</b>. We'll make one bill for the whole table.</p>`}
+    </div>`;
+    if (d.bill && !d.bill.paid) {
+      P.rememberOrder(d.bill.code, d.bill.token);
+      P.api(`/api/orders/${encodeURIComponent(d.bill.code)}?t=${encodeURIComponent(d.bill.token)}`).then((o) => {
+        const host = sheet.querySelector(".ts-pay");
+        if (!host) return;
+        if (o.pay) P.payPanel(host, { ...o.pay, code: d.bill.code, token: d.bill.token, total: o.order.total, expiresAt: null }, () => openTab());
+        else host.innerHTML = `<p>${esc(o.order.statusLabel)}</p>`;
+      }).catch((e) => { const host = sheet.querySelector(".ts-pay"); if (host) host.textContent = e.message; });
+    }
+  }
+
+  sheet.addEventListener("click", (e) => { if (e.target.closest("[data-close]") || e.target === sheet) sheet.close(); });
+
+  // is this table seated (tab open)? checkout only offers "pay at the end" if so
+  async function refreshOpen() {
+    try { T.open = Boolean((await P.api(`${path()}?k=${encodeURIComponent(T.k)}`)).open); }
+    catch (e) { T.open = false; }
+  }
+  refreshOpen();
+  setInterval(() => { if (!document.hidden) refreshOpen(); }, 60000);
 })();
 
 </script>

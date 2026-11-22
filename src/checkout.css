@@ -1,0 +1,111 @@
+/* ---------- online ordering: prices, checkout form, UPI payment (order box + order page) ---------- */
+.add.off{opacity:.55;cursor:not-allowed;text-decoration:none}
+.drawer li .n small{display:block;font-weight:500;color:var(--muted-dark);font-size:13px;margin-top:2px}
+.drawer.co-on #boxList,.drawer.co-on > footer{display:none}
+.drawer .sum{display:flex;justify-content:space-between;align-items:baseline;font-size:15px}
+.drawer .sum b{font-family:var(--display);font-weight:400;font-size:28px;letter-spacing:.01em}
+.drawer .sum .warn{color:var(--nonveg);font-size:13px;line-height:1.35}
+.drawer footer .pill:disabled{opacity:.5;cursor:not-allowed}
+.linkish{all:unset;cursor:pointer;color:var(--plum);font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px;justify-self:center}
+.linkish:focus-visible{outline:2px solid var(--plum);outline-offset:3px;border-radius:4px}
+
+.co{flex:1;overflow:auto;padding:14px 2px 4px;display:grid;align-content:start;gap:14px;overscroll-behavior:contain}
+.co .back{justify-self:start}
+.co-form{display:grid;gap:12px}
+.co-form label{display:grid;gap:5px;font-size:13px;font-weight:600;letter-spacing:.01em}
+.co-form input[readonly]{background:var(--butter);font-weight:700}
+.co-form .opt{font-weight:400;color:var(--muted-dark)}
+.co-form input,.co-form select,.co-form textarea,.utr input{font:500 16px/1.3 var(--body);color:var(--ink);background:var(--white);border:1.5px solid color-mix(in srgb,var(--ink) 22%,transparent);border-radius:12px;padding:11px 12px;width:100%;transition:border-color .2s,box-shadow .2s}
+.co-form textarea{resize:vertical;min-height:44px}
+.co-form :is(input,select,textarea):focus,.utr input:focus{outline:none;border-color:var(--plum);box-shadow:0 0 0 3px color-mix(in srgb,var(--plum) 18%,transparent)}
+.co-form .when{display:grid;grid-template-columns:1.2fr 1fr;gap:10px}
+.co-form .hint{margin:-4px 0 0;font-size:13px;color:var(--muted-dark)}
+.modes{border:0;padding:0;margin:0;display:flex;gap:8px}
+.modes legend{font-size:13px;font-weight:600;margin-bottom:6px;padding:0}
+.modes label{flex:1;display:block;cursor:pointer;min-width:0}
+.modes input{position:absolute;opacity:0;pointer-events:none}
+.modes span{display:block;text-align:center;padding:12px 6px;white-space:nowrap;border-radius:999px;border:1.5px solid var(--ink);font-weight:600;font-size:15px;transition:background .25s var(--ease),color .25s var(--ease)}
+.modes input:checked + span{background:var(--ink);color:var(--butter)}
+.modes input:focus-visible + span{outline:2px solid var(--plum);outline-offset:3px}
+.co-total{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid var(--ink);padding-top:12px;font-weight:600}
+.co-total b{font-family:var(--display);font-weight:400;font-size:28px}
+.co-form .pill,.pay .pill{justify-content:center}
+.co-form .pill:disabled{opacity:.6;cursor:progress}
+.err{margin:0;color:var(--nonveg);font-size:14px;font-weight:600;min-height:1em}
+.err:empty{display:none}
+
+.pay{display:grid;gap:12px;text-align:center}
+.pay-amt{margin:0;font-family:var(--display);font-size:54px;line-height:1;text-transform:uppercase}
+.pay-amt span{font-size:22px;vertical-align:middle;color:var(--plum);margin-right:6px}
+.pay-note,.pay-id{margin:0;font-size:14px;color:var(--muted-dark)}
+.pay-id b{color:var(--ink);word-break:break-all}
+.pay-qr{justify-self:center;width:min(240px,70vw);aspect-ratio:1;display:grid;place-items:center;background:var(--white);border-radius:18px;padding:10px;box-shadow:0 12px 30px -16px rgba(20,12,14,.45);animation:qr-in .7s var(--ease) both}
+.pay-qr svg{width:100%;height:100%}
+.pay-qr span{font-size:14px;color:var(--muted-dark)}
+@keyframes qr-in{from{transform:scale(.92) rotate(-2deg);opacity:0}}
+.utr{display:grid;gap:8px;text-align:left;border-top:1px dashed color-mix(in srgb,var(--ink) 30%,transparent);padding-top:14px}
+.utr label{font-size:13px;line-height:1.4}
+.utr-row{display:flex;gap:8px}
+.utr-row input{letter-spacing:.08em}
+.utr-row .pill{flex:none}
+
+.done{display:grid;gap:12px;justify-items:center;text-align:center;padding-top:20px}
+.done svg{width:90px;height:90px;color:var(--plum);animation:done-spin 1.2s var(--ease) both}
+.done .hand{font-size:40px;color:var(--plum);margin:0;line-height:1}
+.done p{margin:0;max-width:34ch}
+@keyframes done-spin{from{transform:rotate(-120deg) scale(.4);opacity:0}}
+@media (prefers-reduced-motion:reduce){.pay-qr,.done svg{animation:none}}
+
+/* ---------- upgrade: coupons, offers opt-in, WhatsApp order, table bar & tab, ratings, new products ---------- */
+.coupon-row{display:flex;gap:8px}
+.coupon-row input{text-transform:uppercase;letter-spacing:.06em}
+.coupon-row .pill{flex:none;padding:10px 16px}
+.coupon .hint{margin:4px 0 0}
+.co-form label.optin{display:flex;align-items:flex-start;gap:8px;font-weight:500;font-size:13px;line-height:1.35}
+.co-form label.optin input{width:auto;margin-top:2px;accent-color:var(--plum)}
+.pill.wa{justify-content:center;border-color:#1f7a45;color:#1f7a45}
+.pill.wa:hover{background:#1f7a45;color:#fff}
+
+.tablebar{position:fixed;z-index:70;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:6px;
+  background:var(--ink);color:var(--cream);border-radius:999px;padding:6px;box-shadow:0 16px 40px -16px rgba(0,0,0,.7);max-width:calc(100% - 24px);animation:tb-in .7s var(--ease) both}
+.tablebar .tb-t{font-family:var(--display);text-transform:uppercase;font-size:18px;padding:0 10px;white-space:nowrap;color:var(--butter)}
+.tablebar button{border:0;border-radius:999px;padding:10px 13px;background:color-mix(in srgb,var(--cream) 12%,transparent);color:var(--cream);font:600 13px/1 var(--body);cursor:pointer;white-space:nowrap}
+.tablebar button:hover,.tablebar button:focus-visible{background:var(--butter);color:var(--ink);outline:none}
+.tablebar button:disabled{opacity:.5}
+@keyframes tb-in{from{transform:translate(-50%,40px);opacity:0}}
+body:has(.tablebar) .pal-btn{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+@media (max-width:420px){.tablebar .tb-t{font-size:15px;padding:0 6px}.tablebar button{padding:9px 9px;font-size:12px}}
+.tabsheet{border:0;padding:0;border-radius:26px 26px 0 0;width:min(520px,100%);max-height:88vh;margin:auto auto 0;background:var(--cream);color:var(--ink)}
+.tabsheet[open]{animation:tb-sheet .45s var(--ease) both}
+.tabsheet::backdrop{background:rgba(20,12,14,.55)}
+@keyframes tb-sheet{from{transform:translateY(40px);opacity:0}}
+@media (min-width:700px){.tabsheet{border-radius:26px;margin:auto}}
+.ts-in{padding:20px 18px calc(24px + env(safe-area-inset-bottom,0px));display:grid;gap:14px}
+.ts-head{display:flex;justify-content:space-between;align-items:center}
+.ts-head h2{font-family:var(--display);font-weight:400;text-transform:uppercase;font-size:40px;margin:0;line-height:1}
+.ts-head .close{border:0;background:var(--ink);color:var(--cream);width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:18px}
+.ts-lines,.ts-rounds{list-style:none;margin:0;padding:0}
+.ts-lines li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid color-mix(in srgb,var(--ink) 12%,transparent)}
+.ts-lines .tot{border:0;border-top:2px solid var(--ink);font-weight:700}
+.ts-rounds{font-size:12px;color:var(--muted-dark);display:grid;gap:2px}
+.ts-pay{border:1.5px dashed color-mix(in srgb,var(--ink) 30%,transparent);border-radius:20px;padding:16px 12px}
+
+.op-lines .off{color:#1f7a45}
+.review{display:grid;gap:8px;justify-items:start;border-top:1px dashed color-mix(in srgb,var(--ink) 30%,transparent);padding-top:14px}
+.review .hand{margin:0;font-size:28px;color:var(--plum)}
+.stars{display:flex;gap:4px}
+.stars button{all:unset;cursor:pointer;font-size:34px;line-height:1;color:color-mix(in srgb,var(--ink) 20%,transparent);transition:transform .2s var(--ease),color .2s}
+.stars button.on{color:#e0a526}
+.stars button:hover{transform:scale(1.18) rotate(-6deg)}
+.stars button:focus-visible{outline:2px solid var(--plum);outline-offset:2px;border-radius:4px}
+.review textarea{width:100%;font:500 15px/1.35 var(--body);border:1.5px solid color-mix(in srgb,var(--ink) 22%,transparent);border-radius:12px;padding:10px;background:var(--white);color:var(--ink)}
+.review-note{margin:0;font-size:14px}
+.review-note a{color:var(--plum);font-weight:700}
+
+.extras{background:var(--butter);color:var(--ink);padding:110px 0 120px}
+.extras .eyebrow{color:var(--plum)}
+.extras h2{font-size:clamp(60px,12vw,180px);margin:6px 0 40px}
+.extras-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:26px}
+.extra .ph{display:grid;place-items:center;background:var(--cream)}
+.extra .ph .hand{font-size:30px;color:var(--plum);text-align:center;padding:20px}
+@media (prefers-reduced-motion:reduce){.tablebar,.tabsheet[open]{animation:none}}

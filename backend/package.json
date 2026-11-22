@@ -1,0 +1,17 @@
+{
+  "name": "seren-orders",
+  "private": true,
+  "type": "module",
+  "description": "SEREN order system: Cloudflare Worker + D1 database, direct UPI payments, GST invoices and the owner dashboard.",
+  "scripts": {
+    "catalog": "node tools/export-catalog.mjs",
+    "dev": "npm run catalog && wrangler dev --port 8790",
+    "db:local": "wrangler d1 migrations apply seren-orders --local",
+    "db:remote": "wrangler d1 migrations apply seren-orders --remote",
+    "test": "node --test test/*.test.js",
+    "deploy": "npm run catalog && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.156.2"
+  }
+}

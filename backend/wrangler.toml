@@ -1,0 +1,30 @@
+# SEREN order system on Cloudflare Workers (free plan).
+name = "seren-orders"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+# The owner dashboard (static files). Requests that aren't files go to the Worker.
+[assets]
+directory = "./public"
+not_found_handling = "none"
+run_worker_first = ["/api/*", "/invoice/*", "/credit-note/*", "/kot/*", "/day-close", "/img/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "seren-orders"
+database_id = "00000000-0000-0000-0000-000000000000" # replaced by the real id after `wrangler d1 create`
+migrations_dir = "migrations"
+
+[triggers]
+crons = ["*/10 * * * *", "30 20 * * *"] # expiry every 10 min; nightly backup at 02:00 India time
+
+[vars]
+# Websites allowed to place orders (comma-separated).
+ALLOWED_ORIGINS = "https://saarukesh2005.github.io"
+# Optional Telegram alerts: put the chat id here and the bot token in the secret TELEGRAM_BOT_TOKEN.
+TELEGRAM_CHAT_ID = ""
+
+# Secrets (never in this file): ADMIN_PASSWORD, SESSION_SECRET, TELEGRAM_BOT_TOKEN, WHATSAPP_TOKEN (optional, paid automatic WhatsApp)
+# Set with:  npx wrangler secret put ADMIN_PASSWORD
+# For local testing they live in .dev.vars (git-ignored).

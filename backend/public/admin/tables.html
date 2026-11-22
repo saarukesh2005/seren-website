@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>SEREN table QR codes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@700&family=DM+Sans:wght@500;700&display=swap">
+<style>
+  :root{--plum:#662937;--butter:#EBCB8B;--cream:#F8EEDC;--ink:#140C0E}
+  *{box-sizing:border-box} body{margin:0;background:#eee3d3;font:15px/1.4 "DM Sans",system-ui,sans-serif;color:var(--ink)}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;justify-content:center;padding:16px}
+  .bar label{display:grid;gap:4px;font-size:13px;font-weight:700}
+  .note{margin:0;max-width:520px;font-size:14px}
+  .bar button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:11px 20px;background:var(--plum);color:var(--cream);cursor:pointer}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px;padding:0 16px 40px;max-width:1100px;margin:0 auto}
+  .card{background:var(--plum);color:var(--cream);border-radius:22px;padding:22px 20px 18px;display:grid;justify-items:center;gap:10px;text-align:center;break-inside:avoid}
+  .brand{font-family:Anton,Impact,sans-serif;letter-spacing:.14em;font-size:22px}
+  .qr{background:#fff;border-radius:16px;padding:10px;width:190px;height:190px}
+  .qr svg{width:100%;height:100%}
+  .t{font-family:Anton,Impact,sans-serif;font-size:44px;line-height:1;text-transform:uppercase;color:var(--butter)}
+  .hand{font-family:Caveat,cursive;font-size:24px;line-height:1}
+  .small{font-size:11px;opacity:.75}
+  .msg{text-align:center;padding:30px;font-weight:700}
+  @media print{body{background:#fff}.bar{display:none}.grid{grid-template-columns:repeat(2,1fr);gap:10mm;padding:0}.card{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4;margin:10mm}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <p class="note">These cards use the tables from Settings. Each QR is signed, so only the real card lets guests pay at the end.</p>
+  <button type="button" id="print">Print</button>
+</div>
+<p class="msg" id="msg">Loading…</p>
+<div class="grid" id="grid"></div>
+<script src="qrcode.min.js"></script>
+<script src="tables.js"></script>
+</body>
+</html>

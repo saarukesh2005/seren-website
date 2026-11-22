@@ -7,6 +7,8 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const img = (name) => (name ? `img/${name}.webp` : "");
   const STORE_KEY = "seren-box-v1";
+  const CAT = new Map((window.SEREN_CATALOG || []).map((c) => [c.id, c]));
+  const money = (paise) => `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: paise % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
   /* ---------- order box state (immutable updates) ---------- */
   let box = loadBox();
@@ -32,8 +34,12 @@
   }
   const count = () => Object.values(box).reduce((n, i) => n + i.qty, 0);
 
-  const addBtn = (item) =>
-    `<button class="add" type="button" data-add='${esc(JSON.stringify({ id: item.id, name: item.name, img: item.img || null }))}'>+ Add to box</button>`;
+  // Every "Add" button reads its name and picture from the shared catalog (src/catalog.js).
+  const addBtn = (id) => {
+    const item = CAT.get(id);
+    if (!item) throw new Error(`Product ${id} is missing from the catalog`);
+    return `<button class="add" type="button" data-add='${esc(JSON.stringify({ id: item.id, name: item.name, img: item.img, photo: item.photo || null }))}'>+ Add to box</button>`;
+  };
 
   /* ---------- sections ---------- */
   function marquee() {
@@ -44,21 +50,21 @@
 
   function bomboloni() {
     $("#bombRail").innerHTML = MENU.bomboloni.map((b, i) => `
-      <article class="paper" style="--r:${i % 2 ? 1.2 : -1.2}deg">
+      <article class="paper" data-pid="${esc(b.id)}" style="--r:${i % 2 ? 1.2 : -1.2}deg">
         <div class="ph"><img src="${img(b.img)}" alt="${esc(b.en)} bombolone cut open" loading="lazy"></div>
         <span class="it">${esc(b.en)}</span>
         <h3>${esc(b.name)}</h3>
         <p>${esc(b.desc)}</p>
-        <div class="row">${addBtn({ id: b.id, name: b.name, img: b.img })}</div>
+        <div class="row">${addBtn(b.id)}</div>
       </article>`).join("");
   }
 
   function cookies() {
     $("#cookieGrid").innerHTML = MENU.cookies.map((c) => `
-      <article class="cookie">
+      <article class="cookie" data-pid="${esc(c.id)}">
         <div class="disc"><img src="${img(c.img)}" alt="${esc(c.name)} cookie" loading="lazy">${c.hover ? `<img class="alt" src="${img(c.hover)}" alt="" loading="lazy">` : ""}</div>
         <h3>${esc(c.name)}</h3><p>${esc(c.desc)}</p>
-        ${addBtn({ id: c.id, name: `${c.name} cookie`, img: c.img })}
+        ${addBtn(c.id)}
       </article>`).join("");
   }
 
@@ -77,7 +83,8 @@
     document.querySelectorAll("#fruitList button").forEach((b) => b.setAttribute("aria-selected", String(Number(b.dataset.i) === i)));
     const visual = f.img ? `<img src="${img(f.img)}" alt="${esc(f.name)} illusory fruit dessert">` : `<div class="blob">${esc(f.name)}</div>`;
     $("#fruitView").innerHTML = `<div class="ring"></div>${visual}<ul class="layers">${f.layers.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`;
-    $("#fruitDetail").innerHTML = `<span class="hand" style="font-size:26px">${esc(f.name)}, cut open</span>${addBtn({ id: f.id, name: `${f.name} illusory fruit`, img: f.img })}`;
+    $("#fruitDetail").innerHTML = `<span class="hand" style="font-size:26px">${esc(f.name)}, cut open</span>${addBtn(f.id)}`;
+    renderBox(); // fresh buttons need their price / "in box" labels
     if (!first) document.dispatchEvent(new CustomEvent("seren:fruit"));
   }
 
@@ -95,15 +102,16 @@
     const e = MENU.entremets[i];
     document.querySelectorAll("#entTabs button").forEach((b) => b.setAttribute("aria-selected", String(Number(b.dataset.i) === i)));
     $("#cakeStack").innerHTML = e.layers.map(([label, color]) => `<div class="layer" style="background-color:${esc(color)}"><span>${esc(label)}</span></div>`).join("");
-    $("#entAdd").innerHTML = addBtn({ id: e.id, name: e.name, img: null });
+    $("#entAdd").innerHTML = addBtn(e.id);
+    renderBox(); // fresh buttons need their price / "in box" labels
     if (!first) document.dispatchEvent(new CustomEvent("seren:cake"));
   }
 
   function pastry() {
     $("#pastryGrid").innerHTML = MENU.pastry.map((p) => `
-      <article class="pcard">
+      <article class="pcard" data-pid="${esc(p.id)}">
         <div class="ph"><img src="${img(p.img)}" alt="${esc(p.name)}" loading="lazy">${p.hover ? `<img class="alt" src="${img(p.hover)}" alt=""><span class="peek">hover to cut open</span>` : ""}</div>
-        <div class="row"><h3>${esc(p.name)}</h3>${addBtn({ id: p.id, name: p.name, img: p.img })}</div>
+        <div class="row"><h3>${esc(p.name)}</h3>${addBtn(p.id)}</div>
         <p>${esc(p.desc)}</p>
       </article>`).join("");
   }
@@ -111,32 +119,32 @@
   function gelato(kind) {
     const list = MENU.gelato[kind];
     $("#scoops").innerHTML = list.map(([name, base, fleck]) => {
-      const id = `gelato-${kind}-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-      const label = kind === "sorbet" ? `${name} sorbet` : `${name} gelato`;
-      return `<article class="scoop">
+      const id = window.serenGelatoId(kind, name);
+      return `<article class="scoop" data-pid="${esc(id)}">
         <div class="drop"><div class="ball" style="background:${esc(base)};--fleck:${esc(fleck)}"><i></i><b></b></div></div><div class="cone"></div>
-        <h3>${esc(name)}</h3>${addBtn({ id, name: label, img: null })}
+        <h3>${esc(name)}</h3>${addBtn(id)}
       </article>`;
     }).join("");
     document.querySelectorAll("#gTabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.k === kind)));
+    renderBox(); // fresh buttons need their price / "in box" labels
     document.dispatchEvent(new CustomEvent("seren:scoops"));
   }
 
   function chocolates() {
     $("#bonbons").innerHTML = MENU.chocolates.bonbons.map((b) => `
-      <article class="bonbon"><span class="bob"><img src="${img(b.img)}" alt="${esc(b.name)} bonbon" loading="lazy"></span><h3>${esc(b.name)}</h3><p>${esc(b.desc)}</p>
-      ${addBtn({ id: b.id, name: `${b.name} bonbon`, img: b.img })}</article>`).join("");
+      <article class="bonbon" data-pid="${esc(b.id)}"><span class="bob"><img src="${img(b.img)}" alt="${esc(b.name)} bonbon" loading="lazy"></span><h3>${esc(b.name)}</h3><p>${esc(b.desc)}</p>
+      ${addBtn(b.id)}</article>`).join("");
     $("#truffles").innerHTML = MENU.chocolates.truffles.map((t) => `
-      <article class="truffle"><img src="${img(t.img)}" alt="${esc(t.name)}" loading="lazy">
-      <div><h3>${esc(t.name)}</h3><p>${esc(t.desc)}</p>${addBtn({ id: t.id, name: t.name, img: t.img })}</div></article>`).join("");
+      <article class="truffle" data-pid="${esc(t.id)}"><img src="${img(t.img)}" alt="${esc(t.name)}" loading="lazy">
+      <div><h3>${esc(t.name)}</h3><p>${esc(t.desc)}</p>${addBtn(t.id)}</div></article>`).join("");
   }
 
   const mark = (veg) => (veg === null || veg === undefined ? `<span class="mark-gap"></span>` : `<span class="mark ${veg ? "veg" : "non"}" role="img" aria-label="${veg ? "Vegetarian" : "Non-vegetarian"}"></span>`);
 
   function kitchen() {
     $("#slabs").innerHTML = MENU.focaccia.map((s) => `
-      <article class="slab-card"><div class="ph"><img src="${img(s.img)}" alt="${esc(s.name)} focaccia slab" loading="lazy"></div>
-      <div class="body"><h3>${mark(s.veg)}${esc(s.name)}</h3><p>${esc(s.desc)}</p>${addBtn({ id: s.id, name: `${s.name} slab`, img: s.img })}</div></article>`).join("");
+      <article class="slab-card" data-pid="${esc(s.id)}"><div class="ph"><img src="${img(s.img)}" alt="${esc(s.name)} focaccia slab" loading="lazy"></div>
+      <div class="body"><h3>${mark(s.veg)}${esc(s.name)}</h3><p>${esc(s.desc)}</p>${addBtn(s.id)}</div></article>`).join("");
     $("#kmenu").innerHTML = MENU.kitchen.map((g) => `
       <div><h3>${esc(g.group)}</h3><ul>${g.items.map((it) => `<li ${it.img ? `data-img="${img(it.img)}"` : ""}>${mark(it.veg)}<span>${esc(it.name)}</span></li>`).join("")}</ul></div>`).join("");
     peekImages();
@@ -175,8 +183,8 @@
     if (!items.length) {
       list.innerHTML = `<li class="empty" style="display:grid;border:0"><span class="hand">Your box is empty</span><span>Tap "+ Add to box" on anything you'd like.</span></li>`;
     } else {
-      list.innerHTML = items.map((i) => `<li>${i.img ? `<img src="${img(i.img)}" alt="">` : `<img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">`}
-        <span class="n">${esc(i.name)}</span>
+      list.innerHTML = items.map((i) => `<li>${i.photo ? `<img src="${esc(photoUrl(i.photo))}" alt="">` : i.img ? `<img src="${img(i.img)}" alt="">` : `<img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">`}
+        <span class="n">${esc(i.name)}${linePrice(i)}</span>
         <span class="qty"><button type="button" data-q="${esc(i.id)}" data-d="-1" aria-label="One fewer ${esc(i.name)}">−</button><b>${i.qty}</b><button type="button" data-q="${esc(i.id)}" data-d="1" aria-label="One more ${esc(i.name)}">+</button></span></li>`).join("");
     }
     const wa = $("#waBtn");
@@ -184,12 +192,25 @@
     wa.hidden = !hasWa;
     if (hasWa) wa.href = `https://wa.me/${encodeURIComponent(CFG.whatsapp)}?text=${encodeURIComponent(orderText())}`;
     $("#copyBtn").disabled = !items.length;
+    const shop = window.SEREN_SHOP; // set by checkout.js when the order system is online
     document.querySelectorAll(".add[data-add]").forEach((b) => {
       const id = JSON.parse(b.dataset.add).id;
       const inBox = Boolean(box[id]);
+      const p = shop && shop.prices[id];
+      const soldOut = Boolean(p && p.left === 0);
+      const blocked = Boolean(shop && shop.live && (!p || !p.available || soldOut));
+      b.disabled = blocked && !inBox;
       b.classList.toggle("added", inBox);
-      b.textContent = inBox ? `✓ In box (${box[id].qty})` : "+ Add to box";
+      b.classList.toggle("off", b.disabled);
+      const few = p && p.left !== undefined && p.left <= 5 ? ` · ${p.left} left` : "";
+      b.textContent = inBox ? `✓ In box (${box[id].qty})` : blocked ? (soldOut ? "Sold out today" : p ? "Sold out" : "Coming soon") : p ? `+ Add · ${money(p.price)}${few}` : "+ Add to box";
     });
+    document.dispatchEvent(new CustomEvent("seren:box"));
+  }
+  function linePrice(i) {
+    const p = window.SEREN_SHOP && window.SEREN_SHOP.prices[i.id];
+    if (!p) return "";
+    return `<small>${p.available ? `${esc(money(p.price * i.qty))}${p.unit ? ` · ${esc(p.unit)}` : ""}` : "Not available right now"}</small>`;
   }
   function setDrawer(on) {
     const d = $("#drawer");
@@ -265,6 +286,22 @@
     $("#copyBtn").addEventListener("click", copyOrder);
     $("#gTabs").addEventListener("click", (e) => { const b = e.target.closest("button[data-k]"); if (b) gelato(b.dataset.k); });
   }
+
+  // photos the owner uploads in the dashboard are served by the order system
+  function photoUrl(key) { return `${String(CFG.api || "").replace(/\/+$/, "")}/img/${encodeURIComponent(key)}`; }
+
+  // Dashboard edits (new name or photo): later "Add" buttons and the box use the new details.
+  function updateItem(item) {
+    CAT.set(item.id, { ...(CAT.get(item.id) || {}), ...item });
+    document.querySelectorAll(".add[data-add]").forEach((b) => {
+      const d = JSON.parse(b.dataset.add);
+      if (d.id === item.id) b.dataset.add = JSON.stringify({ ...d, name: item.name, photo: item.photo || null });
+    });
+    if (box[item.id]) saveBox({ ...box, [item.id]: { ...box[item.id], name: item.name, photo: item.photo || null } });
+  }
+
+  // the online-ordering scripts (checkout.js, products.js) use these
+  window.SEREN_BOX = { items: () => Object.values(box), clear: () => saveBox({}), rerender: renderBox, addBtn, updateItem, photoUrl };
 
   drips(); marquee(); bomboloni(); cookies(); fruit(); entremets(); pastry(); gelato("signature"); chocolates(); kitchen(); visit();
   wire(); renderBox();

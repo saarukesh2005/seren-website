@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#662937">
+<title>SEREN Orders</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%23662937'/%3E%3Ctext x='50' y='68' font-size='56' text-anchor='middle' fill='%23EBCB8B' font-family='Arial Black'%3ES%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<section class="login" id="login" hidden>
+  <form class="login-card" id="loginForm">
+    <p class="brand">SEREN</p>
+    <h1>Orders</h1>
+    <label for="who">Your name <span class="opt">(owner: leave empty)</span></label>
+    <input id="who" name="name" autocomplete="username" maxlength="30">
+    <label for="pw">Password</label>
+    <input id="pw" name="password" type="password" autocomplete="current-password" required>
+    <p class="err" id="loginErr" role="alert"></p>
+    <button class="btn primary" type="submit">Log in</button>
+  </form>
+</section>
+
+<div class="app" id="app" hidden>
+  <header class="top">
+    <span class="brand">SEREN</span>
+    <nav class="tabs" aria-label="Dashboard sections">
+      <button type="button" data-tab="orders" data-perm="orders" aria-current="page">Orders <b class="dot" id="newDot" hidden></b></button>
+      <button type="button" data-tab="tables" data-perm="tables">Tables <b class="dot" id="callDot" hidden></b></button>
+      <button type="button" data-tab="counter" data-perm="counter">New bill</button>
+      <button type="button" data-tab="menu" data-perm="menu">Menu</button>
+      <button type="button" data-tab="customers" data-perm="customers">Customers</button>
+      <button type="button" data-tab="reports" data-perm="reports">Reports</button>
+      <button type="button" data-tab="settings" data-perm="owner">Settings</button>
+      <a href="kitchen.html" data-perm="kitchen" target="_blank" rel="noopener">Kitchen screen ↗</a>
+    </nav>
+    <span class="who" id="whoAmI"></span>
+    <button class="btn ghost small" type="button" id="logout">Log out</button>
+  </header>
+
+  <main>
+    <section id="tab-orders" class="tab">
+      <div class="stats" id="stats"></div>
+      <div class="filters">
+        <div class="chips" id="statusChips" role="group" aria-label="Show orders"></div>
+        <input type="search" id="search" placeholder="Search name, phone, order, bill or UPI ref" aria-label="Search orders">
+      </div>
+      <div class="notice" id="setupNotice" hidden></div>
+      <ul class="orders" id="orderList" aria-live="polite"></ul>
+      <button class="btn ghost" type="button" id="moreOrders" hidden>Show older orders</button>
+    </section>
+
+    <section id="tab-counter" class="tab" hidden>
+      <div class="counter">
+        <div class="pick">
+          <input type="search" id="pickSearch" placeholder="Find a product" aria-label="Find a product">
+          <div class="chips" id="pickCats"></div>
+          <ul class="pick-list" id="pickList"></ul>
+        </div>
+        <form class="bill" id="billForm">
+          <h2>Counter bill</h2>
+          <ul class="bill-lines" id="billLines"></ul>
+          <div class="bill-total"><span>Total</span><b id="billTotal">₹0</b></div>
+          <label>Table <span class="opt">(dine-in; leave empty for takeaway)</span><input name="table" maxlength="10" autocomplete="off"></label>
+          <label>Customer name <span class="opt">(optional)</span><input name="name" maxlength="60"></label>
+          <label>Phone <span class="opt">(optional)</span><input name="phone" inputmode="tel" maxlength="14"></label>
+          <div class="loyal" id="loyalBox" hidden></div>
+          <label>Customer GSTIN <span class="opt">(business customers)</span><input name="gstin" maxlength="15"></label>
+          <label>Coupon code <span class="opt">(optional)</span><input name="coupon" maxlength="20" autocomplete="off"></label>
+          <label class="check"><input type="checkbox" name="optIn"> Customer agrees to WhatsApp offers</label>
+          <fieldset class="seg"><legend>Paid by</legend>
+            <label><input type="radio" name="method" value="upi" checked><span>UPI</span></label>
+            <label><input type="radio" name="method" value="cash"><span>Cash</span></label>
+            <label><input type="radio" name="method" value="card"><span>Card</span></label>
+          </fieldset>
+          <label class="utr-field">UPI ref <span class="opt">(optional, 12 digits)</span><input name="utr" inputmode="numeric" maxlength="14"></label>
+          <p class="err" id="billErr" role="alert"></p>
+          <button class="btn primary" type="submit">Create bill &amp; print</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="tab-tables" class="tab" hidden>
+      <form class="box seat" id="seatForm"><h3>Seat a table</h3>
+        <p class="meta">Opens the table's tab, so guests can order from their table card and pay at the end.</p>
+        <div class="inline"><input name="table" id="seatTable" list="tableNames" maxlength="10" placeholder="Table" required aria-label="Table to seat"><datalist id="tableNames"></datalist>
+        <button class="btn plum" type="submit">Open tab</button></div></form>
+      <div class="calls" id="callList" aria-live="polite"></div>
+      <h2 class="sec">Open tables</h2>
+      <div class="tabgrid" id="tabGrid"></div>
+      <p class="lead" id="payLaterHint"></p>
+    </section>
+
+    <section id="tab-menu" class="tab" hidden>
+      <div class="menu-head">
+        <p class="lead">Set a price to sell a product online; empty price = hidden. "Per day" limits how many can be sold each day. Changes save by themselves.</p>
+        <button class="btn plum" type="button" id="addProduct">+ Add a product</button>
+      </div>
+      <div id="priceGroups"></div>
+    </section>
+
+    <section id="tab-customers" class="tab" hidden>
+      <div class="chips subtabs" id="custTabs" role="group" aria-label="Customers section">
+        <button type="button" data-sub="list" aria-pressed="true">Customers</button>
+        <button type="button" data-sub="coupons" aria-pressed="false">Coupons</button>
+        <button type="button" data-sub="broadcast" aria-pressed="false">Send an offer</button>
+        <button type="button" data-sub="feedback" aria-pressed="false">Feedback</button>
+      </div>
+      <div id="custBody"></div>
+    </section>
+
+    <section id="tab-reports" class="tab" hidden>
+      <div class="filters rep-filters">
+        <div class="chips" id="repRange" role="group" aria-label="Report period"></div>
+        <div class="rep-dates"><label>From<input type="date" id="repFrom"></label><label>To<input type="date" id="repTo"></label></div>
+        <div class="btns"><a class="btn ghost small" id="dayCloseBtn" href="/day-close" target="_blank" rel="noopener">Print today's closing</a><a class="btn ghost small" id="csvBtn" href="#">Download bills (CSV)</a></div>
+      </div>
+      <div id="repBody"></div>
+    </section>
+
+    <section id="tab-settings" class="tab" hidden>
+      <form id="settingsForm" class="settings"></form>
+      <div id="staffBox" class="settings"></div>
+    </section>
+  </main>
+</div>
+
+<dialog class="sheet" id="orderSheet" aria-labelledby="sheetTitle"></dialog>
+<dialog class="sheet" id="editSheet" aria-labelledby="editTitle"></dialog>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="api.js"></script>
+<script src="orders.js"></script>
+<script src="counter.js"></script>
+<script src="prices.js"></script>
+<script src="tables-tab.js"></script>
+<script src="customers.js"></script>
+<script src="reports.js"></script>
+<script src="settings.js"></script>
+<script src="staff.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
