@@ -14,6 +14,8 @@ ALTER TABLE orders ADD COLUMN refund_method TEXT NOT NULL DEFAULT '';
 ALTER TABLE orders ADD COLUMN refund_ref TEXT NOT NULL DEFAULT '';
 ALTER TABLE orders ADD COLUMN coupon_held INTEGER NOT NULL DEFAULT 0;      -- 1 while this order counts as a coupon use
 ALTER TABLE orders ADD COLUMN points_held INTEGER NOT NULL DEFAULT 0;      -- 1 while the points it used are taken from the customer
+ALTER TABLE orders ADD COLUMN client_ref TEXT;                             -- the counter app's own id for a bill (so an offline bill syncs only once)
+CREATE UNIQUE INDEX orders_client_ref ON orders (client_ref) WHERE client_ref IS NOT NULL;
 CREATE UNIQUE INDEX orders_credit_note ON orders (credit_note_no) WHERE credit_note_no IS NOT NULL;
 CREATE INDEX orders_phone ON orders (customer_phone);
 CREATE INDEX orders_tab ON orders (tab_id);

@@ -11,6 +11,7 @@ const check = (name, ok, detail = "") => results.push(`${ok ? "PASS" : "FAIL"}  
 const pw = fs.readFileSync(path.join(__dirname, "../.dev.vars"), "utf8").match(/ADMIN_PASSWORD="([^"]+)"/)[1];
 
 (async () => {
+  await require("./setup-shop.cjs")(); // every product priced, shop open
   // a fresh customer order waiting for payment check
   const day = (await (await fetch(`${BASE}/api/slots`)).json()).days[0];
   const placed = await (await fetch(`${BASE}/api/orders`, {

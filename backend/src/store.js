@@ -59,20 +59,21 @@ export async function createOrder(db, o, extra = []) {
   // If it isn't, nothing is inserted and the event row below fails on its NOT NULL order id, cancelling the batch.
   const insert = db.prepare(`INSERT INTO orders (code, token_hash, source, status, customer_name, customer_phone, customer_gstin, mode,
       address, pincode, slot_date, slot_time, notes, lines, subtotal, delivery_fee, total, tax_snapshot, payment_method,
-      created_at, updated_at, expires_at, table_no, discount, coupon_code, points_used, opt_in, channel, tab_id, coupon_held, points_held)
-    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30
+      created_at, updated_at, expires_at, table_no, discount, coupon_code, points_used, opt_in, channel, tab_id, coupon_held, points_held, client_ref)
+    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31
     WHERE ?28 IS NULL OR ?27 = 'tab' OR EXISTS (SELECT 1 FROM tabs WHERE id = ?28 AND status = 'open')`)
     .bind(o.code, o.tokenHash, o.source, o.status, o.name || "", o.phone || "", o.gstin || "", o.mode, o.address || "", o.pincode || "",
       o.date || "", o.time || "", o.notes || "", JSON.stringify(o.lines), o.subtotal, o.deliveryFee || 0, o.total,
       JSON.stringify(o.taxSnapshot), o.paymentMethod || "upi", at, o.expiresAt || null, o.table || "",
       o.discount || 0, o.couponCode || "", o.pointsUsed || 0, o.optIn ? 1 : 0, o.channel || "web", o.tabId ?? null,
-      o.couponCode ? 1 : 0, o.pointsUsed ? 1 : 0);
+      o.couponCode ? 1 : 0, o.pointsUsed ? 1 : 0, o.clientRef || null);
   try {
     const res = await db.batch([insert, ...extra, eventStmt(db, o.code, o.status, "", o.actor || "customer")]);
     return { id: res[0].meta.last_row_id };
   } catch (e) {
     const msg = String(e.message);
     if (msg.includes("NOT NULL") && o.tabId) return { error: "tab" };
+    if (msg.includes("UNIQUE") && msg.includes("client_ref")) return { error: "duplicate" };
     if (msg.includes("CHECK") && msg.includes("sold")) return { error: "stock" };
     if (msg.includes("CHECK") && msg.includes("uses")) return { error: "coupon" };
     if (msg.includes("CHECK") && msg.includes("points")) return { error: "points" };

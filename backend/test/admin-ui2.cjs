@@ -28,6 +28,7 @@ async function login(b, name, password, device = "iPhone 13") {
 const tab = async (p, name) => { await p.evaluate((n) => document.querySelector(`[data-tab="${n}"]`).click(), name); await wait(900); };
 
 (async () => {
+  await require("./setup-shop.cjs")(); // every product priced, shop open
   const b = await puppeteer.launch({ headless: true });
   const o = await login(b, "", pw);
 

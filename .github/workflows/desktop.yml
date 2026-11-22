@@ -1,0 +1,51 @@
+name: Build SEREN Counter for Windows
+
+# Builds the Windows installer (SEREN-Counter-Setup-<version>.exe) on a real Windows machine
+# whenever the desktop app changes, and puts it on the repository's Releases page.
+on:
+  push:
+    branches: [main]
+    paths: ["desktop/**", ".github/workflows/desktop.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-build
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Build the installer
+        run: npx electron-builder --win nsis --x64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SEREN-Counter-Windows
+          path: desktop/dist/*.exe
+          if-no-files-found: error
+      - name: Put it on the Releases page
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          TAG="counter-v$V"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "SEREN Counter $V (Windows)" \
+              --notes "Windows installer for the SEREN shop counter. Download SEREN-Counter-Setup-$V.exe below, run it, and type your shop server address on first start."
+          fi
+          gh release upload "$TAG" dist/*.exe --clobber

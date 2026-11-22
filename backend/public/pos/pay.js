@@ -1,0 +1,128 @@
+/* Taking payment: cash (with change due), UPI (QR with the exact amount, also on the customer screen)
+   or card. Then the bill is saved (or queued if offline), the receipt prints, and the counter clears. */
+window.POSPay = (function () {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
+  const { money, receiptModel } = SerenReceipt;
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let busy = false;
+
+  function payload(method) {
+    const ex = POSUI.extras();
+    return {
+      items: POSUI.lines().map((l) => ({ id: l.id, qty: l.qty })), method,
+      name: ex.name, phone: ex.phone, table: ex.table, coupon: ex.coupon, points: ex.points,
+    };
+  }
+
+  function upiLink(amount, ref) {
+    const s = POS.settings || {};
+    if (!s.upiId) return "";
+    const p = new URLSearchParams({ pa: s.upiId, pn: s.upiName || "SEREN", am: (amount / 100).toFixed(2), cu: "INR", tn: `SEREN bill ${ref}` });
+    return `upi://pay?${p.toString().replace(/\+/g, "%20")}`;
+  }
+
+  // The exact amount (after coupon / points) from the order system; offline, the shelf prices.
+  async function amountFor(body) {
+    if (POS.online) {
+      try {
+        const q = await POS.quote(body);
+        POSUI.setQuote(q.total);
+        return { total: q.total, exact: true };
+      } catch (e) {
+        if (!(e instanceof POS.NetworkError)) throw e;
+      }
+    }
+    if (body.coupon || body.points) throw new Error("Coupons and points need the internet. Remove them to bill offline.");
+    return { total: POSUI.estimate(), exact: false };
+  }
+
+  async function start(method) {
+    if (busy || !POSUI.lines().length) return;
+    const body = payload(method);
+    const d = $("#payDlg");
+    let amount;
+    try { amount = await amountFor(body); }
+    catch (e) { POSUI.toast(e.message, true); return; }
+    const ref = `${Date.now().toString(36)}`.toUpperCase();
+    const head = `<div class="dlg-head"><h2 id="payTitle">${{ cash: "Cash", upi: "UPI", card: "Card" }[method]}</h2><button class="x" type="button" data-close aria-label="Close">×</button></div>
+      <p class="due"><span>To pay</span><b>${esc(money(amount.total))}</b></p>${amount.exact ? "" : `<p class="hint">Offline: shelf prices. The bill number is given when it syncs.</p>`}`;
+    if (method === "cash") {
+      const quick = [...new Set([amount.total, ...[10000, 20000, 50000, 200000].filter((v) => v > amount.total)])].slice(0, 4);
+      d.innerHTML = `<form class="dlg-in pay-cash">${head}
+        <label>Cash given (₹)<input id="tendered" inputmode="decimal" autocomplete="off" value="${(amount.total / 100).toFixed(0)}"></label>
+        <div class="quick">${quick.map((v) => `<button class="btn ghost small" type="button" data-tender="${v}">${esc(money(v))}</button>`).join("")}</div>
+        <p class="change">Change: <b id="change">₹0</b></p>
+        <button class="btn primary big" type="submit">Complete bill <kbd>Enter</kbd></button></form>`;
+      const t = d.querySelector("#tendered");
+      const upd = () => { const v = Math.round(Number(t.value) * 100) || 0; d.querySelector("#change").textContent = v >= amount.total ? money(v - amount.total) : "not enough"; };
+      t.addEventListener("input", upd);
+      d.querySelector(".quick").addEventListener("click", (e) => { const b = e.target.closest("[data-tender]"); if (b) { t.value = (Number(b.dataset.tender) / 100).toFixed(0); upd(); } });
+      d.querySelector("form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const v = Math.round(Number(t.value) * 100) || 0;
+        if (v < amount.total) { t.focus(); POSUI.toast("Cash given is less than the bill", true); return; }
+        complete(body, amount, { tendered: v });
+      });
+      d.showModal(); upd(); t.select();
+    } else if (method === "upi") {
+      const link = upiLink(amount.total, ref);
+      d.innerHTML = `<form class="dlg-in pay-upi">${head}
+        ${link ? `<div class="qr" id="qr"></div><p class="hint">Customer scans this (it's also on the customer screen). Wait for the soundbox or check your UPI app, then press "Money received".</p>`
+          : `<p class="err">Add your UPI ID in the dashboard (Settings) to show a QR here.</p>`}
+        <label>UPI ref <span class="opt">(optional, 12 digits)</span><input id="utr" inputmode="numeric" maxlength="14" autocomplete="off"></label>
+        <button class="btn primary big" type="submit">Money received ✓ <kbd>Enter</kbd></button></form>`;
+      if (link && window.qrcode) {
+        const qr = window.qrcode(0, "M"); qr.addData(link); qr.make();
+        d.querySelector("#qr").innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+      }
+      POSUI.broadcast({ type: "upi", upi: link, total: amount.total });
+      d.querySelector("form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const utr = d.querySelector("#utr").value.replace(/\s+/g, "");
+        if (utr && !/^\d{12}$/.test(utr)) { POSUI.toast("UPI ref is 12 digits (or leave it empty)", true); return; }
+        complete({ ...body, utr }, amount, {});
+      });
+      d.addEventListener("close", () => POSUI.broadcast({ type: "cartback" }), { once: true });
+      d.showModal();
+    } else {
+      d.innerHTML = `<form class="dlg-in">${head}<p class="hint">Take the card payment on your card machine first.</p>
+        <button class="btn primary big" type="submit">Card approved ✓ <kbd>Enter</kbd></button></form>`;
+      d.querySelector("form").addEventListener("submit", (e) => { e.preventDefault(); complete(body, amount, {}); });
+      d.showModal();
+    }
+  }
+
+  async function complete(body, amount, extra) {
+    if (busy) return;
+    busy = true;
+    const d = $("#payDlg");
+    const btn = d.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+    try {
+      const res = await POS.sendBill({ ...body, estimate: amount.total });
+      const shop = POS.settings || {};
+      const who = (window.POSApp && POSApp.user && POSApp.user.name) || "";
+      const model = res.offline
+        ? receiptModel({ offline: true, ref: res.bill.clientRef, at: res.bill.offlineAt, method: body.method, total: amount.total, table: body.table, name: body.name,
+            lines: POSUI.lines().map((l) => ({ name: l.name, qty: l.qty, amount: l.price * l.qty })) }, shop, { ...extra, cashier: who })
+        : receiptModel(res.order, shop, { ...extra, cashier: who });
+      POS.countSale(POSUI.lines());
+      d.close();
+      POSUI.broadcast({ type: "thanks", total: model.total, change: model.change });
+      POSUI.clear();
+      POSUI.toast(res.offline ? "Offline: bill saved on this PC, it will be sent when the internet is back" : `Bill ${res.order.invoice_no} done${model.change ? ` · change ${money(model.change)}` : ""}`);
+      if (POS.prefs().autoPrint) {
+        try { await POSPrint.printReceipt(model); } catch (e) { POSUI.toast(`Bill saved, but printing failed: ${e.message}`, true); }
+      }
+      window.POSLast = model; // for "reprint last receipt"
+    } catch (e) {
+      POSUI.toast(e.message, true);
+      if (btn) { btn.disabled = false; btn.textContent = "Try again"; }
+    } finally {
+      busy = false;
+    }
+  }
+
+  return { start };
+})();

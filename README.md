@@ -27,6 +27,12 @@ git add -A && git commit -m "chore: update menu" && git push
 
 GitHub Pages redeploys automatically after each push.
 
+## SEREN Counter (Windows billing program)
+
+`desktop/` is the shop-counter program (Electron). GitHub builds `SEREN-Counter-Setup-<version>.exe` on every change and puts it
+on the Releases page. The counter screen itself lives in `backend/public/pos/` and also opens in any browser at `<server>/pos/`.
+See `desktop/README.md` for installing, the receipt printer and the cash drawer.
+
 ## English / தமிழ்
 
 The switch at the top flips the whole customer site (including the big SEREN wordmark, now செரென்) between English and Tamil.

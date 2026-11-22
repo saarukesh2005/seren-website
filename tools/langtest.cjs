@@ -13,12 +13,15 @@ const check = (name, ok, detail = "") => results.push(`${ok ? "PASS" : "FAIL"}  
 const leftovers = (p, root) => p.evaluate((sel) => {
   const OK = /^(SEREN|UPI|GPay|PhonePe|UTR|QR|Ref|No\.|ID|BBQ|EN|English|S|E|R|N|WELCOME10|Kahlúa|Callebaut|@?seren|@SEREN|SRN-[A-Z0-9]{6}|×|·)$/;
   const found = new Set();
+  // products the owner added or renamed in the dashboard without typing a Tamil name show their own words: not ours to translate
+  const ownerText = new Set(((window.SEREN_SHOP && window.SEREN_SHOP.products) || []).filter((x) => x.edited !== false && !x.nameTa).map((x) => x.id));
+  const isOwnerText = (el) => { const card = el.closest("[data-pid]"); return Boolean(card && ownerText.has(card.dataset.pid)); };
   const w = document.createTreeWalker(document.querySelector(sel) || document.body, NodeFilter.SHOW_TEXT);
   let n = w.nextNode();
   while (n) {
     const el = n.parentElement;
     const visible = el && el.offsetParent !== null && getComputedStyle(el).visibility !== "hidden" && !el.closest("[data-no-i18n],script,style,.pal-panel,.pal-btn,[aria-hidden=true] .ch");
-    if (visible) {
+    if (visible && !isOwnerText(el)) {
       for (const run of n.data.match(/[A-Za-z][A-Za-z.]*[A-Za-z]|[A-Za-z]/g) || []) {
         if (run.length >= 3 && !OK.test(run)) found.add(n.data.trim().slice(0, 60));
       }

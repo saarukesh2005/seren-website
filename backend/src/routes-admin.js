@@ -187,6 +187,15 @@ export async function whatsappLink({ env, params, request, user }) {
 export async function counterSale(c) {
   const { env, request, user } = c;
   const body = await readJson(request);
+  // The counter app gives every bill its own id. If the same bill is sent twice (e.g. syncing after
+  // the internet came back), we return the bill already saved instead of making a second one.
+  const clientRef = body.clientRef === undefined ? null : String(body.clientRef);
+  if (clientRef !== null && !/^[A-Za-z0-9-]{8,40}$/.test(clientRef)) throw new HttpError(400, "Bad bill id");
+  if (clientRef) {
+    const existing = await env.DB.prepare("SELECT code FROM orders WHERE client_ref = ?1").bind(clientRef).first();
+    if (existing) return json({ order: await store.getOrder(env.DB, existing.code), duplicate: true });
+  }
+  const offlineAt = typeof body.offlineAt === "string" && !Number.isNaN(Date.parse(body.offlineAt)) ? new Date(body.offlineAt) : null;
   const settings = await store.getSettings(env.DB);
   const cart = checkCart(body.items);
   if (cart.error) throw new HttpError(400, cart.error);
@@ -228,6 +237,11 @@ export async function counterSale(c) {
   });
   if (priced.error) throw new HttpError(409, priced.error);
   const usedPoints = settings.loyalty.pointValue ? Math.ceil(priced.value.pointsDiscount / settings.loyalty.pointValue) : 0;
+  // price check only (the counter app shows the exact amount on the UPI QR before the customer pays)
+  if (c.quote) {
+    return json({ quote: { total: priced.value.total, subtotal: priced.value.subtotal, discount: priced.value.discount, pointsUsed: usedPoints,
+      couponCode: coupon ? coupon.code : "", lines: priced.value.lines.map((l) => ({ id: l.id, name: l.name, qty: l.qty, amount: l.gross })) } });
+  }
   const code = `SRN-${randomCode()}`;
   const today = istParts();
   const extra = [
@@ -241,9 +255,14 @@ export async function counterSale(c) {
     mode: table ? "dinein" : "counter", table, date: today.date, time: today.time,
     lines: priced.value.lines, subtotal: priced.value.subtotal, discount: priced.value.discount, couponCode: coupon ? coupon.code : "",
     pointsUsed: usedPoints, total: priced.value.total, taxSnapshot: snapshot(settings, priced.value), paymentMethod: body.method,
-    optIn: body.optIn === true && Boolean(validPhone), channel: "counter", actor: user.name,
+    optIn: body.optIn === true && Boolean(validPhone), channel: "counter", actor: user.name, clientRef,
+    notes: offlineAt ? `Billed offline at ${offlineAt.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}` : "",
     expiresAt: new Date(Date.now() + 30 * 60000).toISOString(), // only matters if confirming below fails
   }, extra);
+  if (saved.error === "duplicate") {
+    const existing = await env.DB.prepare("SELECT code FROM orders WHERE client_ref = ?1").bind(clientRef).first();
+    return json({ order: await store.getOrder(env.DB, existing.code), duplicate: true });
+  }
   if (saved.error === "points") throw new HttpError(409, "Not enough points");
   if (saved.error === "coupon") throw new HttpError(409, "That code has just been fully used");
   if (saved.error) throw new HttpError(409, (await shortage(env.DB, priced.value.lines, today.date, prices)) || "Something is sold out");

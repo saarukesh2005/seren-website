@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#662937">
+<title>SEREN Counter</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap">
+<link rel="stylesheet" href="pos.css">
+</head>
+<body>
+<section class="login" id="login" hidden>
+  <form class="login-card" id="loginForm">
+    <p class="brand">SEREN</p>
+    <h1>Counter</h1>
+    <label for="who">Your name <span class="opt">(owner: leave empty)</span></label>
+    <input id="who" autocomplete="username" maxlength="30">
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <p class="err" id="loginErr" role="alert"></p>
+    <button class="btn primary" type="submit">Start billing</button>
+    <p class="hint" id="loginHint"></p>
+  </form>
+</section>
+
+<div class="app" id="app" hidden>
+  <header class="bar">
+    <span class="brand">SEREN <small>Counter</small></span>
+    <button class="status" id="status" type="button" title="Connection and bills waiting to send"></button>
+    <span class="grow"></span>
+    <button class="btn ghost small" type="button" id="heldBtn">Held bills <b id="heldCount">0</b> <kbd>F6</kbd></button>
+    <button class="btn ghost small" type="button" id="displayBtn">Customer screen</button>
+    <button class="btn ghost small" type="button" id="printerBtn">Printer</button>
+    <span class="who" id="whoAmI"></span>
+    <a class="btn ghost small" href="/admin/" id="dashLink">Dashboard</a>
+    <button class="btn ghost small" type="button" id="logoutBtn">Log out</button>
+  </header>
+
+  <main class="pos">
+    <section class="catalog" aria-label="Products">
+      <div class="tools">
+        <input type="search" id="search" placeholder="Find a product  ( / )" aria-label="Find a product" autocomplete="off">
+        <div class="chips" id="cats" role="group" aria-label="Sections"></div>
+      </div>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <aside class="bill" aria-label="Current bill">
+      <div class="bill-head"><h2>Bill</h2><button class="link" type="button" id="clearBtn">Clear <kbd>Esc</kbd></button></div>
+      <ul class="lines" id="lines" aria-live="polite"></ul>
+      <details class="extras" id="extras">
+        <summary>Customer, table, coupon</summary>
+        <div class="fields">
+          <label>Mobile <input id="phone" inputmode="tel" maxlength="14" autocomplete="off"></label>
+          <label>Name <input id="cname" maxlength="60" autocomplete="off"></label>
+          <label>Table <input id="table" maxlength="10" autocomplete="off" placeholder="takeaway"></label>
+          <label>Coupon <input id="coupon" maxlength="20" autocomplete="off"></label>
+        </div>
+        <div class="loyal" id="loyal" hidden></div>
+      </details>
+      <div class="totals">
+        <div class="r"><span id="itemCount">0 items</span><span id="estNote"></span></div>
+        <div class="grand"><span>Total</span><b id="total">₹0</b></div>
+      </div>
+      <div class="paybtns">
+        <button class="pay cash" type="button" data-pay="cash">Cash <kbd>F1</kbd></button>
+        <button class="pay upi" type="button" data-pay="upi">UPI <kbd>F2</kbd></button>
+        <button class="pay card" type="button" data-pay="card">Card <kbd>F3</kbd></button>
+      </div>
+      <button class="btn ghost hold" type="button" id="holdBtn">Hold this bill <kbd>F4</kbd></button>
+    </aside>
+  </main>
+</div>
+
+<dialog class="dlg" id="payDlg" aria-labelledby="payTitle"></dialog>
+<dialog class="dlg" id="heldDlg" aria-labelledby="heldTitle"></dialog>
+<dialog class="dlg" id="printerDlg" aria-labelledby="printerTitle"></dialog>
+<dialog class="dlg" id="queueDlg" aria-labelledby="queueTitle"></dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="vendor/qrcode.min.js"></script>
+<script src="receipt.js"></script>
+<script src="core.js"></script>
+<script src="print.js"></script>
+<script src="ui.js"></script>
+<script src="pay.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

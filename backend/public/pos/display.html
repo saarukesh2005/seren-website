@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>SEREN · Your bill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@700&family=DM+Sans:wght@500;700&display=swap">
+<style>
+  :root{--plum:#662937;--butter:#EBCB8B;--cream:#F8EEDC;--ink:#140C0E;--caramel:#C89B6F}
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{background:var(--plum);color:var(--cream);font:22px/1.4 "DM Sans",system-ui,sans-serif;display:grid;grid-template-columns:1fr 1fr;overflow:hidden}
+  .side{padding:6vh 5vw;display:grid;align-content:center;gap:2vh}
+  .brand{font-family:Anton,Impact,sans-serif;font-size:clamp(80px,13vw,220px);line-height:.85;letter-spacing:.02em}
+  .brand b{color:var(--butter);font-weight:400}
+  .hand{font-family:Caveat,cursive;font-size:clamp(30px,3vw,48px);color:var(--butter)}
+  .panel{background:var(--cream);color:var(--ink);padding:6vh 4vw;display:grid;grid-template-rows:auto 1fr auto;gap:2vh;min-height:0}
+  h2{font-family:Anton,Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:44px;margin:0}
+  ul{list-style:none;margin:0;padding:0;overflow:auto}
+  li{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid rgba(20,12,14,.12);animation:in .4s ease both}
+  @keyframes in{from{opacity:0;transform:translateY(8px)}}
+  .total{display:flex;justify-content:space-between;align-items:baseline;border-top:3px solid var(--ink);padding-top:12px}
+  .total b{font-family:Anton,Impact,sans-serif;font-weight:400;font-size:72px}
+  .qr{background:#fff;border-radius:24px;padding:18px;width:min(46vh,90%);aspect-ratio:1;justify-self:center}
+  .qr svg{width:100%;height:100%}
+  .center{display:grid;place-items:center;text-align:center;gap:2vh}
+  .big{font-family:Anton,Impact,sans-serif;font-size:96px;line-height:1}
+  .muted{opacity:.6}
+  [hidden]{display:none!important}
+  @media (max-width:900px){body{grid-template-columns:1fr}.side{display:none}}
+</style>
+</head>
+<body>
+<section class="side"><div class="brand">SE<b>REN</b></div><p class="hand">Entremets · Patisserie · Kitchen</p></section>
+<section class="panel" id="cart">
+  <h2>Your bill</h2>
+  <ul id="lines"><li class="muted">Welcome to SEREN</li></ul>
+  <div class="total"><span>Total</span><b id="total">₹0</b></div>
+</section>
+<section class="panel center" id="upi" hidden>
+  <h2>Scan to pay</h2>
+  <div class="qr" id="qr"></div>
+  <div class="big" id="upiTotal"></div>
+  <p class="muted">Any UPI app: GPay, PhonePe, Paytm, BHIM</p>
+</section>
+<section class="panel center" id="thanks" hidden>
+  <div class="big">Thank you!</div>
+  <p class="hand" style="color:var(--plum)" id="changeLine"></p>
+  <p class="muted">See you again at SEREN</p>
+</section>
+<script src="vendor/qrcode.min.js"></script>
+<script src="display.js"></script>
+</body>
+</html>

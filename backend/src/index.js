@@ -40,6 +40,7 @@ const ADMIN = [
   ["POST", `/orders/${CODE}/refund`, "refund", admin.refund],
   ["POST", `/orders/${CODE}/whatsapp`, "orders", admin.whatsappLink],
   ["POST", "/counter", "counter", admin.counterSale],
+  ["POST", "/counter/quote", "counter", (c) => admin.counterSale({ ...c, quote: true })],
   ["GET", "/kitchen", "kitchen", admin.kitchen],
   ["GET", "/tables", "tables", tablesApi.overview],
   ["POST", "/calls/(\\d{1,9})/done", "tables", tablesApi.callDone],
