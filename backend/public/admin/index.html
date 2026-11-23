@@ -33,7 +33,9 @@
       <button type="button" data-tab="orders" data-perm="orders" aria-current="page">Orders <b class="dot" id="newDot" hidden></b></button>
       <button type="button" data-tab="tables" data-perm="tables">Tables <b class="dot" id="callDot" hidden></b></button>
       <button type="button" data-tab="counter" data-perm="counter">New bill</button>
+      <button type="button" data-tab="cash" data-perm="cash">Cash</button>
       <button type="button" data-tab="menu" data-perm="menu">Menu</button>
+      <button type="button" data-tab="stock" data-perm="stock">Stock</button>
       <button type="button" data-tab="customers" data-perm="customers">Customers</button>
       <button type="button" data-tab="reports" data-perm="reports">Reports</button>
       <button type="button" data-tab="settings" data-perm="owner">Settings</button>
@@ -85,6 +87,8 @@
       </div>
     </section>
 
+    <section id="tab-cash" class="tab" hidden></section>
+
     <section id="tab-tables" class="tab" hidden>
       <form class="box seat" id="seatForm"><h3>Seat a table</h3>
         <p class="meta">Opens the table's tab, so guests can order from their table card and pay at the end.</p>
@@ -103,6 +107,8 @@
       </div>
       <div id="priceGroups"></div>
     </section>
+
+    <section id="tab-stock" class="tab" hidden></section>
 
     <section id="tab-customers" class="tab" hidden>
       <div class="chips subtabs" id="custTabs" role="group" aria-label="Customers section">
@@ -144,6 +150,8 @@
 <script src="reports.js"></script>
 <script src="settings.js"></script>
 <script src="staff.js"></script>
+<script src="inventory.js"></script>
+<script src="money.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

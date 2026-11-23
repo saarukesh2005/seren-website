@@ -36,5 +36,6 @@ body.order-page{background:var(--plum);min-height:100vh}
 .op-mine ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .op-mine a{color:var(--butter);font-weight:600}
 .op-mine small{color:var(--muted-light)}
+.op-mine .linkish{display:block;color:var(--butter);margin-top:12px;font-size:13px}
 @media (max-width:480px){.steps{font-size:9.5px}.op-card{padding:22px 16px}}
 @media (prefers-reduced-motion:reduce){.op-card,.steps .now i::after{animation:none}}

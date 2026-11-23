@@ -26,7 +26,8 @@ export async function usableCoupon(db, rawCode, phone) {
   if (c.starts && today < c.starts) return { error: "That code isn't active yet" };
   if (c.ends && today > c.ends) return { error: "That code has expired" };
   if (c.max_uses && c.uses >= c.max_uses) return { error: "That code has been fully used" };
-  if (c.once_per_phone && phone) {
+  if (c.once_per_phone && !phone) return { error: "This code needs the customer's mobile number (one use per person)" };
+  if (c.once_per_phone) {
     const used = await db.prepare("SELECT 1 FROM orders WHERE coupon_code = ?1 AND customer_phone = ?2 AND status NOT IN ('expired', 'cancelled') LIMIT 1").bind(code, phone).first();
     if (used) return { error: "You've already used this code" };
   }

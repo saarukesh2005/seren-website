@@ -25,6 +25,9 @@ async function call(method, path, body, { owner = false, origin = SITE } = {}) {
 
 const ymdIST = (days) => new Date(Date.now() + 330 * 60000 + days * 86400000).toISOString().slice(0, 10);
 
+// a different customer each time (the shop allows only a few unpaid orders per phone)
+const freshPhone = () => `9${String(Date.now()).slice(-6)}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`;
+
 (async () => {
   // owner area is locked
   check("dashboard API needs login", (await call("GET", "/api/admin/orders", undefined, { owner: true })).status === 401);
@@ -65,16 +68,16 @@ const ymdIST = (days) => new Date(Date.now() + 330 * 60000 + days * 86400000).to
   const day = slotsR.data.days[0];
   check("time slots available", Boolean(day && day.times.length));
   const base = { name: "Asha", phone: "9876543210", mode: "pickup", date: day.date, time: day.times[day.times.length - 1] };
-  r = await call("POST", "/api/orders", { ...base, items: [{ id: "bomb-vanilla", qty: 2, price: 1 }] });
+  r = await call("POST", "/api/orders", { ...base, phone: freshPhone(), items: [{ id: "bomb-vanilla", qty: 2, price: 1 }] });
   check("order placed with server prices", r.status === 201 && r.data.total === 36000, JSON.stringify(r.data));
   const { code, token } = r.data;
   check("UPI link has amount + order number", r.data.upi.includes("am=360.00") && r.data.upi.includes(code));
 
-  r = await call("POST", "/api/orders", { ...base, items: [{ id: "ent-hazelnut", qty: 1 }] });
+  r = await call("POST", "/api/orders", { ...base, phone: freshPhone(), items: [{ id: "ent-hazelnut", qty: 1 }] });
   check("cakes need notice days", r.status === 400 && /notice/.test(r.data.error), JSON.stringify(r.data));
-  r = await call("POST", "/api/orders", { ...base, mode: "delivery", address: "12 Long Street, Chennai", pincode: "600001", items: [{ id: "bomb-vanilla", qty: 1 }] });
+  r = await call("POST", "/api/orders", { ...base, phone: freshPhone(), mode: "delivery", address: "12 Long Street, Chennai", pincode: "600001", items: [{ id: "bomb-vanilla", qty: 1 }] });
   check("delivery minimum order enforced", r.status === 400 && /start at/.test(r.data.error));
-  r = await call("POST", "/api/orders", { ...base, items: [{ id: "cookie-brownie", qty: 1 }] });
+  r = await call("POST", "/api/orders", { ...base, phone: freshPhone(), items: [{ id: "cookie-brownie", qty: 1 }] });
   check("unpriced product refused", r.status === 409);
 
   // dine-in from a table: no time slot, no phone needed
@@ -131,14 +134,14 @@ const ymdIST = (days) => new Date(Date.now() + 330 * 60000 + days * 86400000).to
   check("CSV has only bills, by bill date", !r.data.includes("awaiting_payment"));
 
   // XSS: a name with HTML is escaped on the invoice
-  r = await call("POST", "/api/orders", { ...base, name: `<img src=x onerror=alert(1)>`, items: [{ id: "bomb-vanilla", qty: 1 }] });
+  r = await call("POST", "/api/orders", { ...base, phone: freshPhone(), name: `<img src=x onerror=alert(1)>`, items: [{ id: "bomb-vanilla", qty: 1 }] });
   const x = r.data;
   r = await call("GET", `/invoice/${x.code}?t=${x.token}`);
   check("names are escaped on bills", !r.data.includes("<img src=x") && r.data.includes("&lt;img"));
 
   // rate limit on placing orders (20 per 10 min per address)
   let limited = false;
-  for (let i = 0; i < 25 && !limited; i++) limited = (await call("POST", "/api/orders", { ...base, items: [{ id: "bomb-vanilla", qty: 1 }] })).status === 429;
+  for (let i = 0; i < 25 && !limited; i++) limited = (await call("POST", "/api/orders", { ...base, phone: freshPhone(), items: [{ id: "bomb-vanilla", qty: 1 }] })).status === 429;
   check("too many orders from one address are slowed down", limited);
 
   console.log(results.join("\n"));

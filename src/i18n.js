@@ -43,6 +43,12 @@
   function name(n) {
     const key = norm(n);
     if (Object.prototype.hasOwnProperty.call(words, key)) return words[key];
+    // "Tiramisu (Large, Nutella)": a product with the choices made, as the order page and the bill write it
+    const withChoices = key.match(/^(.+) \(([^()]+)\)$/);
+    if (withChoices) {
+      const choices = withChoices[2].split(", ").map((c) => (Object.prototype.hasOwnProperty.call(words, c) ? words[c] : c));
+      return `${name(withChoices[1])} (${choices.join(", ")})`;
+    }
     for (const [suffix, ta] of TA.suffixes || []) {
       if (key.endsWith(` ${suffix}`)) {
         const base = key.slice(0, -suffix.length - 1);

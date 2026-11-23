@@ -14,11 +14,12 @@ SA.staff = (function () {
       box.innerHTML = `
         <fieldset><legend>Staff logins</legend>
           <p class="full help">Each person logs in with their own name and password, so the activity log shows who did what. You log in with your name left empty.</p>
-          <div class="full table-wrap"><table class="grid"><thead><tr><th>Name</th><th>Role</th><th>On</th><th>New password</th></tr></thead><tbody>
+          <div class="full table-wrap"><table class="grid"><thead><tr><th>Name</th><th>Role</th><th>On</th><th>New password</th><th>Approval PIN</th></tr></thead><tbody>
             ${staff.length ? staff.map((p) => `<tr data-staff="${p.id}"><td><b>${esc(p.name)}</b></td>
               <td><select data-role aria-label="${esc(p.name)} role">${Object.keys(ROLES).map((r) => `<option value="${r}" ${r === p.role ? "selected" : ""}>${r[0].toUpperCase()}${r.slice(1)}</option>`).join("")}</select></td>
               <td><input type="checkbox" data-active ${p.active ? "checked" : ""} aria-label="${esc(p.name)} can log in"></td>
-              <td><span class="inline"><input data-pw type="password" autocomplete="new-password" placeholder="8+ characters" aria-label="New password for ${esc(p.name)}"><button class="btn ghost small" type="button" data-setpw>Set</button></span></td></tr>`).join("")
+              <td><span class="inline"><input data-pw type="password" autocomplete="new-password" placeholder="8+ characters" aria-label="New password for ${esc(p.name)}"><button class="btn ghost small" type="button" data-setpw>Set</button></span></td>
+              <td>${p.role === "manager" ? `<span class="inline"><input data-pin type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${p.has_pin ? "PIN set ✓" : "4–8 digits"}" aria-label="Approval PIN for ${esc(p.name)}"><button class="btn ghost small" type="button" data-setpin>Set</button></span>` : `<span class="help">managers only</span>`}</td></tr>`).join("")
             : `<tr><td colspan="4" class="empty">No staff yet</td></tr>`}</tbody></table></div>
           <form class="full formgrid" id="addStaff">
             <label>Name<input name="name" maxlength="30" required autocomplete="off"></label>
@@ -53,6 +54,13 @@ SA.staff = (function () {
       catch (ex) { toast(ex.message, true); render(); }
     });
     box.addEventListener("click", async (e) => {
+      if (e.target.closest("[data-setpin]")) {
+        const row = e.target.closest("[data-staff]");
+        const pin = row.querySelector("[data-pin]").value.trim();
+        try { await api(`/staff/${row.dataset.staff}`, { pin }); toast("Approval PIN saved"); render(); }
+        catch (ex) { toast(ex.message, true); }
+        return;
+      }
       if (e.target.closest("[data-setpw]")) {
         const row = e.target.closest("[data-staff]");
         const pw = row.querySelector("[data-pw]").value;

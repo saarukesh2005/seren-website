@@ -16,7 +16,7 @@ const pw = fs.readFileSync(path.join(__dirname, "../.dev.vars"), "utf8").match(/
   const day = (await (await fetch(`${BASE}/api/slots`)).json()).days[0];
   const placed = await (await fetch(`${BASE}/api/orders`, {
     method: "POST", headers: { "Content-Type": "application/json", Origin: "http://localhost:4321" },
-    body: JSON.stringify({ name: "Kavya", phone: "9123456780", mode: "pickup", date: day.date, time: day.times[0], notes: "Happy birthday Amma", items: [{ id: "ent-hazelnut", qty: 1 }, { id: "bomb-tiramisu", qty: 4 }].filter((i) => i.id !== "ent-hazelnut") }),
+    body: JSON.stringify({ name: "Kavya", phone: `9${String(Date.now()).slice(-9)}`, mode: "pickup", date: day.date, time: day.times[0], notes: "Happy birthday Amma", items: [{ id: "ent-hazelnut", qty: 1 }, { id: "bomb-vanilla", qty: 4 }].filter((i) => i.id !== "ent-hazelnut") }),
   })).json();
   await fetch(`${BASE}/api/orders/${placed.code}/payment`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ t: placed.token, utr: String(Date.now()).slice(-12) }) });
 

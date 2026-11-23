@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-bM2nwhGkrkKsPFsJHkIUSbP59WGJO4JkdcTFTwckWR4=' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta property="og:title" content="SEREN Entremets">
@@ -415,7 +416,7 @@ html.box-open,html.lenis-stopped{overflow:hidden}
 .pay-amt{margin:0;font-family:var(--display);font-size:54px;line-height:1;text-transform:uppercase}
 .pay-amt span{font-size:22px;vertical-align:middle;color:var(--plum);margin-right:6px}
 .pay-note,.pay-id{margin:0;font-size:14px;color:var(--muted-dark)}
-.pay-id b{color:var(--ink);word-break:break-all}
+.pay-id b{color:var(--ink);word-break:break-all;font-size:16px}
 .pay-qr{justify-self:center;width:min(240px,70vw);aspect-ratio:1;display:grid;place-items:center;background:var(--white);border-radius:18px;padding:10px;box-shadow:0 12px 30px -16px rgba(20,12,14,.45);animation:qr-in .7s var(--ease) both}
 .pay-qr svg{width:100%;height:100%}
 .pay-qr span{font-size:14px;color:var(--muted-dark)}
@@ -487,6 +488,39 @@ body:has(.tablebar) .pal-btn{bottom:calc(84px + env(safe-area-inset-bottom,0px))
 .extra .ph .hand{font-size:30px;color:var(--plum);text-align:center;padding:20px}
 @media (prefers-reduced-motion:reduce){.tablebar,.tabsheet[open]{animation:none}}
 
+/* ---------- item choices (size, add-ons), estimated charges, table PIN ---------- */
+.drawer li .n small.ch{display:flex;flex-wrap:wrap;gap:0;margin-top:2px;color:var(--ink);font-weight:600}
+.drawer li .n small.ch span+span::before{content:" · ";white-space:pre;font-weight:400}
+.optsheet .ts-in{gap:12px}
+.optsheet .ts-head h2{font-size:30px;line-height:1.05}
+.os-group{border:0;padding:0;margin:0;display:grid;gap:6px;min-width:0}
+.os-group legend{font-size:13px;font-weight:700;letter-spacing:.01em;padding:0;margin-bottom:6px}
+.os-group legend .opt{font-weight:400;color:var(--muted-dark);margin-left:4px}
+.os-c{display:flex;align-items:center;gap:10px;min-height:46px;padding:8px 12px;border:1.5px solid color-mix(in srgb,var(--ink) 22%,transparent);border-radius:12px;background:var(--white);cursor:pointer;font-size:15px;font-weight:500;transition:border-color .2s,background .2s}
+.os-c:has(input:checked){border-color:var(--plum);background:color-mix(in srgb,var(--plum) 8%,var(--white))}
+.os-c:has(input:focus-visible){outline:2px solid var(--plum);outline-offset:2px}
+.os-c input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--plum)}
+.os-n{flex:1;min-width:0;overflow-wrap:anywhere}
+.os-p{flex:none;font-weight:700;color:var(--plum)}
+.os-form .pill{justify-content:center}
+.co-break{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:14px}
+.co-break li{display:flex;justify-content:space-between;gap:12px;color:var(--muted-dark)}
+.co-break li b{font-weight:600;color:var(--ink);flex:none}
+.co-form .est-hint{margin:0}
+.co-form .pin{display:grid;gap:4px}
+.co-form .pin input{font-size:20px;max-width:12em}
+.co-form .pin input:not(:placeholder-shown),.pin-form input:not(:placeholder-shown){letter-spacing:.4em}
+.co-form .pin .hint{margin:0}
+.pin-form{display:grid;gap:8px}
+.pin-form label{font-size:13px;font-weight:600}
+.pin-form .hint{margin:0;font-size:13px;color:var(--muted-dark)}
+.pin-form input{font:500 20px/1.3 var(--body);color:var(--ink);background:var(--white);border:1.5px solid color-mix(in srgb,var(--ink) 22%,transparent);border-radius:12px;padding:11px 12px;width:100%;min-width:0}
+.pin-form input:focus{outline:none;border-color:var(--plum);box-shadow:0 0 0 3px color-mix(in srgb,var(--plum) 18%,transparent)}
+.done-total{display:flex;gap:8px;align-items:baseline}
+.done-total b{font-family:var(--display);font-weight:400;font-size:28px}
+.pin-form .utr-row{flex-wrap:wrap}
+.pin-form .utr-row input{flex:1 1 9em;min-width:9em}
+
 /* ---------- order page ---------- */
 body.order-page{background:var(--plum);min-height:100vh}
 .op{max-width:620px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) var(--gutter-r) 60px var(--gutter-l)}
@@ -525,6 +559,7 @@ body.order-page{background:var(--plum);min-height:100vh}
 .op-mine ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .op-mine a{color:var(--butter);font-weight:600}
 .op-mine small{color:var(--muted-light)}
+.op-mine .linkish{display:block;color:var(--butter);margin-top:12px;font-size:13px}
 @media (max-width:480px){.steps{font-size:9.5px}.op-card{padding:22px 16px}}
 @media (prefers-reduced-motion:reduce){.op-card,.steps .now i::after{animation:none}}
 
@@ -631,6 +666,7 @@ footer .big.wordmark-ta span:first-child{color:inherit}
   <section class="op-mine" id="myOrders" hidden>
     <h2>Orders on this phone</h2>
     <ul></ul>
+    <button type="button" class="linkish" id="forgetOrders">Forget my orders on this device</button>
   </section>
 </main>
 <script>
@@ -954,6 +990,7 @@ window.SEREN_MENU = {
     "Loading QR…": "QR ஏற்றப்படுகிறது…",
     "Or pay to": "அல்லது இதற்குச் செலுத்துங்கள்:",
     "Scan with any UPI app, or pay to": "எந்த UPI ஆப்பிலும் ஸ்கேன் செய்யுங்கள், அல்லது இதற்குச் செலுத்துங்கள்:",
+    "Payment details look wrong — please call the shop": "பணம் செலுத்தும் விவரங்கள் தவறாகத் தெரிகின்றன — தயவுசெய்து கடையை அழைக்கவும்",
     "Copy UPI ID": "UPI ஐடியை நகலெடு",
     "Copied": "நகலெடுக்கப்பட்டது",
     "Select and copy the ID": "ஐடியைத் தேர்ந்தெடுத்து நகலெடுங்கள்",
@@ -993,6 +1030,7 @@ window.SEREN_MENU = {
     "Finding your order…": "உங்கள் ஆர்டரைத் தேடுகிறோம்…",
     "Orders on this phone": "இந்த போனில் உள்ள ஆர்டர்கள்",
     "Your orders": "உங்கள் ஆர்டர்கள்",
+    "Forget my orders on this device": "இந்த சாதனத்தில் என் ஆர்டர்களை அழித்துவிடு",
     "Pick an order below.": "கீழே ஒரு ஆர்டரைத் தேர்ந்தெடுங்கள்.",
     "Orders you place on this phone show up here. Open the link from your order to see it.": "இந்த போனில் நீங்கள் செய்யும் ஆர்டர்கள் இங்கே தெரியும். பார்க்க உங்கள் ஆர்டர் இணைப்பைத் திறக்கவும்.",
     "Hmm.": "ம்ம்.",
@@ -1271,10 +1309,46 @@ window.SEREN_MENU = {
     "Charred Corn Ribs, Smoked Brown Butter": "கருக்கிய சோள விலா, புகைத்த பழுப்பு வெண்ணெய்",
     "Original Fried Chicken Wings, Tabasco Honey": "பொரித்த சிக்கன் விங்ஸ், டபாஸ்கோ தேன்",
     "Tater Tots": "டேட்டர் டாட்ஸ்",
+
+    /* item choices (size, add-ons), charges, table PIN */
+    "Required": "தேவை",
+    "Optional": "விருப்பம்",
+    "Pick any": "எத்தனையும் தேர்ந்தெடுக்கலாம்",
+    "None": "எதுவும் வேண்டாம்",
+    "Size": "அளவு",
+    "Flavour": "சுவை",
+    "Add-ons": "கூடுதல் சேர்க்கைகள்",
+    "Extras": "கூடுதல்",
+    "Small": "சிறியது",
+    "Regular": "வழக்கமானது",
+    "Medium": "நடுத்தரம்",
+    "Large": "பெரியது",
+    "Extra large": "மிகப் பெரியது",
+    "Nutella": "நியூட்டெல்லா",
+    "Extra cream": "கூடுதல் க்ரீம்",
+    "That choice isn't available any more. Please pick again.": "அந்தத் தேர்வு இப்போது இல்லை. மீண்டும் தேர்ந்தெடுங்கள்.",
+    "Packing": "பேக்கிங்",
+    "Round-off": "முழு ரூபாய் சீர்செய்தல்",
+    "on your final bill": "உங்கள் இறுதிப் பில்லில்",
+    "Estimated total": "மதிப்பிடப்பட்ட மொத்தம்",
+    "Estimated total. The final amount is confirmed when you place your order.": "இது மதிப்பீடு மட்டுமே. நீங்கள் ஆர்டர் செய்யும்போது இறுதித் தொகை உறுதிசெய்யப்படும்.",
+    "Packing, service charge & round-off": "பேக்கிங், சேவைக் கட்டணம் & சீர்செய்தல்",
+    "Order total": "ஆர்டர் மொத்தம்",
+    "Table PIN": "மேசை பின் எண்",
+    "4 digits": "4 இலக்கம்",
+    "Show our tab": "எங்கள் கணக்கைக் காட்டு",
+    "Type the 4-digit table PIN our staff gave you": "எங்கள் ஊழியர்கள் தந்த 4 இலக்க மேசை பின் எண்ணை உள்ளிடுங்கள்",
+    "Please type the 4-digit table PIN our staff gave you": "எங்கள் ஊழியர்கள் தந்த 4 இலக்க மேசை பின் எண்ணை உள்ளிடுங்கள்",
+    "Too many wrong PINs. Please ask our staff.": "தவறான பின் எண்கள் அதிகமாகிவிட்டன. எங்கள் ஊழியர்களிடம் கேளுங்கள்.",
   };
 
   const rupees = (s) => s; // amounts like ₹180 read the same in Tamil
   const patterns = [
+    [/^Add to box · (₹[\d,.]+)$/, (m) => `பெட்டியில் சேர் · ${m[1]}`],
+    [/^\+ Add · from (₹[\d,.]+)$/, (m) => `+ சேர் · ${m[1]} முதல்`],
+    [/^\+ Add · from (₹[\d,.]+) · (\d+) left$/, (m) => `+ சேர் · ${m[1]} முதல் · ${m[2]} மீதம்`],
+    [/^Please choose: (.+)$/, (m, name) => `தேர்ந்தெடுங்கள்: ${name(m[1])}`],
+    [/^Service charge (\d+(?:\.\d+)?)% \(optional — ask staff to remove\)$/, (m) => `சேவைக் கட்டணம் ${m[1]}% (விருப்பமானது — வேண்டாமெனில் ஊழியர்களிடம் சொல்லுங்கள்)`],
     [/^(.+) added to your box$/, (m, name) => `${name(m[1])} உங்கள் பெட்டியில் சேர்க்கப்பட்டது`],
     [/^✓ In box \((\d+)\)$/, (m) => `✓ பெட்டியில் (${m[1]})`],
     [/^\+ Add · (₹[\d,.]+)$/, (m) => `+ சேர் · ${rupees(m[1])}`],
@@ -1367,6 +1441,12 @@ window.SEREN_MENU = {
   function name(n) {
     const key = norm(n);
     if (Object.prototype.hasOwnProperty.call(words, key)) return words[key];
+    // "Tiramisu (Large, Nutella)": a product with the choices made, as the order page and the bill write it
+    const withChoices = key.match(/^(.+) \(([^()]+)\)$/);
+    if (withChoices) {
+      const choices = withChoices[2].split(", ").map((c) => (Object.prototype.hasOwnProperty.call(words, c) ? words[c] : c));
+      return `${name(withChoices[1])} (${choices.join(", ")})`;
+    }
     for (const [suffix, ta] of TA.suffixes || []) {
       if (key.endsWith(` ${suffix}`)) {
         const base = key.slice(0, -suffix.length - 1);
@@ -1588,18 +1668,50 @@ window.SerenPay = (function () {
     }
     let data = {};
     try { data = await res.json(); } catch (e) { /* not JSON */ }
-    if (!res.ok) throw new Error(data.error || "Something went wrong. Please try again.");
+    if (!res.ok) {
+      const err = new Error(data.error || "Something went wrong. Please try again.");
+      err.status = res.status; // callers can tell "wrong table PIN" (403 + needPin) from other problems
+      err.needPin = data.needPin === true;
+      throw err;
+    }
     return data;
   }
 
-  /* orders placed on this device, newest first, so customers can find them again */
+  /* The 4-digit PIN staff tell guests when seating a table. Remembered for this visit only (one per table). */
+  const PIN_RE = /^\d{4}$/;
+  const pinKey = (table) => `seren-pin-v1:${String(table).toLowerCase()}`;
+  function tablePin(table) {
+    try { const v = sessionStorage.getItem(pinKey(table)); return PIN_RE.test(v || "") ? v : ""; } catch (e) { return ""; }
+  }
+  function rememberPin(table, pin) {
+    try { if (PIN_RE.test(String(pin))) sessionStorage.setItem(pinKey(table), String(pin)); } catch (e) { /* storage blocked: the guest types it again next time */ }
+  }
+  function forgetPin(table) {
+    try { sessionStorage.removeItem(pinKey(table)); } catch (e) { /* nothing was saved anyway */ }
+  }
+
+  /* orders placed on this device, newest first, so customers can find them again.
+     Only well-formed entries from the last 30 days are trusted: anything else in storage is ignored. */
+  const CODE_RE = /^SRN-[A-Z0-9]{6}$/;
+  const TOKEN_RE = /^[A-Za-z0-9_-]{32}$/;
+  const ORDER_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
   function savedOrders() {
-    try { const v = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]"); return Array.isArray(v) ? v : []; }
-    catch (e) { return []; }
+    let list;
+    try { list = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]"); } catch (e) { return []; }
+    if (!Array.isArray(list)) return [];
+    const now = Date.now();
+    return list
+      .filter((o) => o && typeof o === "object" && typeof o.code === "string" && typeof o.token === "string" && CODE_RE.test(o.code) && TOKEN_RE.test(o.token))
+      .map((o) => ({ code: o.code, token: o.token, at: Number.isFinite(o.at) ? Math.min(o.at, now) : now })) // older saves had no timestamp: they start their 30 days now
+      .filter((o) => now - o.at <= ORDER_MAX_AGE);
   }
   function rememberOrder(code, token) {
+    if (!CODE_RE.test(String(code)) || !TOKEN_RE.test(String(token))) return;
     const next = [{ code, token, at: Date.now() }, ...savedOrders().filter((o) => o.code !== code)].slice(0, 10);
     try { localStorage.setItem(ORDERS_KEY, JSON.stringify(next)); } catch (e) { /* private mode: the link still works */ }
+  }
+  function forgetOrders() {
+    try { localStorage.removeItem(ORDERS_KEY); } catch (e) { /* storage blocked: nothing was saved anyway */ }
   }
   const orderUrl = (code, token) => `order.html#${encodeURIComponent(code)}.${encodeURIComponent(token)}`;
   const invoiceUrl = (code, token) => `${API}/invoice/${encodeURIComponent(code)}?t=${encodeURIComponent(token)}`;
@@ -1618,17 +1730,37 @@ window.SerenPay = (function () {
 
   const isPhone = () => window.matchMedia("(pointer:coarse)").matches || window.innerWidth < 700;
 
+  /* The payment link comes from the server. Only trust it if it is a UPI link that pays the UPI ID shown
+     on screen, for exactly this order's total. Returns the cleaned link, or null. */
+  function checkedUpiLink(pay) {
+    try {
+      const u = new URL(String(pay.upi));
+      const one = (k) => { const v = u.searchParams.getAll(k); return v.length === 1 ? v[0] : null; };
+      const pa = one("pa"), am = one("am"), cu = u.searchParams.get("cu");
+      if (u.protocol !== "upi:" || u.hostname !== "pay") return null;
+      if (!pa || !pay.upiId || pa.trim().toLowerCase() !== String(pay.upiId).trim().toLowerCase()) return null;
+      if (!am || !/^\d+(\.\d{1,2})?$/.test(am) || !Number.isFinite(Number(pay.total)) || Math.abs(Number(am) - Number(pay.total) / 100) >= 0.005) return null;
+      if (cu !== null && cu !== "INR") return null;
+      return u.href;
+    } catch (e) { return null; }
+  }
+
   /**
    * Draws the "pay with UPI" panel into `el`.
    * pay = { code, token, total, upi, upiId, upiName, expiresAt }; onSubmitted runs after the customer sends their UPI ref.
    */
   function payPanel(el, pay, onSubmitted) {
+    const upi = checkedUpiLink(pay);
+    if (!upi) {
+      el.innerHTML = `<div class="pay"><p class="err" role="alert">Payment details look wrong — please call the shop</p></div>`;
+      return;
+    }
     const mins = pay.expiresAt ? Math.max(0, Math.round((new Date(pay.expiresAt) - Date.now()) / 60000)) : null;
     el.innerHTML = `
       <div class="pay">
         <p class="pay-amt"><span>Pay</span> ${esc(money(pay.total))}</p>
         <p class="pay-note">Order <b>${esc(pay.code)}</b>${mins ? ` · please pay within ${mins} min` : ""}</p>
-        ${isPhone() ? `<a class="pill fill pay-app" href="${esc(pay.upi)}">Pay with GPay, PhonePe or any UPI app</a>` : ""}
+        ${isPhone() ? `<a class="pill fill pay-app" href="${esc(upi)}">Pay with GPay, PhonePe or any UPI app</a>` : ""}
         <div class="pay-qr" aria-label="UPI QR code for ${esc(money(pay.total))}"><span class="hand">Loading QR…</span></div>
         <p class="pay-id">${isPhone() ? "Or pay" : "Scan with any UPI app, or pay"} to <b>${esc(pay.upiId)}</b> (${esc(pay.upiName)})
           <button type="button" class="linkish" data-copy="${esc(pay.upiId)}">Copy UPI ID</button></p>
@@ -1644,7 +1776,7 @@ window.SerenPay = (function () {
     loadQr()
       .then(() => {
         const qr = window.qrcode(0, "M");
-        qr.addData(pay.upi);
+        qr.addData(upi);
         qr.make();
         el.querySelector(".pay-qr").innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
       })
@@ -1671,7 +1803,7 @@ window.SerenPay = (function () {
     });
   }
 
-  return { enabled: Boolean(API), api, money, esc, savedOrders, rememberOrder, orderUrl, invoiceUrl, payPanel };
+  return { enabled: Boolean(API), api, PIN_RE, tablePin, rememberPin, forgetPin, money, esc, savedOrders, rememberOrder, forgetOrders, orderUrl, invoiceUrl, payPanel };
 })();
 
 /* The order page: status timeline, UPI payment if still unpaid, invoice once paid. Link: order.html#CODE.TOKEN */
@@ -1691,7 +1823,9 @@ window.SerenPay = (function () {
   let timer;
 
   function parseHash() {
-    const m = decodeURIComponent(location.hash.slice(1)).match(/^(SRN-[A-Z0-9]{6})\.([A-Za-z0-9_-]{32})$/);
+    let hash;
+    try { hash = decodeURIComponent(location.hash.slice(1)); } catch (e) { return null; } // a broken link counts as no order
+    const m = hash.match(/^(SRN-[A-Z0-9]{6})\.([A-Za-z0-9_-]{32})$/);
     return m ? { code: m[1], token: m[2] } : null;
   }
 
@@ -1706,9 +1840,28 @@ window.SerenPay = (function () {
     return STEPS.findIndex(([s]) => s === status);
   }
 
+  // "Need help?" line: the shop's phone and WhatsApp numbers are only used if they are plain digits
+  function help(contact, code) {
+    const c = contact || {};
+    const phone = /^\+?\d{5,15}$/.test(String(c.phone ?? "")) ? String(c.phone) : "";
+    const wa = /^\d{5,15}$/.test(String(c.whatsapp ?? "")) ? String(c.whatsapp) : "";
+    if (!phone && !wa) return "";
+    const call = phone ? `Call <a href="tel:${phone}">${esc(phone)}</a>` : "";
+    const chat = wa ? `${phone ? " or " : ""}<a href="https://wa.me/${encodeURIComponent(wa)}?text=${encodeURIComponent(`Hi SEREN, about order ${code}`)}" target="_blank" rel="noopener">WhatsApp us</a>` : "";
+    return `<p class="op-msg">Need help? ${call}
+        ${chat}</p>`;
+  }
+
+  // Google review links must be https; anything else is dropped
+  function safeHttps(url) {
+    try { const u = new URL(String(url)); return u.protocol === "https:" ? u.href : ""; } catch (e) { return ""; }
+  }
+
   function render(data, ref) {
     const o = data.order;
     const stopped = o.status === "cancelled" || o.status === "expired";
+    // whatever the server added on top of the items and delivery (packing, service charge, rounding to the rupee)
+    const charges = Number(o.subtotal) > 0 ? o.total - (o.subtotal - (Number(o.discount) || 0)) - (Number(o.deliveryFee) || 0) : 0;
     const at = stepIndex(o.status);
     const steps = STEPS.map(([s, label], i) => {
       const lbl = s === "ready" && o.mode === "delivery" ? (o.status === "out_for_delivery" ? "On the way" : "Ready to go")
@@ -1726,15 +1879,15 @@ window.SerenPay = (function () {
         ? `<span class="hand">Dine-in</span> Table ${esc(o.table)}`
         : `<span class="hand">${o.mode === "delivery" ? "Delivery" : "Pickup"}</span> ${esc(dayLabel(o.date))} · ${esc(timeLabel(o.time))}`}</div>
       <div class="op-pay"></div>
-      <ul class="op-lines">${o.lines.map((l) => `<li><span>${l.qty} × ${esc(l.name)}${l.unit ? ` <small>${esc(l.unit)}</small>` : ""}</span><b>${esc(money(l.amount))}</b></li>`).join("")}
+      <ul class="op-lines">${o.lines.map((l) => `<li><span>${esc(Number(l.qty) | 0)} × ${esc(l.name)}${l.unit ? ` <small>${esc(l.unit)}</small>` : ""}</span><b>${esc(money(l.amount))}</b></li>`).join("")}
         ${o.deliveryFee ? `<li><span>Delivery</span><b>${esc(money(o.deliveryFee))}</b></li>` : ""}
+        ${charges ? `<li><span>Packing, service charge &amp; round-off</span><b>${esc(charges > 0 ? money(charges) : `−${money(-charges)}`)}</b></li>` : ""}
         ${o.discount ? `<li class="off"><span>Discount${o.coupon ? ` (${esc(o.coupon)})` : ""}</span><b>−${esc(money(o.discount))}</b></li>` : ""}
         <li class="tot"><span>Total</span><b>${esc(money(o.total))}</b></li></ul>
       ${data.canReview && o.status === "completed" ? reviewBlock(data) : ""}
       ${o.paid ? `<a class="pill fill" href="${esc(P.invoiceUrl(o.code, ref.token))}" target="_blank" rel="noopener">View &amp; print bill${o.invoiceNo ? ` · ${esc(o.invoiceNo)}` : ""}</a>` : ""}
       ${o.utr && !o.paid ? `<p class="op-msg">We have your UPI reference <b>${esc(o.utr)}</b> and we're checking it with the bank.</p>` : ""}
-      ${data.contact.phone || data.contact.whatsapp ? `<p class="op-msg">Need help? ${data.contact.phone ? `Call <a href="tel:${esc(data.contact.phone)}">${esc(data.contact.phone)}</a>` : ""}
-        ${data.contact.whatsapp ? `${data.contact.phone ? " or " : ""}<a href="https://wa.me/${esc(data.contact.whatsapp)}?text=${encodeURIComponent(`Hi SEREN, about order ${o.code}`)}" target="_blank" rel="noopener">WhatsApp us</a>` : ""}</p>` : ""}
+      ${help(data.contact, o.code)}
       <details class="op-log"><summary>Order history</summary><ul>${o.events.map((e) => `<li>${esc(when(e.at))} · ${esc(e.label)}</li>`).join("")}</ul></details>`;
     wireReview(ref, data);
     if (data.pay) P.payPanel(card.querySelector(".op-pay"), { ...data.pay, code: o.code, token: ref.token, total: o.total, expiresAt: o.status === "expired" ? null : o.expiresAt }, () => load(ref));
@@ -1748,7 +1901,7 @@ window.SerenPay = (function () {
     const fb = data.feedback;
     return `<form class="review" novalidate>
       <p class="hand">${fb ? "Thanks for your rating!" : "How was it?"}</p>
-      <div class="stars" role="radiogroup" aria-label="Your rating">${[1, 2, 3, 4, 5].map((n) => `<button type="button" role="radio" aria-checked="${fb && fb.stars === n}" aria-label="${n} star${n > 1 ? "s" : ""}" data-star="${n}" class="${fb && fb.stars >= n ? "on" : ""}">★</button>`).join("")}</div>
+      <div class="stars" role="radiogroup" aria-label="Your rating">${[1, 2, 3, 4, 5].map((n) => `<button type="button" role="radio" aria-checked="${Boolean(fb && fb.stars === n)}" aria-label="${n} star${n > 1 ? "s" : ""}" data-star="${n}" class="${fb && fb.stars >= n ? "on" : ""}">★</button>`).join("")}</div>
       <textarea name="comment" rows="2" maxlength="500" placeholder="Tell us more (optional)">${esc(fb ? fb.comment : "")}</textarea>
       <button class="pill" type="submit">${fb ? "Update" : "Send"}</button>
       <p class="review-note" role="status"></p>
@@ -1771,7 +1924,8 @@ window.SerenPay = (function () {
       if (!stars) { out.textContent = "Tap the stars first"; return; }
       try {
         const r = await P.api(`/api/orders/${encodeURIComponent(ref.code)}/feedback`, { method: "POST", body: { t: ref.token, stars, comment: form.elements.namedItem("comment").value } });
-        out.innerHTML = r.googleReviewUrl ? `Thank you! Would you share it on Google? <a href="${esc(r.googleReviewUrl)}" target="_blank" rel="noopener">Write a Google review →</a>` : "Thank you! We read every message.";
+        const review = safeHttps(r.googleReviewUrl);
+        out.innerHTML = review ? `Thank you! Would you share it on Google? <a href="${esc(review)}" target="_blank" rel="noopener">Write a Google review →</a>` : "Thank you! We read every message.";
       } catch (ex) { out.textContent = ex.message; }
     });
   }
@@ -1792,12 +1946,22 @@ window.SerenPay = (function () {
     box.querySelector("ul").innerHTML = list.map((o) => `<li><a href="${esc(P.orderUrl(o.code, o.token))}">${esc(o.code)}</a> <small>${esc(new Date(o.at).toLocaleDateString("en-IN"))}</small></li>`).join("");
   }
 
+  function listCard() {
+    card.innerHTML = `<h1 class="display">Your orders</h1><p class="op-msg">${P.savedOrders().length ? "Pick an order below." : "Orders you place on this phone show up here. Open the link from your order to see it."}</p>`;
+  }
+
   function start() {
     const ref = parseHash();
     mine(ref);
     if (ref) { load(ref); return; }
-    card.innerHTML = `<h1 class="display">Your orders</h1><p class="op-msg">${P.savedOrders().length ? "Pick an order below." : "Orders you place on this phone show up here. Open the link from your order to see it."}</p>`;
+    listCard();
   }
+  document.getElementById("forgetOrders").addEventListener("click", () => {
+    P.forgetOrders();
+    const ref = parseHash();
+    mine(ref);
+    if (!ref) listCard();
+  });
   window.addEventListener("hashchange", start);
   start();
 })();

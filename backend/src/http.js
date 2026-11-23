@@ -25,13 +25,16 @@ export function json(data, status = 200, headers = {}) {
 
 export const fail = (status, error, extra = {}) => json({ error, ...extra }, status);
 
+// Printable pages (bills, kitchen tickets, day closing). Only our own <script> tags get the one-time nonce,
+// so even if a customer's name ever slipped through unescaped it could not run code.
 export function html(body, status = 200, headers = {}) {
-  return new Response(body, {
+  const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
+  return new Response(String(body).replace(/<script(?=[\s>])/g, `<script nonce="${nonce}"`), {
     status,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
-      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'",
+      "Content-Security-Policy": `default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; script-src 'nonce-${nonce}'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'`,
       ...SECURITY_HEADERS,
       ...headers,
     },
@@ -43,6 +46,8 @@ const MAX_BODY = 16 * 1024;
 export async function readJson(request) {
   const type = request.headers.get("Content-Type") || "";
   if (!type.includes("application/json")) throw new HttpError(415, "Send JSON");
+  // refuse big bodies before reading them
+  if (Number(request.headers.get("Content-Length") || 0) > MAX_BODY) throw new HttpError(413, "Request too large");
   const text = await request.text();
   if (text.length > MAX_BODY) throw new HttpError(413, "Request too large");
   let body;

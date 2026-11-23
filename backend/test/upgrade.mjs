@@ -35,6 +35,9 @@ const cashier = session();
 const kitchen = session();
 const manager = session();
 
+// a different customer each time (the shop allows only a few unpaid orders per phone)
+const freshPhone = () => `9${String(Date.now()).slice(-6)}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`;
+
 (async () => {
   let r = await owner("POST", "/api/admin/login", { password: pw });
   check("owner logs in (name left empty)", r.status === 200);
@@ -72,12 +75,12 @@ const manager = session();
   const base = { name: "Asha", phone: "9876543210", mode: "pickup", date: day.date, time: day.times[day.times.length - 1] };
   r = await pub("GET", "/api/menu");
   check("menu shows how many are left today", r.data.prices[limited].left === 2, JSON.stringify(r.data.prices[limited]));
-  const s1 = await pub("POST", "/api/orders", { ...base, items: [{ id: limited, qty: 2 }] });
+  const s1 = await pub("POST", "/api/orders", { ...base, phone: freshPhone(), items: [{ id: limited, qty: 2 }] });
   check("can order up to the daily limit", s1.status === 201, JSON.stringify(s1.data));
-  r = await pub("POST", "/api/orders", { ...base, items: [{ id: limited, qty: 1 }] });
+  r = await pub("POST", "/api/orders", { ...base, phone: freshPhone(), items: [{ id: limited, qty: 1 }] });
   check("over the limit is refused as sold out", r.status === 409 && /sold out/.test(r.data.error), JSON.stringify(r.data));
   await owner("POST", `/api/admin/orders/${s1.data.code}/status`, { to: "cancelled" });
-  r = await pub("POST", "/api/orders", { ...base, items: [{ id: limited, qty: 1 }] });
+  r = await pub("POST", "/api/orders", { ...base, phone: freshPhone(), items: [{ id: limited, qty: 1 }] });
   check("cancelling an unpaid order gives the stock back", r.status === 201, JSON.stringify(r.data));
 
   /* cancelling gives stock back exactly once */
@@ -129,11 +132,16 @@ const manager = session();
   check("cashier can't refund", (await cashier("POST", `/api/admin/orders/${couponOrder.code}/refund`, { method: "upi" })).status === 403);
   check("paid orders can't simply be cancelled", (await owner("POST", `/api/admin/orders/${couponOrder.code}/status`, { to: "cancelled" })).status === 409);
   r = await manager("POST", `/api/admin/orders/${couponOrder.code}/refund`, { method: "upi", ref: "refund-123" });
-  check("manager refunds, a credit note is numbered", r.status === 200 && /^SRNCN\/\d{4}\/\d{5}$/.test(r.data.order.credit_note_no), JSON.stringify(r.data).slice(0, 300));
+  // this bill's points were spent above, so a plain refund would pay them out twice
+  check("refund is stopped when the bill's points were already spent", r.status === 409 && r.data.pointsSpent > 0, JSON.stringify(r.data).slice(0, 200));
+  r = await manager("POST", `/api/admin/orders/${couponOrder.code}/refund`, { method: "upi", ref: "refund-123", pointsOk: true });
+  check("only the owner can override that", r.status === 409);
+  r = await owner("POST", `/api/admin/orders/${couponOrder.code}/refund`, { method: "upi", ref: "refund-123", pointsOk: true });
+  check("owner refunds (less the points), a credit note is numbered", r.status === 200 && /^SRNCN\/\d{4}\/\d{5}$/.test(r.data.order.credit_note_no), JSON.stringify(r.data).slice(0, 300));
   const cn = r.data.order.credit_note_no;
   r = await owner("GET", `/credit-note/${couponOrder.code}`);
   check("credit note prints", r.status === 200 && r.data.includes("Credit Note") && r.data.includes(cn));
-  r = await owner("GET", `/api/admin/export.csv?from=2000-01-01&to=2999-12-31`);
+  r = await owner("GET", `/api/admin/export.csv?from=${new Date(Date.now() - 300 * 86400000).toISOString().slice(0, 10)}&to=${new Date(Date.now() + 86400000).toISOString().slice(0, 10)}`);
   check("accounts export lists the credit note as negative", r.data.includes(cn) && r.data.includes("-324.00"));
 
   /* tables: signed QR, rounds on a tab, call waiter, one bill */
@@ -147,9 +155,11 @@ const manager = session();
   r = await pub("POST", "/api/orders", { name: "Ravi", mode: "dinein", table: "7", payLater: true, k, items: [{ id: "bomb-vanilla", qty: 1 }] });
   check("pay-at-the-end needs staff to seat the table first", r.status === 409 && /open your table/.test(r.data.error), JSON.stringify(r.data));
   check("kitchen can't seat tables", (await kitchen("POST", "/api/admin/tables/7/open", {})).status === 403);
-  check("cashier seats table 7", (await cashier("POST", "/api/admin/tables/7/open", {})).status === 201);
-  const round1 = await pub("POST", "/api/orders", { name: "Ravi", mode: "dinein", table: "7", payLater: true, k, items: [{ id: "bomb-vanilla", qty: 1 }] });
-  const round2 = await pub("POST", "/api/orders", { name: "Ravi", mode: "dinein", table: "7", payLater: true, k, items: [{ id: "bomb-vanilla", qty: 2 }, { id: "cookie-brownie", qty: 1 }] });
+  const seated = await cashier("POST", "/api/admin/tables/7/open", {});
+  check("cashier seats table 7 (and gets the table PIN)", seated.status === 201 && /^\d{4}$/.test(seated.data.pin), JSON.stringify(seated.data));
+  const tpin = seated.data.pin;
+  const round1 = await pub("POST", "/api/orders", { name: "Ravi", mode: "dinein", table: "7", payLater: true, k, pin: tpin, items: [{ id: "bomb-vanilla", qty: 1 }] });
+  const round2 = await pub("POST", "/api/orders", { name: "Ravi", mode: "dinein", table: "7", payLater: true, k, pin: tpin, items: [{ id: "bomb-vanilla", qty: 2 }, { id: "cookie-brownie", qty: 1 }] });
   check("two rounds go straight to the kitchen", round1.data.onTab && round2.data.onTab && !round1.data.upi, JSON.stringify(round2.data));
   r = await kitchen("GET", "/api/admin/kitchen");
   check("kitchen sees the table's rounds", r.data.orders.filter((o) => o.table === "7").length >= 2);
@@ -161,10 +171,10 @@ const manager = session();
   check("staff see the open tab and the call", r.data.tabs.some((t) => t.table_no === "7" && t.rounds === 2) && r.data.calls.some((c) => c.table_no === "7" && c.kind === "bill"));
   r = await cashier("POST", "/api/admin/tables/7/bill", {});
   check("staff make one bill for the table", r.status === 201, JSON.stringify(r.data));
-  r = await pub("POST", "/api/orders", { name: "Ravi", mode: "dinein", table: "7", payLater: true, k, items: [{ id: "bomb-vanilla", qty: 1 }] });
+  r = await pub("POST", "/api/orders", { name: "Ravi", mode: "dinein", table: "7", payLater: true, k, pin: tpin, items: [{ id: "bomb-vanilla", qty: 1 }] });
   check("no more rounds once the bill is made", r.status === 409, JSON.stringify(r.data));
-  check("guests don't see each other's names on the tab", !JSON.stringify((await pub("GET", `/api/tables/7?k=${k}`)).data).includes("Ravi"));
-  r = await pub("GET", `/api/tables/7?k=${k}`);
+  check("guests don't see each other's names on the tab", !JSON.stringify((await pub("GET", `/api/tables/7?k=${k}&pin=${tpin}`)).data).includes("Ravi"));
+  r = await pub("GET", `/api/tables/7?k=${k}&pin=${tpin}`);
   check("guests see the table bill to pay, totalling both rounds", r.data.bill && r.data.bill.token && r.data.bill.total === round1.data.total + round2.data.total, JSON.stringify(r.data).slice(0, 300));
   const bill = r.data.bill;
   await pub("POST", `/api/orders/${bill.code}/payment`, { t: bill.token, utr: utr() });
@@ -210,11 +220,11 @@ const manager = session();
   check("report has sales, top items and hours", r.status === 200 && r.data.report.totals.orders > 0 && r.data.report.topItems.length > 0 && r.data.report.byHour.length > 0, JSON.stringify(r.data).slice(0, 300));
   check("report counts the refund", r.data.report.refunds.n >= 1);
   r = await manager("GET", "/day-close");
-  check("day closing sheet prints", r.status === 200 && r.data.includes("Day closing") && r.data.includes("Cash that should be in the drawer"));
+  check("day closing sheet prints", r.status === 200 && r.data.includes("Day closing") && r.data.includes("Cash added to the drawer today"));
   r = await owner("GET", "/api/admin/backup.json");
   check("owner downloads a backup without passwords", r.status === 200 && Array.isArray(r.data.data.orders) && !JSON.stringify(r.data).includes("pass_hash"));
   r = await owner("GET", "/api/admin/activity");
-  check("activity log records who did what", r.data.log.some((l) => l.action === "refunded" && l.actor === `Meena${sfx}`) && r.data.log.some((l) => l.action === "price changed"));
+  check("activity log records who did what", r.data.log.some((l) => l.action === "refunded" && l.actor === "Owner") && r.data.log.some((l) => l.action === "price changed"));
   await pub("POST", "/api/orders", { ...base, phone: "9123400000", optIn: true, items: [{ id: "bomb-vanilla", qty: 1 }] });
   r = await owner("POST", "/api/admin/broadcast", { text: "Hi {name}, new Kunafa cookie this weekend!" });
   check("offer message links only for customers who opted in", r.status === 200 && r.data.links.every((l) => l.phone !== "9123400000"), JSON.stringify(r.data).slice(0, 200));

@@ -67,6 +67,11 @@ SA.prices = (function () {
         <label>Tamil name<input name="nameTa" maxlength="80" lang="ta" value="${esc(p.nameTa || "")}" placeholder="எ.கா. ரோஸ் பிஸ்தா எக்ளேர்"></label>
         <label>Tamil description<textarea name="descriptionTa" rows="2" maxlength="240" lang="ta">${esc(p.descriptionTa || "")}</textarea></label>
       </details>
+      <details class="box" ${(p.options || []).length ? "open" : ""}><summary><b>Sizes &amp; add-ons</b> <span class="opt">(e.g. Size: 500 g / 1 kg · Add-ons: extra Nutella +₹30)</span></summary>
+        <div class="opt-editor" id="optEditor">${(p.options || []).map(groupHtml).join("")}</div>
+        <button class="btn ghost small" type="button" id="addGroup">+ Add a choice group</button>
+        <p class="meta">"Pick one" groups (like Size) can be required. Extra price is added to the item's price.</p>
+      </details>
       <fieldset class="seg"><legend>Food mark</legend>
         ${[["", "None"], ["1", "Veg"], ["0", "Non-veg"]].map(([v, l]) => `<label><input type="radio" name="veg" value="${v}" ${String(p.veg === null ? "" : p.veg ? 1 : 0) === v ? "checked" : ""}><span>${l}</span></label>`).join("")}</fieldset>
       <div class="photo">
@@ -81,6 +86,13 @@ SA.prices = (function () {
     </form>`;
     let photo = p.photo || null;
     d.querySelector("[data-close]").addEventListener("click", () => d.close());
+    const ed = d.querySelector("#optEditor");
+    d.querySelector("#addGroup").addEventListener("click", () => { if (ed.children.length < 5) ed.insertAdjacentHTML("beforeend", groupHtml({ name: "", pick: "one", required: false, choices: [{ name: "", price: 0 }] })); });
+    ed.addEventListener("click", (e) => {
+      if (e.target.closest("[data-addch]")) { const g = e.target.closest(".grp"); if (g.querySelectorAll(".ch-row").length < 12) g.querySelector(".chs").insertAdjacentHTML("beforeend", choiceHtml({ name: "", price: 0 })); }
+      if (e.target.closest("[data-delch]")) e.target.closest(".ch-row").remove();
+      if (e.target.closest("[data-delgrp]")) e.target.closest(".grp").remove();
+    });
     d.querySelector("#photoFile").addEventListener("change", async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -100,7 +112,7 @@ SA.prices = (function () {
       const v = (n) => f.elements.namedItem(n);
       const vegRaw = v("veg").value;
       const body = { name: v("name").value, description: v("description").value, veg: vegRaw === "" ? null : vegRaw === "1", hidden: v("hidden").checked, img: photo,
-        nameTa: v("nameTa").value, descriptionTa: v("descriptionTa").value };
+        nameTa: v("nameTa").value, descriptionTa: v("descriptionTa").value, options: readOptions(ed) };
       if (v("category")) body.category = v("category").value;
       try {
         if (isNew) await api("/products", body);
@@ -111,6 +123,26 @@ SA.prices = (function () {
       } catch (ex) { d.querySelector("#productErr").textContent = ex.message; }
     });
     d.showModal();
+  }
+
+  const choiceHtml = (c) => `<div class="ch-row"><input data-chname maxlength="30" placeholder="Choice, e.g. 1 kg" value="${esc(c.name)}" aria-label="Choice name">
+    <span class="money"><input data-chprice inputmode="decimal" placeholder="extra ₹" value="${c.price ? esc(String(c.price / 100)) : ""}" aria-label="Extra price"></span>
+    <button class="btn ghost small" type="button" data-delch aria-label="Remove choice">×</button></div>`;
+  function groupHtml(g) {
+    return `<div class="grp"><div class="grp-head"><input data-gname maxlength="30" placeholder="Group, e.g. Size" value="${esc(g.name)}" aria-label="Group name">
+      <select data-gpick aria-label="How many"><option value="one" ${g.pick !== "many" ? "selected" : ""}>Pick one</option><option value="many" ${g.pick === "many" ? "selected" : ""}>Pick any</option></select>
+      <button class="btn ghost small" type="button" data-delgrp aria-label="Remove group">×</button></div>
+      <label class="check"><input type="checkbox" data-greq ${g.required ? "checked" : ""}> Must choose (for "Pick one")</label>
+      <div class="chs">${g.choices.map(choiceHtml).join("")}</div>
+      <button class="btn ghost small" type="button" data-addch>+ Add a choice</button></div>`;
+  }
+  function readOptions(ed) {
+    return [...ed.querySelectorAll(".grp")].map((g) => ({
+      name: g.querySelector("[data-gname]").value.trim(),
+      pick: g.querySelector("[data-gpick]").value,
+      required: g.querySelector("[data-greq]").checked,
+      choices: [...g.querySelectorAll(".ch-row")].map((r) => ({ name: r.querySelector("[data-chname]").value.trim(), price: Math.round(Number(r.querySelector("[data-chprice]").value || 0) * 100) || 0 })).filter((c) => c.name),
+    })).filter((g) => g.name && g.choices.length);
   }
 
   // Shrinks a photo in the browser (keeps uploads small and fast) and returns a WebP/JPEG data URL.

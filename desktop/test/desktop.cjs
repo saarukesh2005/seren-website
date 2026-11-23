@@ -36,7 +36,7 @@ const pw = fs.readFileSync(path.join(__dirname, "../../backend/.dev.vars"), "utf
     await setup.click("#go");
     const pos = await page(/\/pos\/$/);
     check("after setup the counter opens", Boolean(pos));
-    await pos.waitForSelector("#pw", { timeout: 10000 });
+    await pos.waitForSelector("#login:not([hidden]) #pw", { timeout: 10000 }); // the login box is hidden until the server answers
     check("the app's printing bridge is there", await pos.evaluate(() => typeof window.serenNative === "object" && typeof window.serenSetup === "undefined"));
     await pos.type("#pw", pw);
     await pos.evaluate(() => document.getElementById("loginForm").requestSubmit());

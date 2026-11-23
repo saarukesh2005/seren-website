@@ -27,7 +27,7 @@ export async function putPrice({ env, params, request, user }) {
   const body = await readJson(request);
   if (body.price === null || body.price === "") {
     await store.clearPrice(env.DB, id);
-    await audit(env.DB, user, "price removed", item.name);
+    await audit(env.DB, user, "price removed", item.name, env);
     return json({ ok: true });
   }
   const price = Number(body.price);
@@ -40,7 +40,7 @@ export async function putPrice({ env, params, request, user }) {
   const unit = String(body.unit || "").replace(/[\u0000-\u001f]/g, "").trim().slice(0, 30);
   const before = (await store.getPrices(env.DB)).get(id);
   await store.setPrice(env.DB, id, { price, unit, available: Boolean(body.available), dailyLimit });
-  if (!before || before.price !== price) await audit(env.DB, user, "price changed", `${item.name}: ${before ? rupees(before.price) : "none"} → ${rupees(price)}`);
+  if (!before || before.price !== price) await audit(env.DB, user, "price changed", `${item.name}: ${before ? rupees(before.price) : "none"} → ${rupees(price)}`, env);
   return json({ ok: true });
 }
 

@@ -1,6 +1,7 @@
 // Dashboard API: settings, sales reports, day closing, accounts export and backups.
-import { backupJson, backupName } from "./backup.js";
+import { backupJson, backupName, lockBackup } from "./backup.js";
 import { CATEGORIES } from "./catalog.js";
+import { dateRange, csvCell } from "./gst-report.js";
 import { HttpError, json, readJson } from "./http.js";
 import { dayClose, dayCloseHtml, salesReport } from "./reports.js";
 import { checkSettings } from "./settings.js";
@@ -29,27 +30,20 @@ export async function report({ env, url }) {
   const from = YMD.test(url.searchParams.get("from") || "") ? url.searchParams.get("from") : addDays(today, -6);
   const to = YMD.test(url.searchParams.get("to") || "") ? url.searchParams.get("to") : today;
   if (to < from) throw new HttpError(400, "The end date is before the start date");
-  return json({ report: await salesReport(env.DB, from, to) });
+  return json({ report: await salesReport(env.DB, from, to, (await store.getSettings(env.DB)).platforms) });
 }
 
 export async function closing({ env, url, user }, renderHtml) {
   const day = YMD.test(url.searchParams.get("date") || "") ? url.searchParams.get("date") : istParts().date;
   const settings = await store.getSettings(env.DB);
   await audit(env.DB, user, "day closing printed", day);
-  return renderHtml(dayCloseHtml(await dayClose(env.DB, day), settings.storeName, user.name));
+  return renderHtml(dayCloseHtml(await dayClose(env.DB, day, settings), settings.storeName, user.name));
 }
-
-const csvCell = (v) => {
-  const s = String(v ?? "");
-  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s; // stops spreadsheet formula injection
-  return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-};
 
 // Bills and credit notes for a date range, one row per GST rate, ready for the accountant.
 export async function exportCsv({ env, url, user }) {
-  const ymd = (v) => (YMD.test(v || "") ? v : null);
-  const from = ymd(url.searchParams.get("from")) || "2000-01-01";
-  const to = ymd(url.searchParams.get("to")) || "2999-12-31";
+  // at most 366 days at a time; with no dates it is the last 366 days
+  const { from, to } = dateRange(url, istParts().date, 366);
   const [bills, credits] = await Promise.all([store.listInvoices(env.DB, from, to), store.listCreditNotes(env.DB, from, to)]);
   const rows = [["Document", "Number", "Date", "Against bill", "Order", "Source", "Customer", "Phone", "Customer GSTIN", "Payment", "UPI ref", "Discount", "GST rate %", "Taxable value", "CGST", "SGST", "Document total"]];
   const push = (o, kind) => {
@@ -70,9 +64,13 @@ export async function exportCsv({ env, url, user }) {
   });
 }
 
-export async function backup({ env, user }) {
-  await audit(env.DB, user, "backup downloaded");
-  return new Response(await backupJson(env.DB), {
-    headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="${backupName()}"`, "Cache-Control": "no-store" },
+// ?locked=1 gives the same file locked with BACKUP_PASSWORD (as sent to Telegram each night).
+export async function backup({ env, user, url }) {
+  const locked = url.searchParams.get("locked") === "1";
+  if (locked && String(env.BACKUP_PASSWORD || "").length < 12) throw new HttpError(409, "Set a backup password first (BACKUP_PASSWORD, 12+ characters)");
+  await audit(env.DB, user, locked ? "locked backup downloaded" : "backup downloaded");
+  const text = locked ? await lockBackup(await backupJson(env.DB), env.BACKUP_PASSWORD) : await backupJson(env.DB);
+  return new Response(text, {
+    headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="${backupName(locked)}"`, "Cache-Control": "no-store" },
   });
 }

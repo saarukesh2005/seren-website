@@ -45,12 +45,15 @@
   function boxTotals(items) {
     let total = 0;
     const problems = [];
+    const perProduct = new Map(); // stock is per product, whatever the choices
+    for (const it of items) perProduct.set(it.id, (perProduct.get(it.id) || 0) + it.qty);
     for (const it of items) {
       const p = shop.prices[it.id];
-      if (!p || !p.available || p.left === 0 || (p.left !== undefined && p.left < it.qty)) problems.push(it.name);
-      else total += p.price * it.qty;
+      const unit = BOX.unitPrice(it); // base price + the chosen extras; null when a choice is no longer offered
+      if (!p || !p.available || p.left === 0 || (p.left !== undefined && p.left < perProduct.get(it.id)) || unit === null) problems.push(BOX.lineText(it));
+      else total += unit * it.qty;
     }
-    return { total, problems };
+    return { total, problems: [...new Set(problems)] };
   }
 
   function updateFooter() {
@@ -114,17 +117,23 @@
           <label>Day<select name="date"><option value="">Loading days…</option></select></label>
           <label>Time<select name="time"></select></label>
         </div>
-        ${notice ? `<p class="hint notice-hint" ${f.mode === "dinein" ? "hidden" : ""}>Entremets are made to order, so the earliest day is ${s.preorderNoticeDays} days from today.</p>` : ""}
+        ${notice ? `<p class="hint notice-hint" ${f.mode === "dinein" ? "hidden" : ""}>Entremets are made to order, so the earliest day is ${esc(Number(s.preorderNoticeDays) | 0)} days from today.</p>` : ""}
         <label>Anything we should know? <span class="opt">(optional)</span><textarea name="notes" rows="2" maxlength="300" placeholder="Message on the cake, allergies, gate code…">${esc(f.notes)}</textarea></label>
         ${payLaterOk() ? `<fieldset class="modes paywhen" ${f.mode === "dinein" ? "" : "hidden"}><legend>When will you pay?</legend>
           <label><input type="radio" name="when" value="later" ${f.when !== "now" ? "checked" : ""}><span>At the end</span></label>
           <label><input type="radio" name="when" value="now" ${f.when === "now" ? "checked" : ""}><span>Now, by UPI</span></label></fieldset>` : ""}
+        <div class="pin" ${laterChosen(f) ? "" : "hidden"}>
+          <label>Table PIN<input name="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" value="${esc(f.pin || P.tablePin(table))}" placeholder="4 digits"></label>
+          <p class="hint">Type the 4-digit table PIN our staff gave you</p>
+        </div>
         <div class="coupon" ${laterChosen(f) ? "hidden" : ""}>
           <label>Have a code? <span class="opt">(optional)</span><span class="coupon-row"><input name="coupon" maxlength="20" autocomplete="off" value="${esc(coupon ? coupon.code : "")}" placeholder="e.g. WELCOME10"><button type="button" class="pill apply">Apply</button></span></label>
           <p class="hint coupon-note">${coupon ? `${esc(coupon.label)} · −${esc(money(coupon.discount))}` : ""}</p>
         </div>
         <label class="optin"><input type="checkbox" name="optIn" ${f.optIn ? "checked" : ""}><span>Send me SEREN offers on WhatsApp <span class="opt">(you can stop any time)</span></span></label>
+        <ul class="co-break" hidden></ul>
         <div class="co-total"><span>Total</span><b></b></div>
+        <p class="hint est-hint" hidden>Estimated total. The final amount is confirmed when you place your order.</p>
         <p class="err" role="alert"></p>
         <button class="pill fill" type="submit">${submitLabel(f)}</button>
         ${s.whatsapp ? `<button class="pill wa" type="button" data-wa>Order on WhatsApp instead</button>` : ""}
@@ -140,6 +149,7 @@
       if (e.target.name === "date") fillTimes(fm, days, "");
     });
     fm.addEventListener("submit", (e) => { e.preventDefault(); submit(fm); });
+    field(fm, "pin").addEventListener("input", (e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4); }); // digits only
     total(fm);
 
     try {
@@ -178,6 +188,7 @@
     const paywhen = fm.querySelector(".paywhen");
     if (paywhen) paywhen.hidden = mode !== "dinein";
     fm.querySelector(".coupon").hidden = laterChosen(f);
+    fm.querySelector(".pin").hidden = !laterChosen(f);
     fm.querySelector(".addr").hidden = mode !== "delivery";
     fm.querySelector(".tbl").hidden = mode !== "dinein";
     fm.querySelector(".dine-opt").hidden = mode !== "dinein";
@@ -192,14 +203,40 @@
     field(fm, "time").innerHTML = day ? day.times.map((t) => `<option value="${esc(t)}" ${t === keep ? "selected" : ""}>${esc(timeLabel(t))}</option>`).join("") : "";
   }
 
+  // What the shop will probably charge (the server works out the real total when the order is placed):
+  // packing for pickup and delivery, service charge for dine-in, then rounding to the rupee.
+  // A "pay at the end" order carries neither service nor rounding: they go on the table's one bill.
+  function estimate(f, sub, fee, off) {
+    const ch = shop.settings.charges || {};
+    const later = laterChosen(f);
+    const takeaway = f.mode === "pickup" || f.mode === "delivery";
+    const packing = takeaway ? Number(ch.packing) || 0 : 0;
+    const servicePct = f.mode === "dinein" ? Number(ch.servicePercent) || 0 : 0;
+    const service = servicePct && !later ? Math.round((Math.max(0, sub - off) * servicePct) / 100) : 0;
+    const exact = sub - off + fee + packing + service;
+    const rounding = ch.roundOff && !later ? Math.round(exact / 100) * 100 - exact : 0;
+    return { packing, servicePct, service, later, rounding, total: exact + rounding };
+  }
+
   function total(fm) {
     const s = shop.settings;
+    const f = readForm(fm);
     const sub = boxTotals(BOX.items()).total;
-    const delivery = fm.querySelector('[name="mode"]:checked')?.value === "delivery";
-    const fee = delivery && s.deliveryFee && !(s.freeDeliveryAbove && sub >= s.freeDeliveryAbove) ? s.deliveryFee : 0;
-    const off = coupon && !laterChosen(readForm(fm)) ? Math.min(coupon.discount, sub) : 0;
+    const fee = f.mode === "delivery" && s.deliveryFee && !(s.freeDeliveryAbove && sub >= s.freeDeliveryAbove) ? s.deliveryFee : 0;
+    const off = coupon && !laterChosen(f) ? Math.min(coupon.discount, sub) : 0;
+    const est = estimate(f, sub, fee, off);
     const extras = [fee ? `incl. ${money(fee)} delivery` : "", off ? `${money(off)} off` : ""].filter(Boolean).join(", ");
-    fm.querySelector(".co-total b").textContent = money(sub + fee - off) + (extras ? ` (${extras})` : "");
+    fm.querySelector(".co-total b").textContent = money(est.total) + (extras ? ` (${extras})` : "");
+    const rows = [];
+    if (est.packing) rows.push(["Packing", money(est.packing)]);
+    if (est.servicePct) rows.push([`Service charge ${est.servicePct}% (optional — ask staff to remove)`, est.later ? "on your final bill" : money(est.service)]);
+    if (est.rounding) rows.push(["Round-off", `${est.rounding > 0 ? "+" : "−"}${money(Math.abs(est.rounding))}`]);
+    const list = fm.querySelector(".co-break");
+    list.hidden = !rows.length;
+    list.innerHTML = rows.map(([k, v]) => `<li><span>${esc(k)}</span><b>${esc(v)}</b></li>`).join("");
+    const estimated = rows.length > 0;
+    fm.querySelector(".co-total span").textContent = estimated ? "Estimated total" : "Total";
+    fm.querySelector(".est-hint").hidden = !estimated;
   }
 
   // form.elements.namedItem, because form.name is the form's own name attribute
@@ -210,7 +247,7 @@
     optIn: field(fm, "optIn").checked,
     table: field(fm, "table").value.trim(),
     name: field(fm, "name").value.trim(), phone: field(fm, "phone").value.trim(), address: field(fm, "address").value.trim(),
-    pincode: field(fm, "pincode").value.trim(), notes: field(fm, "notes").value.trim(), date: field(fm, "date").value, time: field(fm, "time").value,
+    pin: field(fm, "pin").value.trim(), pincode: field(fm, "pincode").value.trim(), notes: field(fm, "notes").value.trim(), date: field(fm, "date").value, time: field(fm, "time").value,
   });
 
   async function submit(fm, channel = "web") {
@@ -222,17 +259,19 @@
     const later = laterChosen(form);
     // open WhatsApp's window now: browsers block windows opened after waiting for the server
     const waWin = channel === "whatsapp" ? window.open("about:blank", "_blank") : null;
+    if (waWin) waWin.opener = null; // the new tab must not be able to reach back into this page
     btn.disabled = true; err.textContent = ""; btn.textContent = "Placing your order…";
     try {
       const items = BOX.items();
       const res = await P.api("/api/orders", {
         method: "POST",
         body: {
-          ...form, channel, items: items.map((i) => ({ id: i.id, qty: i.qty })),
-          ...(later ? { payLater: true, k: tableKey } : coupon ? { coupon: coupon.code } : {}),
+          ...form, channel, items: items.map((i) => ({ id: i.id, qty: i.qty, ...(i.opts && i.opts.length ? { opts: i.opts } : {}) })),
+          ...(later ? { payLater: true, k: tableKey, pin: form.pin } : coupon ? { coupon: coupon.code } : {}),
         },
       });
       P.rememberOrder(res.code, res.token);
+      if (later) P.rememberPin(table, form.pin); // the tab sheet uses it too, for this visit
       placed = res;
       if (waWin) waWin.location.href = whatsappToShop(res, items);
       form = { ...form, notes: "" };
@@ -242,6 +281,7 @@
     } catch (e) {
       if (waWin) waWin.close();
       err.textContent = e.message;
+      if (e.status === 403 && e.needPin) { P.forgetPin(table); field(fm, "pin").focus(); } // wrong PIN: ask again
       btn.disabled = false; btn.textContent = submitLabel(form);
     }
   }
@@ -249,7 +289,7 @@
   // The order, written out for SEREN's WhatsApp, with the link to pay and track it.
   function whatsappToShop(res, items) {
     const link = new URL(P.orderUrl(res.code, res.token), location.href).toString();
-    const lines = items.map((i) => `${i.qty} × ${i.name}`).join("\n");
+    const lines = items.map((i) => `${i.qty} × ${BOX.lineText(i)}`).join("\n");
     const how = form.mode === "dinein" ? `Dine-in, table ${form.table}` : `${form.mode === "delivery" ? "Delivery" : "Pickup"} ${form.date} ${form.time}`;
     const text = `Hi SEREN! Order ${res.code}\n${lines}\nTotal ${money(res.total)}\n${how}\nName: ${form.name}\nPay / track: ${link}`;
     return `https://wa.me/${encodeURIComponent(shop.settings.whatsapp)}?text=${encodeURIComponent(text)}`;
@@ -260,6 +300,7 @@
     if (!f.mode) return "Choose how you'd like your order";
     if (f.name.length < 2) return "Please tell us your name";
     if (f.mode === "dinein" && !/^[A-Za-z0-9][A-Za-z0-9 -]{0,9}$/.test(f.table)) return "Please enter your table number";
+    if (laterChosen(f) && !P.PIN_RE.test(f.pin)) return "Type the 4-digit table PIN our staff gave you";
     if (f.mode === "dinein" && !f.phone) return "";
     if (!/^[6-9]\d{9}$/.test(f.phone.replace(/[\s-]/g, "").replace(/^(\+?91|0)(?=\d{10}$)/, ""))) return "Please enter a 10-digit mobile number";
     if (f.mode === "delivery" && f.address.length < 10) return "Please enter your full delivery address";
@@ -281,6 +322,7 @@
           <svg aria-hidden="true"><use href="#burst"/></svg>
           <p class="hand">On its way, ${esc((form && form.name.split(" ")[0]) || "friend")}!</p>
           <p>Order <b>${esc(placed.code)}</b> is with the kitchen. Order more any time; when you're done, tap <b>Ask for the bill</b> at the bottom of the screen.</p>
+          <p class="done-total"><span>Order total</span> <b>${esc(money(placed.total))}</b></p>
           <button type="button" class="pill fill again">Order something else</button>
         </div>`;
       $("#checkout .again").addEventListener("click", () => { placed = null; show("box"); });
@@ -291,6 +333,7 @@
         <svg aria-hidden="true"><use href="#burst"/></svg>
         <p class="hand">Got it, ${esc((form && form.name.split(" ")[0]) || "friend")}!</p>
         <p>We're checking your payment for order <b>${esc(placed.code)}</b>${form && form.mode === "dinein" ? `. Your food is on its way to table ${esc(form.table)}` : ". You'll see it confirmed on your order page, usually within a few minutes"}.</p>
+        <p class="done-total"><span>Order total</span> <b>${esc(money(placed.total))}</b></p>
         <a class="pill fill" href="${esc(P.orderUrl(placed.code, placed.token))}">Track your order</a>
         <button type="button" class="linkish again">Start a new box</button>
       </div>`;

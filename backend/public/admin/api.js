@@ -11,7 +11,39 @@ window.SA = (function () {
   };
   const toRupees = (paise) => (paise === null || paise === undefined ? "" : String(paise / 100));
 
+  // When an action needs a manager (cancelling food from the kitchen, big discounts…), a manager types
+  // their name and PIN in a small window and the same request is sent again with it.
+  function askManager(what, message) {
+    return new Promise((resolve) => {
+      let d = document.getElementById("mgrDlg");
+      if (!d) { d = document.createElement("dialog"); d.id = "mgrDlg"; d.className = "sheet mgr"; d.setAttribute("aria-labelledby", "mgrTitle"); document.body.append(d); }
+      d.innerHTML = `<form method="dialog" class="mgr-in"><h2 id="mgrTitle">Manager's OK</h2>
+        <p>${esc(what)}.${/Wrong/.test(message || "") ? ` <b class="err">${esc(message)}</b>` : " A manager types their name and PIN."}</p>
+        <label>Manager <small>(owner: type "owner")</small><input name="name" autocomplete="off" maxlength="30" required></label>
+        <label>PIN<input name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="100" required></label>
+        <div class="btns"><button class="btn primary" value="ok">Approve</button><button class="btn ghost" value="cancel" formnovalidate>Cancel</button></div></form>`;
+      d.addEventListener("close", () => {
+        const f = d.querySelector("form").elements;
+        const ok = d.returnValue === "ok" ? { name: f.namedItem("name").value.trim(), pin: f.namedItem("pin").value } : null;
+        d.innerHTML = "";
+        resolve(ok);
+      }, { once: true });
+      d.showModal();
+    });
+  }
+
   async function api(path, body, method) {
+    try {
+      return await request(path, body, method);
+    } catch (e) {
+      if (!(e.data && e.data.needApproval) || body === undefined) throw e;
+      const ok = await askManager(e.data.what || e.message, e.data.error);
+      if (!ok) throw new Error("Cancelled: needs a manager's OK");
+      return api(path, { ...body, approval: ok }, method);
+    }
+  }
+
+  async function request(path, body, method) {
     const res = await fetch(`/api/admin${path}`, {
       method: method || (body === undefined ? "GET" : "POST"),
       headers: body === undefined ? { "X-Seren": "1" } : { "X-Seren": "1", "Content-Type": "application/json" },
@@ -21,7 +53,12 @@ window.SA = (function () {
     let data = {};
     try { data = await res.json(); } catch (e) { /* not JSON */ }
     if (res.status === 401 && path !== "/login") { document.dispatchEvent(new CustomEvent("sa:logout")); }
-    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    if (!res.ok) {
+      const err = new Error(data.error || `Request failed (${res.status})`);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
     return data;
   }
 

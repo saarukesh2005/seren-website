@@ -31,6 +31,7 @@ SA.reports = (function () {
     try {
       const { report } = await api(`/reports?from=${from}&to=${to}`);
       render(report);
+      loadGst(from, to);
     } catch (e) { toast(e.message, true); }
   }
 
@@ -47,7 +48,7 @@ SA.reports = (function () {
 
   const dayShort = (ymd) => new Date(`${ymd}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
   const hourLabel = (h) => `${((h + 11) % 12) + 1}${h < 12 ? "am" : "pm"}`;
-  const NAMES = { upi: "UPI", cash: "Cash", card: "Card", pickup: "Pickup", delivery: "Delivery", dinein: "Dine-in", counter: "Counter", web: "Website", whatsapp: "WhatsApp", table: "Table QR", tab: "Table bills" };
+  const NAMES = { upi: "UPI", cash: "Cash", card: "Card", platform: "Delivery apps", store_credit: "Store credit", pickup: "Pickup", delivery: "Delivery", dinein: "Dine-in", counter: "Counter", web: "Website", whatsapp: "WhatsApp", table: "Table QR", tab: "Table bills" };
 
   function split(title, rows, total) {
     return `<section class="box"><h3>${esc(title)}</h3>${rows.length ? `<ul class="split">${rows.map((r) => `<li><span>${esc(NAMES[r.k] || r.k)}</span>
@@ -74,8 +75,52 @@ SA.reports = (function () {
         ${split("How customers paid", r.byMethod, t.revenue)}
         ${split("How they ordered", r.byMode, t.revenue)}
         ${split("Where orders came from", r.byChannel, t.revenue)}
+        ${appsBox(r.byPlatform || [])}
         <section class="box"><h3>Coupons used</h3>${r.coupons.length ? `<ul class="split">${r.coupons.map((c) => `<li><span>${esc(c.code)}</span><span class="opt">${c.orders} orders</span><b>−${esc(money(c.discount))}</b></li>`).join("")}</ul>` : `<p class="empty">No coupons used</p>`}</section>
-      </div>`;
+      </div>
+      <section class="box gst-box" id="gstBox"><h3>GST for your accountant</h3><p class="opt">Loading…</p></section>`;
+  }
+
+  // Delivery apps: what they sold, what the app keeps, and what the app will pay you.
+  function appsBox(rows) {
+    if (!rows.length) return "";
+    const total = rows.reduce((n, a) => n + a.appPays, 0);
+    return `<section class="box"><h3>Delivery apps</h3><ul class="split cash-cats">${rows.map((a) => `<li><span>${esc(a.name)}</span>
+      <span class="opt">${a.orders} order${a.orders === 1 ? "" : "s"} · app keeps ${esc(a.commission)}%</span><b>${esc(money(a.appPays))}</b></li>`).join("")}</ul>
+      <p class="opt">Sales less the app's cut. The apps will pay you <b>${esc(money(total))}</b> in all.</p></section>`;
+  }
+
+  /* ---------- GST for the accountant ---------- */
+  const GST_PARTS = [["b2b", "Business customers (B2B)"], ["b2cs", "Other customers (B2C)"], ["hsn", "Items by HSN code"], ["cdnr", "Credit notes (refunds)"], ["eco", "Delivery-app sales"], ["docs", "Bill numbers used"]];
+  let gstToken = 0;
+  async function loadGst(from, to) {
+    const token = ++gstToken;
+    let html;
+    try {
+      const { report: g } = await api(`/gst?from=${from}&to=${to}`);
+      html = gstHtml(g, from, to);
+    } catch (e) { html = `<h3>GST for your accountant</h3><p class="err">${esc(e.message)}</p>`; }
+    const box = $("#gstBox");
+    if (box && token === gstToken) box.innerHTML = html;
+  }
+
+  function gstHtml(g, from, to) {
+    const t = g.totals;
+    const stat = (value, label) => `<div class="stat"><b>${esc(value)}</b><span>${esc(label)}</span></div>`;
+    const links = GST_PARTS.map(([k, l]) => `<a class="btn ghost small" href="/api/admin/gst.csv?from=${from}&amp;to=${to}&amp;part=${k}" download>${esc(l)}</a>`).join("");
+    return `<h3>GST for your accountant</h3>
+      <p class="opt">For ${esc(from)} to ${esc(to)}. Send these files to your accountant for the GST return.</p>
+      ${g.warnings.map((w) => `<p class="gst-warn" role="note">${esc(w)}</p>`).join("")}
+      <div class="stats gst-stats">
+        ${stat(`${t.invoices.n} · ${money(t.invoices.value)}`, "Bills issued")}
+        ${stat(`${t.creditNotes.n} · ${money(t.creditNotes.value)}`, "Credit notes (refunds)")}
+        ${stat(money(g.b2b.totals.value), `Business customers (${g.b2b.totals.invoices} bills)`)}
+        ${stat(money(g.b2cs.totals.taxable), "Other customers, before GST")}
+        ${stat(money(t.gstPayableByYou), "GST you collected (after refunds)")}
+        ${stat(money(g.eco.taxableTotal), "Delivery-app sales (app pays the GST)")}
+      </div>
+      <p class="gst-turnover">Sales this financial year (${esc(g.turnover.fyStart)} to ${esc(g.turnover.fyEnd)}), GST included: <b>${esc(money(g.turnover.net))}</b></p>
+      <div class="gst-links">${links}</div>`;
   }
 
   // tooltip for chart bars (hover or keyboard focus)

@@ -92,9 +92,9 @@ SA.orders = (function () {
   /* ---------- one order ---------- */
   async function open(code) {
     try {
-      const { order, events, statuses: st } = await api(`/orders/${encodeURIComponent(code)}`);
+      const { order, events, statuses: st, payments } = await api(`/orders/${encodeURIComponent(code)}`);
       statuses = st;
-      sheet(order, events);
+      sheet(order, events, payments || []);
     } catch (e) { toast(e.message, true); }
   }
 
@@ -104,30 +104,42 @@ SA.orders = (function () {
     return phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : "";
   }
 
-  function sheet(o, events) {
+  const METHOD = { cash: "Cash", upi: "UPI", card: "Card", platform: "Delivery app", store_credit: "Store credit" };
+
+  function sheet(o, events, payments) {
     const d = $("#orderSheet");
-    const unpaid = ["awaiting_payment", "payment_submitted", "expired"].includes(o.status);
+    const unpaid = ["awaiting_payment", "payment_submitted", "expired", "booked"].includes(o.status);
+    const due = Math.max(o.total - (o.advance || 0), 0);
+    const app = o.tax_snapshot && o.tax_snapshot.platform;
     const moves = (o.status === "payment_submitted" ? ["awaiting_payment"] : []).concat(nextMoves(o));
     const wa = waLink(o);
     const refundable = o.invoice_no && !o.credit_note_no && SA.can("refund");
     const tpl = SA.state.settings ? Object.keys(SA.state.settings.waTemplates || {}) : [];
     d.innerHTML = `<div class="sheet-in">
-      <div class="sheet-head"><div><h2 id="sheetTitle">${esc(o.code)}</h2><span class="badge ${esc(o.status)}">${esc(statuses[o.status])}</span></div>
+      <div class="sheet-head"><div><h2 id="sheetTitle">${esc(o.code)}</h2><span class="badge ${esc(o.status)}">${esc(statuses[o.status])}</span>${app ? ` <span class="badge app">${esc(app.name)} ${esc(o.external_id || "")}</span>` : ""}</div>
         <button class="close" type="button" data-close aria-label="Close">×</button></div>
-      ${unpaid ? `<form class="box confirm" id="confirmForm"><h3>Confirm payment of ${esc(money(o.total))}</h3>
+      ${unpaid ? `<form class="box confirm" id="confirmForm"><h3>${o.status === "booked" ? `Collect the balance of ${esc(money(due))}` : `Confirm payment of ${esc(money(o.total))}`}</h3>
+        ${o.status === "booked" ? `<p class="meta">Advance ${esc(money(o.advance))} already taken (receipt ${esc(o.receipt_no || "")}). Taking the balance makes the bill.</p>` : ""}
         <p class="meta">${o.utr ? `Customer's UPI ref: <b>${esc(o.utr)}</b>. Find this amount and ref in your bank / UPI business app first.` : "Only confirm once the money is in your account."}</p>
-        <fieldset class="seg"><legend>Paid by</legend>${["upi", "cash", "card"].map((m, i) => `<label><input type="radio" name="method" value="${m}" ${i === 0 ? "checked" : ""}><span>${m.toUpperCase()}</span></label>`).join("")}</fieldset>
+        <fieldset class="seg"><legend>Paid by</legend>${["upi", "cash", "card", "split"].map((m, i) => `<label><input type="radio" name="method" value="${m}" ${i === 0 ? "checked" : ""}><span>${m === "split" ? "Split" : m.toUpperCase()}</span></label>`).join("")}</fieldset>
+        <div class="split-rows" id="splitRows" hidden>${["cash", "upi"].map((m, i) => `<div class="row"><select aria-label="Part ${i + 1}">${["cash", "upi", "card"].map((x) => `<option value="${x}" ${x === m ? "selected" : ""}>${x.toUpperCase()}</option>`).join("")}</select><input inputmode="decimal" aria-label="Part ${i + 1} in rupees" placeholder="₹"></div>`).join("")}</div>
         ${o.utr ? "" : `<label>UPI ref (12 digits)<input name="utr" inputmode="numeric" maxlength="14"></label>`}
         <button class="btn ok" type="submit">Money received ✓ (issues the bill)</button></form>` : ""}
-      <div class="box"><h3>Items</h3><ul class="lines">${o.lines.map((l) => `<li><span>${l.qty} × ${esc(l.name)}${l.unit ? ` <span class="opt">${esc(l.unit)}</span>` : ""}</span><b>${esc(money(l.gross))}</b></li>`).join("")}
-        ${o.delivery_fee ? `<li><span>Delivery</span><b>${esc(money(o.delivery_fee))}</b></li>` : ""}<li><span>Total</span><b>${esc(money(o.total))}</b></li></ul></div>
+      <div class="box"><h3>Items</h3><ul class="lines">${o.lines.map((l) => `<li><span>${Number(l.qty) || 0} × ${esc(l.name)}${l.unit ? ` <span class="opt">${esc(l.unit)}</span>` : ""}</span><b>${esc(money(l.gross))}</b></li>`).join("")}
+        ${o.delivery_fee ? `<li><span>Delivery</span><b>${esc(money(o.delivery_fee))}</b></li>` : ""}
+        ${((o.tax_snapshot && o.tax_snapshot.charges) || []).map((c) => `<li><span>${esc(c.name)}</span><b>${esc(money(c.gross))}</b></li>`).join("")}
+        ${o.tax_snapshot && o.tax_snapshot.roundOff ? `<li><span>Round off</span><b>${esc(money(o.tax_snapshot.roundOff))}</b></li>` : ""}
+        <li><span>Total</span><b>${esc(money(o.total))}</b></li></ul>
+        ${payments.length ? `<h3>Money</h3><ul class="pay-list">${payments.map((p) => `<li><span>${esc({ advance: "Advance", payment: "Paid", refund: "Refunded" }[p.kind] || p.kind)} · ${esc(METHOD[p.method] || p.method)}${p.ref ? ` · ${esc(p.ref)}` : ""} <span class="opt">${esc(new Date(p.at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }))}${p.actor ? ` · ${esc(p.actor)}` : ""}</span></span><b>${esc(money(p.amount))}</b></li>`).join("")}</ul>` : ""}</div>
       <div class="box"><dl class="kv">
         <dt>Customer</dt><dd>${esc(o.customer_name || "Walk-in")}${o.customer_phone ? ` · <a href="tel:+91${esc(o.customer_phone)}">${esc(o.customer_phone)}</a>` : ""}</dd>
         <dt>When</dt><dd>${esc(whenText(o))}</dd>
         ${o.address ? `<dt>Address</dt><dd>${esc(o.address)} ${esc(o.pincode)}</dd>` : ""}
         ${o.notes ? `<dt>Note</dt><dd><b>${esc(o.notes)}</b></dd>` : ""}
+        ${o.cake_message ? `<dt>On the cake</dt><dd><b>“${esc(o.cake_message)}”</b></dd>` : ""}
+        ${app ? `<dt>App</dt><dd>${esc(app.name)} order ${esc(o.external_id || "")} · commission about ${esc(String(app.commission))}% · GST paid by the app</dd>` : ""}
         ${o.utr ? `<dt>UPI ref</dt><dd>${esc(o.utr)}</dd>` : ""}
-        ${o.invoice_no ? `<dt>Bill</dt><dd>${esc(o.invoice_no)} · ${esc(o.payment_method.toUpperCase())}</dd>` : ""}
+        ${o.invoice_no ? `<dt>Bill</dt><dd>${esc(o.invoice_no)} · ${esc(app ? app.name : payments.filter((p) => p.kind === "payment").length > 1 ? "Split" : o.payment_method.toUpperCase())}</dd>` : ""}
       </dl></div>
       <div class="btns">${moves.map((m) => `<button class="btn ${m === "cancelled" || m === "awaiting_payment" ? "ghost" : "plum"}" type="button" data-move="${m}">${esc(moveLabel(o, m))}</button>`).join("")}</div>
       <div class="btns">
@@ -135,13 +147,14 @@ SA.orders = (function () {
         <a class="btn ghost small" href="/invoice/${encodeURIComponent(o.code)}?size=80mm" target="_blank" rel="noopener">Receipt size</a>
         <a class="btn ghost small" href="/kot/${encodeURIComponent(o.code)}" target="_blank" rel="noopener">Kitchen ticket</a>
         ${o.credit_note_no ? `<a class="btn ghost small" href="/credit-note/${encodeURIComponent(o.code)}" target="_blank" rel="noopener">Credit note ${esc(o.credit_note_no)}</a>` : ""}
+        ${o.receipt_no ? `<a class="btn ghost small" href="/receipt/${encodeURIComponent(o.code)}" target="_blank" rel="noopener">Advance receipt ${esc(o.receipt_no)}</a>` : ""}
         ${wa ? `<a class="btn ghost small" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp chat</a>` : ""}
       </div>
       ${wa && tpl.length ? `<div class="box"><h3>Send a WhatsApp update</h3><div class="btns">${tpl.map((k) => `<button class="btn ghost small" type="button" data-wa="${esc(k)}">${esc(WA_LABEL[k] || k)}</button>`).join("")}</div>
         <p class="meta">Opens WhatsApp with the message written for you, including their order link. You press send.</p></div>` : ""}
       ${refundable ? `<details class="box"><summary><b>Refund this order</b></summary><form id="refundForm" class="refund">
         <p class="meta">Cancels the order and makes a numbered credit note for your accounts. Return the money first.</p>
-        <fieldset class="seg"><legend>Money returned by</legend>${["upi", "cash", "card", "store_credit"].map((m, i) => `<label><input type="radio" name="method" value="${m}" ${i === 0 ? "checked" : ""}><span>${m === "store_credit" ? "Credit" : m.toUpperCase()}</span></label>`).join("")}</fieldset>
+        <fieldset class="seg"><legend>Money returned by</legend>${[...(app ? ["platform"] : []), "upi", "cash", "card", "store_credit"].map((m, i) => `<label><input type="radio" name="method" value="${m}" ${i === 0 ? "checked" : ""}><span>${m === "store_credit" ? "Credit" : m === "platform" ? "App refunds" : m.toUpperCase()}</span></label>`).join("")}</fieldset>
         <label>Refund reference <span class="opt">(optional)</span><input name="ref" maxlength="40"></label>
         <button class="btn" type="submit">Refund ${esc(money(o.total))} &amp; make credit note</button></form></details>` : ""}
       <form class="box" id="noteForm"><label>Private note (only you see this)<textarea name="note" rows="2" maxlength="500">${esc(o.admin_note)}</textarea></label><button class="btn ghost small" type="submit">Save note</button></form>
@@ -150,8 +163,21 @@ SA.orders = (function () {
     if (!d.open) d.showModal();
     d.querySelector("[data-close]").addEventListener("click", () => d.close());
     const cf = d.querySelector("#confirmForm");
-    if (cf) cf.addEventListener("submit", (e) => { e.preventDefault(); const utr = cf.elements.namedItem("utr");
-      confirm(o, { method: cf.elements.namedItem("method").value, utr: utr ? utr.value.replace(/\s+/g, "") : undefined }); });
+    if (cf) {
+      const rows = cf.querySelector("#splitRows");
+      cf.addEventListener("change", () => { rows.hidden = cf.elements.namedItem("method").value !== "split"; });
+      cf.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const utr = cf.elements.namedItem("utr");
+        const ref = utr ? utr.value.replace(/\s+/g, "") : undefined;
+        const method = cf.elements.namedItem("method").value;
+        if (method !== "split") { confirm(o, { method, utr: ref }); return; }
+        const split = [...rows.querySelectorAll(".row")].map((r) => ({ method: r.querySelector("select").value, amount: Math.round(Number(r.querySelector("input").value) * 100) || 0 }))
+          .filter((p) => p.amount > 0).map((p) => (p.method === "upi" && ref ? { ...p, ref } : p));
+        if (split.reduce((n, p) => n + p.amount, 0) !== due) { toast(`The parts must add up to ${money(due)}`, true); return; }
+        confirm(o, { split });
+      });
+    }
     d.querySelectorAll("[data-move]").forEach((b) => b.addEventListener("click", () => move(o, b.dataset.move)));
     d.querySelectorAll("[data-wa]").forEach((b) => b.addEventListener("click", () => sendWa(o, b.dataset.wa)));
     const rf = d.querySelector("#refundForm");
@@ -190,7 +216,7 @@ SA.orders = (function () {
 
   function nextMoves(o) {
     const cancel = o.invoice_no ? [] : ["cancelled"]; // paid orders are refunded instead
-    const all = { paid: ["preparing", "ready", "completed", ...cancel], on_tab: ["preparing", "ready", "completed", ...cancel], preparing: ["ready", "completed", ...cancel], ready: ["out_for_delivery", "completed", ...cancel], out_for_delivery: ["completed", ...cancel], awaiting_payment: ["cancelled"], payment_submitted: ["cancelled"] };
+    const all = { paid: ["preparing", "ready", "completed", ...cancel], on_tab: ["preparing", "ready", "completed", ...cancel], preparing: ["ready", "completed", ...cancel], ready: ["out_for_delivery", "completed", ...cancel], out_for_delivery: ["completed", ...cancel], awaiting_payment: ["cancelled"], payment_submitted: ["cancelled"], booked: ["cancelled"] };
     return (all[o.status] || []).filter((m) => m !== "out_for_delivery" || o.mode === "delivery");
   }
 
@@ -204,8 +230,15 @@ SA.orders = (function () {
 
   async function move(o, to) {
     if (to === "cancelled" && !window.confirm(`Cancel order ${o.code}?`)) return;
+    const body = { to };
+    // giving back a cake advance: how the money went back
+    if (to === "cancelled" && o.advance > 0) {
+      const how = window.prompt(`Give back the advance of ${money(o.advance)} by: cash, upi, card or store_credit?`, "cash");
+      if (!how) return;
+      body.refundMethod = how.trim().toLowerCase();
+    }
     try {
-      await api(`/orders/${o.code}/status`, { to });
+      await api(`/orders/${o.code}/status`, body);
       toast(statuses[to]);
       await load(); open(o.code);
     } catch (e) { toast(e.message, true); }

@@ -5,6 +5,9 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const AUTO_KEY = "seren-kitchen-autoprint";
+  const STATION_KEY = "seren-kitchen-station";
+  let station = "";
+  try { station = localStorage.getItem(STATION_KEY) || ""; } catch (e) { /* storage blocked */ }
   let seen = null;
 
   async function api(path, body) {
@@ -24,27 +27,38 @@
   const minsAgo = (iso) => Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000));
   const today = () => new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
 
+  const forStation = (o) => (station ? o.lines.filter((l) => l.station === station) : o.lines);
+  const ticketUrl = (code) => `/kot/${encodeURIComponent(code)}${station ? `?station=${encodeURIComponent(station)}` : ""}`;
+
   function card(o) {
-    const where = o.mode === "dinein" ? `Table ${o.table}` : o.mode === "delivery" ? "Delivery" : o.mode === "pickup" ? "Pickup" : "Counter";
+    const lines = forStation(o);
+    const where = o.app ? `${o.app} ${o.appOrder}` : o.mode === "dinein" ? `Table ${o.table}` : o.mode === "delivery" ? "Delivery" : o.mode === "pickup" ? "Pickup" : "Counter";
     const when = o.mode === "pickup" || o.mode === "delivery" ? `${o.date === today() ? "" : `${o.date} · `}${time12(o.time)}` : `${minsAgo(o.createdAt)} min ago`;
     const late = (o.mode === "dinein" || o.mode === "counter") && minsAgo(o.createdAt) >= 20 && o.status !== "ready";
-    const next = o.status === "ready" ? null : o.status === "preparing" ? ["ready", "Ready ✓"] : ["preparing", "Start"];
-    return `<article class="k-card ${o.mode} ${late ? "late" : ""}">
+    const next = o.status === "ready" || o.status === "booked" ? null : o.status === "preparing" ? ["ready", "Ready ✓"] : ["preparing", "Start"];
+    return `<article class="k-card ${o.mode} ${late ? "late" : ""} ${o.status === "booked" ? "booked" : ""} ${o.app ? "app" : ""}">
       <div class="k-row"><b class="k-where">${esc(where)}</b><span class="k-when">${esc(when)}</span></div>
       <div class="k-sub">${esc(o.code)}${o.name ? ` · ${esc(o.name)}` : ""}${o.tab ? " · tab" : ""}${o.paid ? "" : o.tab ? "" : " · not paid"}</div>
-      <ul>${o.lines.map((l) => `<li><b>${l.qty}×</b> ${esc(l.name)}</li>`).join("")}</ul>
+      <ul>${lines.map((l) => `<li><b>${Number(l.qty) || 0}×</b> ${esc(l.name)}${station ? "" : ` <span class="k-st">${esc(l.station)}</span>`}</li>`).join("")}</ul>
+      ${o.cakeMessage ? `<p class="k-note">ON THE CAKE: “${esc(o.cakeMessage)}”</p>` : ""}
       ${o.notes ? `<p class="k-note">${esc(o.notes)}</p>` : ""}
       <div class="k-row">
-        ${next ? `<button class="k-go" type="button" data-move="${next[0]}" data-code="${esc(o.code)}">${next[1]}</button>` : `<span class="k-done">Waiting for pickup / serving</span>`}
-        <a class="k-btn" href="/kot/${encodeURIComponent(o.code)}" target="_blank" rel="noopener">Ticket</a>
+        ${next ? `<button class="k-go" type="button" data-move="${next[0]}" data-code="${esc(o.code)}">${next[1]}</button>` : `<span class="k-done">${o.status === "booked" ? `Booked · collect ${esc(o.date)} ${esc(time12(o.time))}` : "Waiting for pickup / serving"}</span>`}
+        <a class="k-btn" href="${ticketUrl(o.code)}" target="_blank" rel="noopener">Ticket</a>
       </div>
     </article>`;
   }
 
   async function load() {
     try {
-      const { orders } = await api("/kitchen");
-      const todo = orders.filter((o) => o.status === "paid" || o.status === "on_tab");
+      const { orders: all, stations } = await api("/kitchen");
+      const sel = $("#station");
+      if (stations && sel.options.length !== stations.length + 1) {
+        sel.innerHTML = `<option value="">All</option>${stations.map((x) => `<option ${x === station ? "selected" : ""}>${esc(x)}</option>`).join("")}`;
+        if (!stations.includes(station)) station = "";
+      }
+      const orders = all.filter((o) => forStation(o).length);
+      const todo = orders.filter((o) => o.status === "paid" || o.status === "on_tab" || o.status === "booked");
       const doing = orders.filter((o) => o.status === "preparing");
       const ready = orders.filter((o) => o.status === "ready");
       $("#todo").innerHTML = todo.map(card).join("") || `<p class="k-empty">Nothing waiting</p>`;
@@ -67,7 +81,7 @@
   function printTicket(code) {
     const f = document.createElement("iframe");
     f.style.cssText = "position:fixed;width:0;height:0;border:0;opacity:0";
-    f.src = `/kot/${encodeURIComponent(code)}`;
+    f.src = ticketUrl(code);
     f.onload = () => { try { f.contentWindow.print(); } catch (e) { /* printing blocked */ } setTimeout(() => f.remove(), 60000); };
     document.body.appendChild(f);
   }
@@ -96,6 +110,7 @@
     catch (ex) { toast(ex.message); b.disabled = false; }
   });
   try { $("#autoPrint").checked = localStorage.getItem(AUTO_KEY) === "1"; } catch (e) { /* storage blocked */ }
+  $("#station").addEventListener("change", (e) => { station = e.target.value; try { localStorage.setItem(STATION_KEY, station); } catch (ex) { /* storage blocked */ } seen = null; load(); });
   $("#autoPrint").addEventListener("change", (e) => { try { localStorage.setItem(AUTO_KEY, e.target.checked ? "1" : "0"); } catch (ex) { /* storage blocked */ } });
   const tick = () => { $("#clock").textContent = new Date().toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }); };
   tick(); setInterval(tick, 15000);

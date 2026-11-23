@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-AbEHUv7zRgI0Er8lTnZSXCBKZiSo8lshf02VLRRwUBo=' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; manifest-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta property="og:title" content="SEREN Entremets">
@@ -10,6 +11,7 @@
 <title>SEREN Entremets</title>
 <meta name="description" content="SEREN — entremets, bomboloni, cookies, illusory fruit desserts, gelato, chocolates and a wood-fired kitchen.">
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="theme-color" content="#662937">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -414,7 +416,7 @@ html.box-open,html.lenis-stopped{overflow:hidden}
 .pay-amt{margin:0;font-family:var(--display);font-size:54px;line-height:1;text-transform:uppercase}
 .pay-amt span{font-size:22px;vertical-align:middle;color:var(--plum);margin-right:6px}
 .pay-note,.pay-id{margin:0;font-size:14px;color:var(--muted-dark)}
-.pay-id b{color:var(--ink);word-break:break-all}
+.pay-id b{color:var(--ink);word-break:break-all;font-size:16px}
 .pay-qr{justify-self:center;width:min(240px,70vw);aspect-ratio:1;display:grid;place-items:center;background:var(--white);border-radius:18px;padding:10px;box-shadow:0 12px 30px -16px rgba(20,12,14,.45);animation:qr-in .7s var(--ease) both}
 .pay-qr svg{width:100%;height:100%}
 .pay-qr span{font-size:14px;color:var(--muted-dark)}
@@ -485,6 +487,39 @@ body:has(.tablebar) .pal-btn{bottom:calc(84px + env(safe-area-inset-bottom,0px))
 .extra .ph{display:grid;place-items:center;background:var(--cream)}
 .extra .ph .hand{font-size:30px;color:var(--plum);text-align:center;padding:20px}
 @media (prefers-reduced-motion:reduce){.tablebar,.tabsheet[open]{animation:none}}
+
+/* ---------- item choices (size, add-ons), estimated charges, table PIN ---------- */
+.drawer li .n small.ch{display:flex;flex-wrap:wrap;gap:0;margin-top:2px;color:var(--ink);font-weight:600}
+.drawer li .n small.ch span+span::before{content:" · ";white-space:pre;font-weight:400}
+.optsheet .ts-in{gap:12px}
+.optsheet .ts-head h2{font-size:30px;line-height:1.05}
+.os-group{border:0;padding:0;margin:0;display:grid;gap:6px;min-width:0}
+.os-group legend{font-size:13px;font-weight:700;letter-spacing:.01em;padding:0;margin-bottom:6px}
+.os-group legend .opt{font-weight:400;color:var(--muted-dark);margin-left:4px}
+.os-c{display:flex;align-items:center;gap:10px;min-height:46px;padding:8px 12px;border:1.5px solid color-mix(in srgb,var(--ink) 22%,transparent);border-radius:12px;background:var(--white);cursor:pointer;font-size:15px;font-weight:500;transition:border-color .2s,background .2s}
+.os-c:has(input:checked){border-color:var(--plum);background:color-mix(in srgb,var(--plum) 8%,var(--white))}
+.os-c:has(input:focus-visible){outline:2px solid var(--plum);outline-offset:2px}
+.os-c input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--plum)}
+.os-n{flex:1;min-width:0;overflow-wrap:anywhere}
+.os-p{flex:none;font-weight:700;color:var(--plum)}
+.os-form .pill{justify-content:center}
+.co-break{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:14px}
+.co-break li{display:flex;justify-content:space-between;gap:12px;color:var(--muted-dark)}
+.co-break li b{font-weight:600;color:var(--ink);flex:none}
+.co-form .est-hint{margin:0}
+.co-form .pin{display:grid;gap:4px}
+.co-form .pin input{font-size:20px;max-width:12em}
+.co-form .pin input:not(:placeholder-shown),.pin-form input:not(:placeholder-shown){letter-spacing:.4em}
+.co-form .pin .hint{margin:0}
+.pin-form{display:grid;gap:8px}
+.pin-form label{font-size:13px;font-weight:600}
+.pin-form .hint{margin:0;font-size:13px;color:var(--muted-dark)}
+.pin-form input{font:500 20px/1.3 var(--body);color:var(--ink);background:var(--white);border:1.5px solid color-mix(in srgb,var(--ink) 22%,transparent);border-radius:12px;padding:11px 12px;width:100%;min-width:0}
+.pin-form input:focus{outline:none;border-color:var(--plum);box-shadow:0 0 0 3px color-mix(in srgb,var(--plum) 18%,transparent)}
+.done-total{display:flex;gap:8px;align-items:baseline}
+.done-total b{font-family:var(--display);font-weight:400;font-size:28px}
+.pin-form .utr-row{flex-wrap:wrap}
+.pin-form .utr-row input{flex:1 1 9em;min-width:9em}
 
 /* ---------- English / தமிழ் switch ---------- */
 .lang-btn{display:inline-flex;align-items:center;gap:7px;border:1.5px solid color-mix(in srgb,var(--cream) 45%,transparent);background:color-mix(in srgb,var(--ink) 35%,transparent);
@@ -781,9 +816,9 @@ footer .big.wordmark-ta span:first-child{color:inherit}
 <div class="cursor" id="cursor" aria-hidden="true"><span></span></div>
 <div class="toast" id="toast" role="status"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" integrity="sha384-Z3REaz79l2IaAZqJsSABtTbhjgOUYyV3p90XNnAPCSHg3EMTz1fouunq9WZRtj3d" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js" integrity="sha384-B2WBjDzEjJpYvhmi2UyEn7rektqkf5suS6sNoyyrf0EBAwBHdkiXxIlU0V5Ru2ed" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
 /* SEREN menu content. Names and descriptions come from the SEREN recipe book.
    Prices are not in the book: fill PRICE values (in rupees) when ready, or leave null to hide them. */
@@ -1105,6 +1140,7 @@ window.SEREN_MENU = {
     "Loading QR…": "QR ஏற்றப்படுகிறது…",
     "Or pay to": "அல்லது இதற்குச் செலுத்துங்கள்:",
     "Scan with any UPI app, or pay to": "எந்த UPI ஆப்பிலும் ஸ்கேன் செய்யுங்கள், அல்லது இதற்குச் செலுத்துங்கள்:",
+    "Payment details look wrong — please call the shop": "பணம் செலுத்தும் விவரங்கள் தவறாகத் தெரிகின்றன — தயவுசெய்து கடையை அழைக்கவும்",
     "Copy UPI ID": "UPI ஐடியை நகலெடு",
     "Copied": "நகலெடுக்கப்பட்டது",
     "Select and copy the ID": "ஐடியைத் தேர்ந்தெடுத்து நகலெடுங்கள்",
@@ -1144,6 +1180,7 @@ window.SEREN_MENU = {
     "Finding your order…": "உங்கள் ஆர்டரைத் தேடுகிறோம்…",
     "Orders on this phone": "இந்த போனில் உள்ள ஆர்டர்கள்",
     "Your orders": "உங்கள் ஆர்டர்கள்",
+    "Forget my orders on this device": "இந்த சாதனத்தில் என் ஆர்டர்களை அழித்துவிடு",
     "Pick an order below.": "கீழே ஒரு ஆர்டரைத் தேர்ந்தெடுங்கள்.",
     "Orders you place on this phone show up here. Open the link from your order to see it.": "இந்த போனில் நீங்கள் செய்யும் ஆர்டர்கள் இங்கே தெரியும். பார்க்க உங்கள் ஆர்டர் இணைப்பைத் திறக்கவும்.",
     "Hmm.": "ம்ம்.",
@@ -1422,10 +1459,46 @@ window.SEREN_MENU = {
     "Charred Corn Ribs, Smoked Brown Butter": "கருக்கிய சோள விலா, புகைத்த பழுப்பு வெண்ணெய்",
     "Original Fried Chicken Wings, Tabasco Honey": "பொரித்த சிக்கன் விங்ஸ், டபாஸ்கோ தேன்",
     "Tater Tots": "டேட்டர் டாட்ஸ்",
+
+    /* item choices (size, add-ons), charges, table PIN */
+    "Required": "தேவை",
+    "Optional": "விருப்பம்",
+    "Pick any": "எத்தனையும் தேர்ந்தெடுக்கலாம்",
+    "None": "எதுவும் வேண்டாம்",
+    "Size": "அளவு",
+    "Flavour": "சுவை",
+    "Add-ons": "கூடுதல் சேர்க்கைகள்",
+    "Extras": "கூடுதல்",
+    "Small": "சிறியது",
+    "Regular": "வழக்கமானது",
+    "Medium": "நடுத்தரம்",
+    "Large": "பெரியது",
+    "Extra large": "மிகப் பெரியது",
+    "Nutella": "நியூட்டெல்லா",
+    "Extra cream": "கூடுதல் க்ரீம்",
+    "That choice isn't available any more. Please pick again.": "அந்தத் தேர்வு இப்போது இல்லை. மீண்டும் தேர்ந்தெடுங்கள்.",
+    "Packing": "பேக்கிங்",
+    "Round-off": "முழு ரூபாய் சீர்செய்தல்",
+    "on your final bill": "உங்கள் இறுதிப் பில்லில்",
+    "Estimated total": "மதிப்பிடப்பட்ட மொத்தம்",
+    "Estimated total. The final amount is confirmed when you place your order.": "இது மதிப்பீடு மட்டுமே. நீங்கள் ஆர்டர் செய்யும்போது இறுதித் தொகை உறுதிசெய்யப்படும்.",
+    "Packing, service charge & round-off": "பேக்கிங், சேவைக் கட்டணம் & சீர்செய்தல்",
+    "Order total": "ஆர்டர் மொத்தம்",
+    "Table PIN": "மேசை பின் எண்",
+    "4 digits": "4 இலக்கம்",
+    "Show our tab": "எங்கள் கணக்கைக் காட்டு",
+    "Type the 4-digit table PIN our staff gave you": "எங்கள் ஊழியர்கள் தந்த 4 இலக்க மேசை பின் எண்ணை உள்ளிடுங்கள்",
+    "Please type the 4-digit table PIN our staff gave you": "எங்கள் ஊழியர்கள் தந்த 4 இலக்க மேசை பின் எண்ணை உள்ளிடுங்கள்",
+    "Too many wrong PINs. Please ask our staff.": "தவறான பின் எண்கள் அதிகமாகிவிட்டன. எங்கள் ஊழியர்களிடம் கேளுங்கள்.",
   };
 
   const rupees = (s) => s; // amounts like ₹180 read the same in Tamil
   const patterns = [
+    [/^Add to box · (₹[\d,.]+)$/, (m) => `பெட்டியில் சேர் · ${m[1]}`],
+    [/^\+ Add · from (₹[\d,.]+)$/, (m) => `+ சேர் · ${m[1]} முதல்`],
+    [/^\+ Add · from (₹[\d,.]+) · (\d+) left$/, (m) => `+ சேர் · ${m[1]} முதல் · ${m[2]} மீதம்`],
+    [/^Please choose: (.+)$/, (m, name) => `தேர்ந்தெடுங்கள்: ${name(m[1])}`],
+    [/^Service charge (\d+(?:\.\d+)?)% \(optional — ask staff to remove\)$/, (m) => `சேவைக் கட்டணம் ${m[1]}% (விருப்பமானது — வேண்டாமெனில் ஊழியர்களிடம் சொல்லுங்கள்)`],
     [/^(.+) added to your box$/, (m, name) => `${name(m[1])} உங்கள் பெட்டியில் சேர்க்கப்பட்டது`],
     [/^✓ In box \((\d+)\)$/, (m) => `✓ பெட்டியில் (${m[1]})`],
     [/^\+ Add · (₹[\d,.]+)$/, (m) => `+ சேர் · ${rupees(m[1])}`],
@@ -1518,6 +1591,12 @@ window.SEREN_MENU = {
   function name(n) {
     const key = norm(n);
     if (Object.prototype.hasOwnProperty.call(words, key)) return words[key];
+    // "Tiramisu (Large, Nutella)": a product with the choices made, as the order page and the bill write it
+    const withChoices = key.match(/^(.+) \(([^()]+)\)$/);
+    if (withChoices) {
+      const choices = withChoices[2].split(", ").map((c) => (Object.prototype.hasOwnProperty.call(words, c) ? words[c] : c));
+      return `${name(withChoices[1])} (${choices.join(", ")})`;
+    }
     for (const [suffix, ta] of TA.suffixes || []) {
       if (key.endsWith(` ${suffix}`)) {
         const base = key.slice(0, -suffix.length - 1);
@@ -1757,32 +1836,106 @@ window.SEREN_PALETTES = [
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const img = (name) => (name ? `img/${name}.webp` : "");
   const STORE_KEY = "seren-box-v1";
+  const MAX_QTY = 99;
   const CAT = new Map((window.SEREN_CATALOG || []).map((c) => [c.id, c]));
   const money = (paise) => `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: paise % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
   /* ---------- order box state (immutable updates) ---------- */
+  // A bag line is one product with one set of choices: the same cake with "Large" and with "Small" are two lines.
+  // Its key is the product id, plus the sorted choices (as "group-choice" ids) when there are any.
+  const OPT_RE = /^[a-z0-9-]{1,40}$/;
+  const MAX_OPTS = 10;
+  const lineKey = (id, opts) => (opts && opts.length ? `${id}|${opts.join(",")}` : id);
+  const cleanOpts = (raw) => (Array.isArray(raw) && raw.length <= MAX_OPTS && raw.every((o) => typeof o === "string" && OPT_RE.test(o)) ? [...new Set(raw)].sort() : null);
+  const cleanLabels = (raw) => (Array.isArray(raw) ? raw.filter((x) => typeof x === "string").slice(0, MAX_OPTS).map((x) => x.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 40)) : []);
+  // Products the owner adds in the dashboard (ids start with "x-") are not in the built-in catalog until the shop's data arrives.
+  const CUSTOM_ID = /^x-[a-z0-9-]{1,60}$/;
+  const PHOTO_KEY = /^[A-Z0-9]{12}$/;
   let box = loadBox();
+  // Only products that really are in the catalog (or dashboard-made, checked again once the shop answers), with a whole
+  // quantity from 1 to 99 and well-formed choices, are kept from storage. Names and pictures of built-in products are
+  // rebuilt from the catalog, never taken from what was stored.
   function loadBox() {
-    try { const raw = localStorage.getItem(STORE_KEY); const v = raw ? JSON.parse(raw) : {}; return v && typeof v === "object" ? v : {}; }
-    catch (e) { return {}; }
+    let stored;
+    try { const raw = localStorage.getItem(STORE_KEY); stored = raw ? JSON.parse(raw) : {}; } catch (e) { return {}; }
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
+    const clean = {};
+    for (const [storedKey, entry] of Object.entries(stored)) {
+      if (!entry || typeof entry !== "object") continue;
+      const id = typeof entry.id === "string" ? entry.id : storedKey;
+      const qty = entry.qty;
+      const opts = entry.opts === undefined ? [] : cleanOpts(entry.opts);
+      if (!opts || !Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) continue;
+      const item = CAT.get(id);
+      const base = item
+        ? { id: item.id, name: item.name, img: item.img || null, ...(item.photo ? { photo: item.photo } : {}) }
+        : CUSTOM_ID.test(id) && typeof entry.name === "string" && entry.name.trim()
+          ? { id, name: entry.name.trim().slice(0, 80), img: null, ...(PHOTO_KEY.test(entry.photo || "") ? { photo: entry.photo } : {}) }
+          : null;
+      if (!base) continue;
+      const key = lineKey(id, opts);
+      clean[key] = { ...base, key, qty, opts, labels: opts.length ? cleanLabels(entry.labels) : [] };
+    }
+    return clean;
   }
   function saveBox(next) {
     box = next;
     try { localStorage.setItem(STORE_KEY, JSON.stringify(next)); } catch (e) { /* storage unavailable: box still works for this visit */ }
     renderBox();
   }
-  function addItem(item, fromEl) {
-    const prev = box[item.id];
+  function addItem(item, fromEl, picked) {
+    const opts = picked ? picked.opts : [];
+    const key = lineKey(item.id, opts);
+    const prev = box[key];
     flyToBox(fromEl, item);
-    saveBox({ ...box, [item.id]: { id: item.id, name: item.name, img: item.img || null, qty: (prev ? prev.qty : 0) + 1 } });
+    saveBox({ ...box, [key]: { id: item.id, key, name: item.name, img: item.img || null, ...(item.photo ? { photo: item.photo } : {}), opts, labels: picked ? picked.names : [], qty: Math.min(MAX_QTY, (prev ? prev.qty : 0) + 1) } });
     bumpBadge();
     toast(`${item.name} added to your box`);
   }
-  function setQty(id, qty) {
-    if (qty <= 0) { const { [id]: _gone, ...rest } = box; saveBox(rest); return; }
-    saveBox({ ...box, [id]: { ...box[id], qty } });
+  function setQty(key, qty) {
+    if (!box[key]) return;
+    if (qty <= 0) { const { [key]: _gone, ...rest } = box; saveBox(rest); return; }
+    saveBox({ ...box, [key]: { ...box[key], qty: Math.min(MAX_QTY, qty) } });
   }
   const count = () => Object.values(box).reduce((n, i) => n + i.qty, 0);
+  const qtyOf = (id) => Object.values(box).reduce((n, i) => n + (i.id === id ? i.qty : 0), 0);
+
+  /* ---------- item choices (size, add-ons...) ---------- */
+  // The option groups the owner set for a product, from the shop's data: [{ id, name, pick, required, choices: [{ id, name, price }] }]
+  let optionIndex = { shop: null, map: new Map() };
+  function groupsOf(id) {
+    const shop = window.SEREN_SHOP;
+    if (!shop || !Array.isArray(shop.products)) return [];
+    if (optionIndex.shop !== shop) optionIndex = { shop, map: new Map(shop.products.map((p) => [p.id, Array.isArray(p.options) ? p.options : []])) };
+    return optionIndex.map.get(id) || [];
+  }
+  // Checks chosen options against the groups the way the server does. Returns { ok, extra (paise), names }.
+  function resolveOpts(id, opts) {
+    const left = new Set(opts || []);
+    let extra = 0;
+    const names = [];
+    for (const g of groupsOf(id)) {
+      const hits = g.choices.filter((ch) => left.has(`${g.id}-${ch.id}`));
+      hits.forEach((ch) => left.delete(`${g.id}-${ch.id}`));
+      if ((g.pick === "one" && hits.length > 1) || (g.required && !hits.length)) return { ok: false, extra: 0, names: [] };
+      for (const ch of hits) { extra += Number(ch.price) || 0; names.push(ch.name); }
+    }
+    return { ok: left.size === 0, extra, names };
+  }
+  // The price of one piece of a bag line (base + extras), or null when it can't be ordered right now.
+  function unitPrice(line) {
+    const shop = window.SEREN_SHOP;
+    const p = shop && shop.prices[line.id];
+    const r = resolveOpts(line.id, line.opts);
+    return p && r.ok ? p.price + r.extra : null;
+  }
+  // The names of a line's choices: from the shop's data when it is loaded, otherwise what was saved with the line
+  const lineChoices = (line) => {
+    if (!(line.opts || []).length) return [];
+    const r = window.SEREN_SHOP ? resolveOpts(line.id, line.opts) : null;
+    return r && r.ok ? r.names : line.labels || [];
+  };
+  const lineText = (line) => { const c = lineChoices(line); return c.length ? `${line.name} (${c.join(", ")})` : line.name; };
 
   // Every "Add" button reads its name and picture from the shared catalog (src/catalog.js).
   const addBtn = (id) => {
@@ -1923,7 +2076,7 @@ window.SEREN_PALETTES = [
 
   /* ---------- drawer ---------- */
   function orderText() {
-    const lines = Object.values(box).map((i) => `${i.qty} × ${i.name}`);
+    const lines = Object.values(box).map((i) => `${i.qty} × ${lineText(i)}`);
     return `Hi SEREN! I'd like to order:\n${lines.join("\n")}`;
   }
   function renderBox() {
@@ -1933,9 +2086,9 @@ window.SEREN_PALETTES = [
     if (!items.length) {
       list.innerHTML = `<li class="empty" style="display:grid;border:0"><span class="hand">Your box is empty</span><span>Tap "+ Add to box" on anything you'd like.</span></li>`;
     } else {
-      list.innerHTML = items.map((i) => `<li>${i.photo ? `<img src="${esc(photoUrl(i.photo))}" alt="">` : i.img ? `<img src="${img(i.img)}" alt="">` : `<img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">`}
-        <span class="n">${esc(i.name)}${linePrice(i)}</span>
-        <span class="qty"><button type="button" data-q="${esc(i.id)}" data-d="-1" aria-label="One fewer ${esc(i.name)}">−</button><b>${i.qty}</b><button type="button" data-q="${esc(i.id)}" data-d="1" aria-label="One more ${esc(i.name)}">+</button></span></li>`).join("");
+      list.innerHTML = items.map((i) => `<li>${i.photo ? `<img src="${esc(photoUrl(i.photo))}" alt="">` : i.img ? `<img src="${esc(img(i.img))}" alt="">` : `<img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">`}
+        <span class="n">${esc(i.name)}${choiceList(i)}${linePrice(i)}</span>
+        <span class="qty"><button type="button" data-q="${esc(i.key)}" data-d="-1" aria-label="One fewer ${esc(lineText(i))}">−</button><b>${esc(Number(i.qty) | 0)}</b><button type="button" data-q="${esc(i.key)}" data-d="1" aria-label="One more ${esc(lineText(i))}">+</button></span></li>`).join("");
     }
     const wa = $("#waBtn");
     const hasWa = Boolean(CFG.whatsapp) && items.length > 0;
@@ -1945,7 +2098,7 @@ window.SEREN_PALETTES = [
     const shop = window.SEREN_SHOP; // set by checkout.js when the order system is online
     document.querySelectorAll(".add[data-add]").forEach((b) => {
       const id = JSON.parse(b.dataset.add).id;
-      const inBox = Boolean(box[id]);
+      const inBox = qtyOf(id) > 0;
       const p = shop && shop.prices[id];
       const soldOut = Boolean(p && p.left === 0);
       const blocked = Boolean(shop && shop.live && (!p || !p.available || soldOut));
@@ -1953,14 +2106,21 @@ window.SEREN_PALETTES = [
       b.classList.toggle("added", inBox);
       b.classList.toggle("off", b.disabled);
       const few = p && p.left !== undefined && p.left <= 5 ? ` · ${p.left} left` : "";
-      b.textContent = inBox ? `✓ In box (${box[id].qty})` : blocked ? (soldOut ? "Sold out today" : p ? "Sold out" : "Coming soon") : p ? `+ Add · ${money(p.price)}${few}` : "+ Add to box";
+      const from = groupsOf(id).length ? "from " : ""; // the price grows with the choices
+      b.textContent = inBox ? `✓ In box (${qtyOf(id)})` : blocked ? (soldOut ? "Sold out today" : p ? "Sold out" : "Coming soon") : p ? `+ Add · ${from}${money(p.price)}${few}` : "+ Add to box";
     });
     document.dispatchEvent(new CustomEvent("seren:box"));
+  }
+  // the choices of a bag line, under its name (one span each, so each can be translated)
+  function choiceList(i) {
+    const names = lineChoices(i);
+    return names.length ? `<small class="ch">${names.map((n) => `<span>${esc(n)}</span>`).join("")}</small>` : "";
   }
   function linePrice(i) {
     const p = window.SEREN_SHOP && window.SEREN_SHOP.prices[i.id];
     if (!p) return "";
-    return `<small>${p.available ? `${esc(money(p.price * i.qty))}${p.unit ? ` · ${esc(p.unit)}` : ""}` : "Not available right now"}</small>`;
+    const unit = unitPrice(i);
+    return `<small>${p.available && unit !== null ? `${esc(money(unit * i.qty))}${p.unit ? ` · ${esc(p.unit)}` : ""}` : "Not available right now"}</small>`;
   }
   function setDrawer(on) {
     const d = $("#drawer");
@@ -2021,12 +2181,82 @@ window.SEREN_PALETTES = [
   }
   function bumpBadge() { const b = $("#boxBtn"); b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump"); }
 
+  /* ---------- the "choose your options" sheet (size, add-ons...) ---------- */
+  let choosing = null; // { item, trigger, groups, base } while the sheet is open
+  let sheet = null;
+  function choiceSheet() {
+    if (sheet) return sheet;
+    sheet = document.createElement("dialog");
+    sheet.className = "tabsheet optsheet";
+    sheet.setAttribute("data-lenis-prevent", "");
+    document.body.appendChild(sheet);
+    sheet.addEventListener("click", (e) => { if (e.target.closest("[data-close]") || e.target === sheet) sheet.close(); });
+    sheet.addEventListener("close", () => { const t = choosing && choosing.trigger; choosing = null; if (t && t.isConnected && !t.disabled) t.focus({ preventScroll: true }); });
+    sheet.addEventListener("change", () => { if (choosing) refreshChoices(); });
+    sheet.addEventListener("submit", (e) => { e.preventDefault(); submitChoices(); });
+    return sheet;
+  }
+  const pickedOpts = () => [...sheet.querySelectorAll("input[data-opt]:checked")].map((i) => i.dataset.opt);
+  function refreshChoices() {
+    const { groups, base } = choosing;
+    const chosen = new Set(pickedOpts());
+    const extra = groups.reduce((n, g) => n + g.choices.reduce((m, ch) => m + (chosen.has(`${g.id}-${ch.id}`) ? Number(ch.price) || 0 : 0), 0), 0);
+    sheet.querySelector(".os-go").textContent = `Add to box · ${money(base + extra)}`;
+    sheet.querySelector(".err").textContent = "";
+  }
+  function openChoices(item, trigger) {
+    const groups = groupsOf(item.id);
+    const p = window.SEREN_SHOP && window.SEREN_SHOP.prices[item.id];
+    const dlg = choiceSheet();
+    choosing = { item, trigger, groups, base: p ? Number(p.price) || 0 : 0 };
+    dlg.setAttribute("aria-label", item.name);
+    const group = (g) => {
+      const many = g.pick === "many";
+      const input = (value, attrs, label, priceHtml) => `<label class="os-c"><input type="${many ? "checkbox" : "radio"}" name="g-${esc(g.id)}" ${attrs}><span class="os-n">${esc(label)}</span>${priceHtml}</label>`;
+      return `<fieldset class="os-group" data-g="${esc(g.id)}">
+        <legend>${esc(g.name)} <span class="opt">${g.required ? "Required" : many ? "Pick any" : "Optional"}</span></legend>
+        ${!many && !g.required ? `<label class="os-c"><input type="radio" name="g-${esc(g.id)}" checked><span class="os-n">None</span></label>` : ""}
+        ${g.choices.map((ch) => input(ch.id, `value="${esc(ch.id)}" data-opt="${esc(`${g.id}-${ch.id}`)}"`, ch.name, Number(ch.price) > 0 ? `<span class="os-p">+${esc(money(Number(ch.price)))}</span>` : "")).join("")}
+      </fieldset>`;
+    };
+    dlg.innerHTML = `<form class="ts-in os-form" novalidate>
+      <div class="ts-head"><h2>${esc(item.name)}</h2><button class="close" type="button" data-close aria-label="Close">×</button></div>
+      ${groups.map(group).join("")}
+      <p class="err" role="alert"></p>
+      <button class="pill fill os-go" type="submit"></button>
+    </form>`;
+    refreshChoices();
+    if (!dlg.open) dlg.showModal();
+  }
+  function submitChoices() {
+    const { item, trigger, groups } = choosing;
+    const opts = pickedOpts();
+    const err = sheet.querySelector(".err");
+    const have = new Set(opts);
+    const missing = groups.find((g) => g.required && !g.choices.some((ch) => have.has(`${g.id}-${ch.id}`)));
+    if (missing) {
+      err.textContent = `Please choose: ${missing.name}`;
+      const first = sheet.querySelector(`fieldset[data-g="${CSS.escape(missing.id)}"] input`);
+      if (first) first.focus();
+      return;
+    }
+    const r = resolveOpts(item.id, opts);
+    if (!r.ok) { err.textContent = "That choice isn't available any more. Please pick again."; return; }
+    const picked = { opts: [...new Set(opts)].sort(), names: r.names };
+    sheet.close();
+    addItem(item, trigger, picked);
+  }
+
   function wire() {
     document.addEventListener("click", (e) => {
       const add = e.target.closest(".add[data-add]");
-      if (add) { addItem(JSON.parse(add.dataset.add), add); return; }
+      if (add) {
+        const item = JSON.parse(add.dataset.add);
+        if (groupsOf(item.id).length) openChoices(item, add); else addItem(item, add); // items with choices ask first
+        return;
+      }
       const q = e.target.closest("[data-q]");
-      if (q) { const id = q.dataset.q; setQty(id, (box[id]?.qty || 0) + Number(q.dataset.d)); }
+      if (q) { const key = q.dataset.q; setQty(key, (box[key]?.qty || 0) + Number(q.dataset.d)); }
     });
     $("#boxBtn").addEventListener("click", openBox);
     $("#openBox2").addEventListener("click", openBox);
@@ -2047,11 +2277,22 @@ window.SEREN_PALETTES = [
       const d = JSON.parse(b.dataset.add);
       if (d.id === item.id) b.dataset.add = JSON.stringify({ ...d, name: item.name, photo: item.photo || null });
     });
-    if (box[item.id]) saveBox({ ...box, [item.id]: { ...box[item.id], name: item.name, photo: item.photo || null } });
+    const lines = Object.entries(box).filter(([, l]) => l.id === item.id);
+    if (lines.length) saveBox({ ...box, ...Object.fromEntries(lines.map(([k, l]) => [k, { ...l, name: item.name, photo: item.photo || null }])) });
   }
 
+  // Once the shop's data arrives, dashboard-made products that no longer exist (or are hidden) leave the bag.
+  function dropUnknownCustom() {
+    const shop = window.SEREN_SHOP;
+    if (!shop || !Array.isArray(shop.products)) return;
+    const live = new Set(shop.products.filter((p) => !p.hidden).map((p) => p.id));
+    const keep = Object.entries(box).filter(([, l]) => CAT.has(l.id) || live.has(l.id));
+    if (keep.length !== Object.keys(box).length) saveBox(Object.fromEntries(keep));
+  }
+  document.addEventListener("seren:shop", dropUnknownCustom);
+
   // the online-ordering scripts (checkout.js, products.js) use these
-  window.SEREN_BOX = { items: () => Object.values(box), clear: () => saveBox({}), rerender: renderBox, addBtn, updateItem, photoUrl };
+  window.SEREN_BOX = { items: () => Object.values(box), clear: () => saveBox({}), rerender: renderBox, addBtn, updateItem, photoUrl, unitPrice, lineText, groupsOf };
 
   drips(); marquee(); bomboloni(); cookies(); fruit(); entremets(); pastry(); gelato("signature"); chocolates(); kitchen(); visit();
   wire(); renderBox();
@@ -2401,18 +2642,50 @@ window.SerenPay = (function () {
     }
     let data = {};
     try { data = await res.json(); } catch (e) { /* not JSON */ }
-    if (!res.ok) throw new Error(data.error || "Something went wrong. Please try again.");
+    if (!res.ok) {
+      const err = new Error(data.error || "Something went wrong. Please try again.");
+      err.status = res.status; // callers can tell "wrong table PIN" (403 + needPin) from other problems
+      err.needPin = data.needPin === true;
+      throw err;
+    }
     return data;
   }
 
-  /* orders placed on this device, newest first, so customers can find them again */
+  /* The 4-digit PIN staff tell guests when seating a table. Remembered for this visit only (one per table). */
+  const PIN_RE = /^\d{4}$/;
+  const pinKey = (table) => `seren-pin-v1:${String(table).toLowerCase()}`;
+  function tablePin(table) {
+    try { const v = sessionStorage.getItem(pinKey(table)); return PIN_RE.test(v || "") ? v : ""; } catch (e) { return ""; }
+  }
+  function rememberPin(table, pin) {
+    try { if (PIN_RE.test(String(pin))) sessionStorage.setItem(pinKey(table), String(pin)); } catch (e) { /* storage blocked: the guest types it again next time */ }
+  }
+  function forgetPin(table) {
+    try { sessionStorage.removeItem(pinKey(table)); } catch (e) { /* nothing was saved anyway */ }
+  }
+
+  /* orders placed on this device, newest first, so customers can find them again.
+     Only well-formed entries from the last 30 days are trusted: anything else in storage is ignored. */
+  const CODE_RE = /^SRN-[A-Z0-9]{6}$/;
+  const TOKEN_RE = /^[A-Za-z0-9_-]{32}$/;
+  const ORDER_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
   function savedOrders() {
-    try { const v = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]"); return Array.isArray(v) ? v : []; }
-    catch (e) { return []; }
+    let list;
+    try { list = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]"); } catch (e) { return []; }
+    if (!Array.isArray(list)) return [];
+    const now = Date.now();
+    return list
+      .filter((o) => o && typeof o === "object" && typeof o.code === "string" && typeof o.token === "string" && CODE_RE.test(o.code) && TOKEN_RE.test(o.token))
+      .map((o) => ({ code: o.code, token: o.token, at: Number.isFinite(o.at) ? Math.min(o.at, now) : now })) // older saves had no timestamp: they start their 30 days now
+      .filter((o) => now - o.at <= ORDER_MAX_AGE);
   }
   function rememberOrder(code, token) {
+    if (!CODE_RE.test(String(code)) || !TOKEN_RE.test(String(token))) return;
     const next = [{ code, token, at: Date.now() }, ...savedOrders().filter((o) => o.code !== code)].slice(0, 10);
     try { localStorage.setItem(ORDERS_KEY, JSON.stringify(next)); } catch (e) { /* private mode: the link still works */ }
+  }
+  function forgetOrders() {
+    try { localStorage.removeItem(ORDERS_KEY); } catch (e) { /* storage blocked: nothing was saved anyway */ }
   }
   const orderUrl = (code, token) => `order.html#${encodeURIComponent(code)}.${encodeURIComponent(token)}`;
   const invoiceUrl = (code, token) => `${API}/invoice/${encodeURIComponent(code)}?t=${encodeURIComponent(token)}`;
@@ -2431,17 +2704,37 @@ window.SerenPay = (function () {
 
   const isPhone = () => window.matchMedia("(pointer:coarse)").matches || window.innerWidth < 700;
 
+  /* The payment link comes from the server. Only trust it if it is a UPI link that pays the UPI ID shown
+     on screen, for exactly this order's total. Returns the cleaned link, or null. */
+  function checkedUpiLink(pay) {
+    try {
+      const u = new URL(String(pay.upi));
+      const one = (k) => { const v = u.searchParams.getAll(k); return v.length === 1 ? v[0] : null; };
+      const pa = one("pa"), am = one("am"), cu = u.searchParams.get("cu");
+      if (u.protocol !== "upi:" || u.hostname !== "pay") return null;
+      if (!pa || !pay.upiId || pa.trim().toLowerCase() !== String(pay.upiId).trim().toLowerCase()) return null;
+      if (!am || !/^\d+(\.\d{1,2})?$/.test(am) || !Number.isFinite(Number(pay.total)) || Math.abs(Number(am) - Number(pay.total) / 100) >= 0.005) return null;
+      if (cu !== null && cu !== "INR") return null;
+      return u.href;
+    } catch (e) { return null; }
+  }
+
   /**
    * Draws the "pay with UPI" panel into `el`.
    * pay = { code, token, total, upi, upiId, upiName, expiresAt }; onSubmitted runs after the customer sends their UPI ref.
    */
   function payPanel(el, pay, onSubmitted) {
+    const upi = checkedUpiLink(pay);
+    if (!upi) {
+      el.innerHTML = `<div class="pay"><p class="err" role="alert">Payment details look wrong — please call the shop</p></div>`;
+      return;
+    }
     const mins = pay.expiresAt ? Math.max(0, Math.round((new Date(pay.expiresAt) - Date.now()) / 60000)) : null;
     el.innerHTML = `
       <div class="pay">
         <p class="pay-amt"><span>Pay</span> ${esc(money(pay.total))}</p>
         <p class="pay-note">Order <b>${esc(pay.code)}</b>${mins ? ` · please pay within ${mins} min` : ""}</p>
-        ${isPhone() ? `<a class="pill fill pay-app" href="${esc(pay.upi)}">Pay with GPay, PhonePe or any UPI app</a>` : ""}
+        ${isPhone() ? `<a class="pill fill pay-app" href="${esc(upi)}">Pay with GPay, PhonePe or any UPI app</a>` : ""}
         <div class="pay-qr" aria-label="UPI QR code for ${esc(money(pay.total))}"><span class="hand">Loading QR…</span></div>
         <p class="pay-id">${isPhone() ? "Or pay" : "Scan with any UPI app, or pay"} to <b>${esc(pay.upiId)}</b> (${esc(pay.upiName)})
           <button type="button" class="linkish" data-copy="${esc(pay.upiId)}">Copy UPI ID</button></p>
@@ -2457,7 +2750,7 @@ window.SerenPay = (function () {
     loadQr()
       .then(() => {
         const qr = window.qrcode(0, "M");
-        qr.addData(pay.upi);
+        qr.addData(upi);
         qr.make();
         el.querySelector(".pay-qr").innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
       })
@@ -2484,7 +2777,7 @@ window.SerenPay = (function () {
     });
   }
 
-  return { enabled: Boolean(API), api, money, esc, savedOrders, rememberOrder, orderUrl, invoiceUrl, payPanel };
+  return { enabled: Boolean(API), api, PIN_RE, tablePin, rememberPin, forgetPin, money, esc, savedOrders, rememberOrder, forgetOrders, orderUrl, invoiceUrl, payPanel };
 })();
 
 /* Online ordering inside the order box: live prices, checkout form, UPI payment.
@@ -2534,12 +2827,15 @@ window.SerenPay = (function () {
   function boxTotals(items) {
     let total = 0;
     const problems = [];
+    const perProduct = new Map(); // stock is per product, whatever the choices
+    for (const it of items) perProduct.set(it.id, (perProduct.get(it.id) || 0) + it.qty);
     for (const it of items) {
       const p = shop.prices[it.id];
-      if (!p || !p.available || p.left === 0 || (p.left !== undefined && p.left < it.qty)) problems.push(it.name);
-      else total += p.price * it.qty;
+      const unit = BOX.unitPrice(it); // base price + the chosen extras; null when a choice is no longer offered
+      if (!p || !p.available || p.left === 0 || (p.left !== undefined && p.left < perProduct.get(it.id)) || unit === null) problems.push(BOX.lineText(it));
+      else total += unit * it.qty;
     }
-    return { total, problems };
+    return { total, problems: [...new Set(problems)] };
   }
 
   function updateFooter() {
@@ -2603,17 +2899,23 @@ window.SerenPay = (function () {
           <label>Day<select name="date"><option value="">Loading days…</option></select></label>
           <label>Time<select name="time"></select></label>
         </div>
-        ${notice ? `<p class="hint notice-hint" ${f.mode === "dinein" ? "hidden" : ""}>Entremets are made to order, so the earliest day is ${s.preorderNoticeDays} days from today.</p>` : ""}
+        ${notice ? `<p class="hint notice-hint" ${f.mode === "dinein" ? "hidden" : ""}>Entremets are made to order, so the earliest day is ${esc(Number(s.preorderNoticeDays) | 0)} days from today.</p>` : ""}
         <label>Anything we should know? <span class="opt">(optional)</span><textarea name="notes" rows="2" maxlength="300" placeholder="Message on the cake, allergies, gate code…">${esc(f.notes)}</textarea></label>
         ${payLaterOk() ? `<fieldset class="modes paywhen" ${f.mode === "dinein" ? "" : "hidden"}><legend>When will you pay?</legend>
           <label><input type="radio" name="when" value="later" ${f.when !== "now" ? "checked" : ""}><span>At the end</span></label>
           <label><input type="radio" name="when" value="now" ${f.when === "now" ? "checked" : ""}><span>Now, by UPI</span></label></fieldset>` : ""}
+        <div class="pin" ${laterChosen(f) ? "" : "hidden"}>
+          <label>Table PIN<input name="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" value="${esc(f.pin || P.tablePin(table))}" placeholder="4 digits"></label>
+          <p class="hint">Type the 4-digit table PIN our staff gave you</p>
+        </div>
         <div class="coupon" ${laterChosen(f) ? "hidden" : ""}>
           <label>Have a code? <span class="opt">(optional)</span><span class="coupon-row"><input name="coupon" maxlength="20" autocomplete="off" value="${esc(coupon ? coupon.code : "")}" placeholder="e.g. WELCOME10"><button type="button" class="pill apply">Apply</button></span></label>
           <p class="hint coupon-note">${coupon ? `${esc(coupon.label)} · −${esc(money(coupon.discount))}` : ""}</p>
         </div>
         <label class="optin"><input type="checkbox" name="optIn" ${f.optIn ? "checked" : ""}><span>Send me SEREN offers on WhatsApp <span class="opt">(you can stop any time)</span></span></label>
+        <ul class="co-break" hidden></ul>
         <div class="co-total"><span>Total</span><b></b></div>
+        <p class="hint est-hint" hidden>Estimated total. The final amount is confirmed when you place your order.</p>
         <p class="err" role="alert"></p>
         <button class="pill fill" type="submit">${submitLabel(f)}</button>
         ${s.whatsapp ? `<button class="pill wa" type="button" data-wa>Order on WhatsApp instead</button>` : ""}
@@ -2629,6 +2931,7 @@ window.SerenPay = (function () {
       if (e.target.name === "date") fillTimes(fm, days, "");
     });
     fm.addEventListener("submit", (e) => { e.preventDefault(); submit(fm); });
+    field(fm, "pin").addEventListener("input", (e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4); }); // digits only
     total(fm);
 
     try {
@@ -2667,6 +2970,7 @@ window.SerenPay = (function () {
     const paywhen = fm.querySelector(".paywhen");
     if (paywhen) paywhen.hidden = mode !== "dinein";
     fm.querySelector(".coupon").hidden = laterChosen(f);
+    fm.querySelector(".pin").hidden = !laterChosen(f);
     fm.querySelector(".addr").hidden = mode !== "delivery";
     fm.querySelector(".tbl").hidden = mode !== "dinein";
     fm.querySelector(".dine-opt").hidden = mode !== "dinein";
@@ -2681,14 +2985,40 @@ window.SerenPay = (function () {
     field(fm, "time").innerHTML = day ? day.times.map((t) => `<option value="${esc(t)}" ${t === keep ? "selected" : ""}>${esc(timeLabel(t))}</option>`).join("") : "";
   }
 
+  // What the shop will probably charge (the server works out the real total when the order is placed):
+  // packing for pickup and delivery, service charge for dine-in, then rounding to the rupee.
+  // A "pay at the end" order carries neither service nor rounding: they go on the table's one bill.
+  function estimate(f, sub, fee, off) {
+    const ch = shop.settings.charges || {};
+    const later = laterChosen(f);
+    const takeaway = f.mode === "pickup" || f.mode === "delivery";
+    const packing = takeaway ? Number(ch.packing) || 0 : 0;
+    const servicePct = f.mode === "dinein" ? Number(ch.servicePercent) || 0 : 0;
+    const service = servicePct && !later ? Math.round((Math.max(0, sub - off) * servicePct) / 100) : 0;
+    const exact = sub - off + fee + packing + service;
+    const rounding = ch.roundOff && !later ? Math.round(exact / 100) * 100 - exact : 0;
+    return { packing, servicePct, service, later, rounding, total: exact + rounding };
+  }
+
   function total(fm) {
     const s = shop.settings;
+    const f = readForm(fm);
     const sub = boxTotals(BOX.items()).total;
-    const delivery = fm.querySelector('[name="mode"]:checked')?.value === "delivery";
-    const fee = delivery && s.deliveryFee && !(s.freeDeliveryAbove && sub >= s.freeDeliveryAbove) ? s.deliveryFee : 0;
-    const off = coupon && !laterChosen(readForm(fm)) ? Math.min(coupon.discount, sub) : 0;
+    const fee = f.mode === "delivery" && s.deliveryFee && !(s.freeDeliveryAbove && sub >= s.freeDeliveryAbove) ? s.deliveryFee : 0;
+    const off = coupon && !laterChosen(f) ? Math.min(coupon.discount, sub) : 0;
+    const est = estimate(f, sub, fee, off);
     const extras = [fee ? `incl. ${money(fee)} delivery` : "", off ? `${money(off)} off` : ""].filter(Boolean).join(", ");
-    fm.querySelector(".co-total b").textContent = money(sub + fee - off) + (extras ? ` (${extras})` : "");
+    fm.querySelector(".co-total b").textContent = money(est.total) + (extras ? ` (${extras})` : "");
+    const rows = [];
+    if (est.packing) rows.push(["Packing", money(est.packing)]);
+    if (est.servicePct) rows.push([`Service charge ${est.servicePct}% (optional — ask staff to remove)`, est.later ? "on your final bill" : money(est.service)]);
+    if (est.rounding) rows.push(["Round-off", `${est.rounding > 0 ? "+" : "−"}${money(Math.abs(est.rounding))}`]);
+    const list = fm.querySelector(".co-break");
+    list.hidden = !rows.length;
+    list.innerHTML = rows.map(([k, v]) => `<li><span>${esc(k)}</span><b>${esc(v)}</b></li>`).join("");
+    const estimated = rows.length > 0;
+    fm.querySelector(".co-total span").textContent = estimated ? "Estimated total" : "Total";
+    fm.querySelector(".est-hint").hidden = !estimated;
   }
 
   // form.elements.namedItem, because form.name is the form's own name attribute
@@ -2699,7 +3029,7 @@ window.SerenPay = (function () {
     optIn: field(fm, "optIn").checked,
     table: field(fm, "table").value.trim(),
     name: field(fm, "name").value.trim(), phone: field(fm, "phone").value.trim(), address: field(fm, "address").value.trim(),
-    pincode: field(fm, "pincode").value.trim(), notes: field(fm, "notes").value.trim(), date: field(fm, "date").value, time: field(fm, "time").value,
+    pin: field(fm, "pin").value.trim(), pincode: field(fm, "pincode").value.trim(), notes: field(fm, "notes").value.trim(), date: field(fm, "date").value, time: field(fm, "time").value,
   });
 
   async function submit(fm, channel = "web") {
@@ -2711,17 +3041,19 @@ window.SerenPay = (function () {
     const later = laterChosen(form);
     // open WhatsApp's window now: browsers block windows opened after waiting for the server
     const waWin = channel === "whatsapp" ? window.open("about:blank", "_blank") : null;
+    if (waWin) waWin.opener = null; // the new tab must not be able to reach back into this page
     btn.disabled = true; err.textContent = ""; btn.textContent = "Placing your order…";
     try {
       const items = BOX.items();
       const res = await P.api("/api/orders", {
         method: "POST",
         body: {
-          ...form, channel, items: items.map((i) => ({ id: i.id, qty: i.qty })),
-          ...(later ? { payLater: true, k: tableKey } : coupon ? { coupon: coupon.code } : {}),
+          ...form, channel, items: items.map((i) => ({ id: i.id, qty: i.qty, ...(i.opts && i.opts.length ? { opts: i.opts } : {}) })),
+          ...(later ? { payLater: true, k: tableKey, pin: form.pin } : coupon ? { coupon: coupon.code } : {}),
         },
       });
       P.rememberOrder(res.code, res.token);
+      if (later) P.rememberPin(table, form.pin); // the tab sheet uses it too, for this visit
       placed = res;
       if (waWin) waWin.location.href = whatsappToShop(res, items);
       form = { ...form, notes: "" };
@@ -2731,6 +3063,7 @@ window.SerenPay = (function () {
     } catch (e) {
       if (waWin) waWin.close();
       err.textContent = e.message;
+      if (e.status === 403 && e.needPin) { P.forgetPin(table); field(fm, "pin").focus(); } // wrong PIN: ask again
       btn.disabled = false; btn.textContent = submitLabel(form);
     }
   }
@@ -2738,7 +3071,7 @@ window.SerenPay = (function () {
   // The order, written out for SEREN's WhatsApp, with the link to pay and track it.
   function whatsappToShop(res, items) {
     const link = new URL(P.orderUrl(res.code, res.token), location.href).toString();
-    const lines = items.map((i) => `${i.qty} × ${i.name}`).join("\n");
+    const lines = items.map((i) => `${i.qty} × ${BOX.lineText(i)}`).join("\n");
     const how = form.mode === "dinein" ? `Dine-in, table ${form.table}` : `${form.mode === "delivery" ? "Delivery" : "Pickup"} ${form.date} ${form.time}`;
     const text = `Hi SEREN! Order ${res.code}\n${lines}\nTotal ${money(res.total)}\n${how}\nName: ${form.name}\nPay / track: ${link}`;
     return `https://wa.me/${encodeURIComponent(shop.settings.whatsapp)}?text=${encodeURIComponent(text)}`;
@@ -2749,6 +3082,7 @@ window.SerenPay = (function () {
     if (!f.mode) return "Choose how you'd like your order";
     if (f.name.length < 2) return "Please tell us your name";
     if (f.mode === "dinein" && !/^[A-Za-z0-9][A-Za-z0-9 -]{0,9}$/.test(f.table)) return "Please enter your table number";
+    if (laterChosen(f) && !P.PIN_RE.test(f.pin)) return "Type the 4-digit table PIN our staff gave you";
     if (f.mode === "dinein" && !f.phone) return "";
     if (!/^[6-9]\d{9}$/.test(f.phone.replace(/[\s-]/g, "").replace(/^(\+?91|0)(?=\d{10}$)/, ""))) return "Please enter a 10-digit mobile number";
     if (f.mode === "delivery" && f.address.length < 10) return "Please enter your full delivery address";
@@ -2770,6 +3104,7 @@ window.SerenPay = (function () {
           <svg aria-hidden="true"><use href="#burst"/></svg>
           <p class="hand">On its way, ${esc((form && form.name.split(" ")[0]) || "friend")}!</p>
           <p>Order <b>${esc(placed.code)}</b> is with the kitchen. Order more any time; when you're done, tap <b>Ask for the bill</b> at the bottom of the screen.</p>
+          <p class="done-total"><span>Order total</span> <b>${esc(money(placed.total))}</b></p>
           <button type="button" class="pill fill again">Order something else</button>
         </div>`;
       $("#checkout .again").addEventListener("click", () => { placed = null; show("box"); });
@@ -2780,6 +3115,7 @@ window.SerenPay = (function () {
         <svg aria-hidden="true"><use href="#burst"/></svg>
         <p class="hand">Got it, ${esc((form && form.name.split(" ")[0]) || "friend")}!</p>
         <p>We're checking your payment for order <b>${esc(placed.code)}</b>${form && form.mode === "dinein" ? `. Your food is on its way to table ${esc(form.table)}` : ". You'll see it confirmed on your order page, usually within a few minutes"}.</p>
+        <p class="done-total"><span>Order total</span> <b>${esc(money(placed.total))}</b></p>
         <a class="pill fill" href="${esc(P.orderUrl(placed.code, placed.token))}">Track your order</a>
         <button type="button" class="linkish again">Start a new box</button>
       </div>`;
@@ -2918,14 +3254,41 @@ window.SerenPay = (function () {
     if (e.target.closest("[data-tab]")) openTab();
   });
 
-  async function openTab() {
+  // The tab and its bill are only shown with the 4-digit PIN staff gave the table. It is remembered for this visit.
+  const tabUrl = (pin) => `${path()}?k=${encodeURIComponent(T.k)}${pin ? `&pin=${encodeURIComponent(pin)}` : ""}`;
+
+  async function openTab(pin = P.tablePin(T.table), wrong = "") {
     sheet.innerHTML = `<div class="ts-in"><p class="hand">Loading your tab…</p></div>`;
     if (!sheet.open) sheet.showModal();
     try {
-      render(await P.api(`${path()}?k=${encodeURIComponent(T.k)}`));
+      const d = await P.api(tabUrl(pin));
+      if (d.needPin) { askPin(d, wrong); return; }
+      if (pin) P.rememberPin(T.table, pin);
+      render(d);
     } catch (e) {
+      if (e.status === 403 && e.needPin) { P.forgetPin(T.table); askPin({ table: T.table }, e.message); return; } // wrong or stale PIN: ask again
       sheet.innerHTML = `<div class="ts-in"><p>${esc(e.message)}</p><button class="pill fill" type="button" data-close>Close</button></div>`;
     }
+  }
+
+  function askPin(d, message) {
+    sheet.innerHTML = `<div class="ts-in"><div class="ts-head"><h2>Table ${esc(d.table || T.table)}</h2><button class="close" type="button" data-close aria-label="Close">×</button></div>
+      <form class="pin-form" novalidate>
+        <label for="tabPin">Table PIN</label>
+        <p class="hint">Type the 4-digit table PIN our staff gave you</p>
+        <div class="utr-row"><input id="tabPin" name="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="4 digits" required>
+          <button class="pill fill" type="submit">Show our tab</button></div>
+        <p class="err" role="alert">${esc(message || "")}</p>
+      </form></div>`;
+    const form = sheet.querySelector(".pin-form");
+    const input = form.elements.namedItem("pin");
+    input.addEventListener("input", () => { input.value = input.value.replace(/\D/g, "").slice(0, 4); }); // digits only
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (!P.PIN_RE.test(input.value)) { form.querySelector(".err").textContent = "Type the 4-digit table PIN our staff gave you"; input.focus(); return; }
+      openTab(input.value);
+    });
+    input.focus();
   }
 
   function render(d) {
@@ -2936,7 +3299,7 @@ window.SerenPay = (function () {
     }
     const t = d.tab;
     sheet.innerHTML = `<div class="ts-in">${head}
-      <ul class="ts-lines">${t.lines.map((l) => `<li><span>${l.qty} × ${esc(l.name)}</span><b>${esc(money(l.amount))}</b></li>`).join("")}
+      <ul class="ts-lines">${t.lines.map((l) => `<li><span>${esc(Number(l.qty) | 0)} × ${esc(l.name)}</span><b>${esc(money(l.amount))}</b></li>`).join("")}
         <li class="tot"><span>Total so far</span><b>${esc(money(t.total))}</b></li></ul>
       <ul class="ts-rounds">${t.rounds.map((r) => `<li>${esc(r.code)} · ${esc(r.status)}</li>`).join("")}</ul>
       ${d.bill ? (d.bill.paid ? `<p class="hand">Paid. Thank you!</p><a class="pill fill" href="${esc(P.invoiceUrl(d.bill.code, d.bill.token))}" target="_blank" rel="noopener">See your bill</a>` : `<div class="ts-pay"></div>`)
@@ -2957,7 +3320,7 @@ window.SerenPay = (function () {
 
   // is this table seated (tab open)? checkout only offers "pay at the end" if so
   async function refreshOpen() {
-    try { T.open = Boolean((await P.api(`${path()}?k=${encodeURIComponent(T.k)}`)).open); }
+    try { T.open = Boolean((await P.api(tabUrl(""))).open); } // no PIN needed just to know the table is seated
     catch (e) { T.open = false; }
   }
   refreshOpen();

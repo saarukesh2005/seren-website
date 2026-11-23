@@ -22,10 +22,13 @@ SA.tablesTab = (function () {
     $("#tabGrid").innerHTML = tabs.length
       ? tabs.map((t) => `<article class="tabcard ${t.status}">
           <h3>Table ${esc(t.table_no)}</h3>
-          <p class="meta">${t.rounds} round${t.rounds === 1 ? "" : "s"} · open ${esc(ago(t.opened_at))}</p>
+          ${t.pin ? `<p class="meta">Table PIN <span class="pin-chip">${esc(t.pin)}</span> <span class="opt">tell the guests</span></p>` : ""}
+          <p class="meta">${Number(t.rounds) || 0} round${t.rounds === 1 ? "" : "s"} · open ${esc(ago(t.opened_at))}</p>
           <b class="amt">${esc(money(t.total))}</b>
           ${t.status === "open"
-            ? (t.rounds ? `<button class="btn plum small" type="button" data-bill="${esc(t.table_no)}">Make the bill</button>` : `<button class="btn ghost small" type="button" data-close="${esc(t.table_no)}">Close (left without ordering)</button>`)
+            ? `<div class="btns"><button class="btn ok small" type="button" data-take="${esc(t.table_no)}">Take order</button>
+               ${t.rounds ? `<button class="btn plum small" type="button" data-bill="${esc(t.table_no)}">Make the bill</button>` : `<button class="btn ghost small" type="button" data-close="${esc(t.table_no)}">Close (left without ordering)</button>`}
+               <button class="btn ghost small" type="button" data-move="${esc(t.table_no)}">Move / join table</button></div>`
             : `<p class="meta">Bill ${esc(t.bill_code || "")} waiting for payment</p>
                <div class="btns"><button class="btn ghost small" type="button" data-open="${esc(t.bill_code || "")}">Open bill</button>
                <button class="btn ghost small" type="button" data-reopen="${esc(t.table_no)}">Undo bill</button></div>`}
@@ -57,7 +60,7 @@ SA.tablesTab = (function () {
     $("#seatForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const t = $("#seatTable").value.trim();
-      try { await api(`/tables/${encodeURIComponent(t)}/open`, {}); toast(`Table ${t} is open. Guests can order and pay at the end.`); $("#seatTable").value = ""; load(); }
+      try { const r = await api(`/tables/${encodeURIComponent(t)}/open`, {}); toast(`Table ${t} is open. Tell the guests their table PIN: ${r.pin}`); $("#seatTable").value = ""; load(); }
       catch (ex) { toast(ex.message, true); }
     });
     if (!(SA.state.settings && SA.state.settings.dineInPayLater)) $("#seatForm").hidden = true;
@@ -67,10 +70,24 @@ SA.tablesTab = (function () {
       const reopen = e.target.closest("[data-reopen]");
       const openBill = e.target.closest("[data-open]");
       const close = e.target.closest("[data-close]");
+      const take = e.target.closest("[data-take]");
+      const mv = e.target.closest("[data-move]");
       try {
         if (done) { await api(`/calls/${done.dataset.done}/done`, {}); load(); }
+        if (take) {
+          if (!SA.state.catalog) { const c = await api("/catalog"); SA.state.catalog = { categories: c.categories, items: c.items }; }
+          takeOrder(take.dataset.take);
+          return;
+        }
+        if (mv) {
+          const to = window.prompt(`Move table ${mv.dataset.move} to which table? (If that table is open, the two bills are joined.)`);
+          if (to && to.trim()) { const r = await api(`/tables/${encodeURIComponent(mv.dataset.move)}/move`, { to: to.trim() }); toast(r.how === "merged" ? "Tables joined into one bill" : `Moved to table ${to.trim()}`); load(); }
+          return;
+        }
         if (bill) {
-          const r = await api(`/tables/${encodeURIComponent(bill.dataset.bill)}/bill`, {});
+          const service = SA.state.settings && SA.state.settings.charges && SA.state.settings.charges.servicePercent;
+          const keep = service ? window.confirm(`Add the ${service}% service charge? Press Cancel if the guests asked to remove it.`) : true;
+          const r = await api(`/tables/${encodeURIComponent(bill.dataset.bill)}/bill`, { service: keep });
           toast(`Bill ${r.code} made. Guests can pay it on their phones, or take cash/card.`);
           load();
         }
@@ -82,5 +99,66 @@ SA.tablesTab = (function () {
     load();
     timer = setInterval(() => { if (!document.hidden) load(); }, 15000);
   }
+  /* ---------- a waiter takes the order at the table ---------- */
+  function takeOrder(table) {
+    const items = ((SA.state.catalog && SA.state.catalog.items) || []).filter((i) => i.price !== null && i.available && !i.hidden);
+    let cart = []; // [{ id, opts, qty, label, price }]
+    let d = document.getElementById("captainSheet");
+    if (!d) { d = document.createElement("dialog"); d.id = "captainSheet"; d.className = "sheet"; d.setAttribute("aria-labelledby", "captainTitle"); document.body.append(d); }
+    const total = () => cart.reduce((n, l) => n + l.price * l.qty, 0);
+    const draw = () => {
+      d.querySelector("#capLines").innerHTML = cart.length ? cart.map((l, i) => `<li><span>${Number(l.qty)} × ${esc(l.label)}</span><span><button class="btn ghost small" type="button" data-less="${i}" aria-label="One fewer">−</button> <b>${esc(money(l.price * l.qty))}</b></span></li>`).join("") : `<li class="meta">Tap items to add</li>`;
+      d.querySelector("#capTotal").textContent = money(total());
+    };
+    d.innerHTML = `<div class="sheet-in"><div class="sheet-head"><h2 id="captainTitle">Table ${esc(table)} · new order</h2><button class="close" type="button" data-x aria-label="Close">×</button></div>
+      <input type="search" id="capFind" placeholder="Find an item" aria-label="Find an item" autocomplete="off">
+      <div class="cap-items" id="capItems">${items.map((i) => `<button class="btn ghost small" type="button" data-item="${esc(i.id)}">${esc(i.name)} · ${esc(money(i.price))}${(i.options || []).length ? " ⋯" : ""}</button>`).join("")}</div>
+      <div id="capOpts"></div>
+      <ul class="lines" id="capLines"></ul>
+      <label>Note for the kitchen<input id="capNote" maxlength="200"></label>
+      <div class="btns"><b>Total <span id="capTotal"></span></b><button class="btn ok" type="button" id="capSend">Send to kitchen</button></div></div>`;
+    const add = (item, opts, extra, names) => {
+      const key = `${item.id}|${opts.slice().sort().join(",")}`;
+      const hit = cart.find((l) => l.key === key);
+      cart = hit ? cart.map((l) => (l === hit ? { ...l, qty: Math.min(l.qty + 1, 50) } : l))
+        : [...cart, { key, id: item.id, opts, qty: 1, price: item.price + extra, label: names.length ? `${item.name} (${names.join(", ")})` : item.name }];
+      draw();
+    };
+    d.querySelector("#capFind").addEventListener("input", (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      d.querySelectorAll("[data-item]").forEach((b) => { b.hidden = q && !b.textContent.toLowerCase().includes(q); });
+    });
+    d.addEventListener("click", async (e) => {
+      if (e.target.closest("[data-x]")) { d.close(); return; }
+      const less = e.target.closest("[data-less]");
+      if (less) { const i = Number(less.dataset.less); cart = cart.map((l, j) => (j === i ? { ...l, qty: l.qty - 1 } : l)).filter((l) => l.qty > 0); draw(); return; }
+      const b = e.target.closest("[data-item]");
+      if (b) {
+        const item = items.find((x) => x.id === b.dataset.item);
+        if (!(item.options || []).length) { add(item, [], 0, []); return; }
+        const box = d.querySelector("#capOpts");
+        box.innerHTML = `<form class="box" id="capOptForm"><b>${esc(item.name)}</b>${item.options.map((g) => `<fieldset class="seg"><legend>${esc(g.name)}</legend>${g.choices.map((c, i) => `<label><input type="${g.pick === "many" ? "checkbox" : "radio"}" name="${esc(g.id)}" value="${esc(`${g.id}-${c.id}`)}" data-price="${Number(c.price) || 0}" data-name="${esc(c.name)}" ${g.required && i === 0 ? "checked" : ""}><span>${esc(c.name)}${c.price ? ` +${esc(money(c.price))}` : ""}</span></label>`).join("")}</fieldset>`).join("")}
+          <button class="btn plum small" type="submit">Add</button></form>`;
+        box.querySelector("form").addEventListener("submit", (ev) => {
+          ev.preventDefault();
+          const picked = [...ev.target.querySelectorAll("input:checked")];
+          add(item, picked.map((x) => x.value), picked.reduce((n, x) => n + Number(x.dataset.price), 0), picked.map((x) => x.dataset.name));
+          box.innerHTML = "";
+        });
+        return;
+      }
+      if (e.target.closest("#capSend")) {
+        if (!cart.length) { toast("Add items first", true); return; }
+        try {
+          const r = await api(`/tables/${encodeURIComponent(table)}/order`, { items: cart.map((l) => (l.opts.length ? { id: l.id, qty: l.qty, opts: l.opts } : { id: l.id, qty: l.qty })), notes: d.querySelector("#capNote").value });
+          toast(`Sent to the kitchen (${r.code})`);
+          d.close(); load();
+        } catch (ex) { toast(ex.message, true); }
+      }
+    });
+    draw();
+    d.showModal();
+  }
+
   return { start, load, stop: () => clearInterval(timer) };
 })();

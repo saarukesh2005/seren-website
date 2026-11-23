@@ -22,18 +22,50 @@ window.SerenPay = (function () {
     }
     let data = {};
     try { data = await res.json(); } catch (e) { /* not JSON */ }
-    if (!res.ok) throw new Error(data.error || "Something went wrong. Please try again.");
+    if (!res.ok) {
+      const err = new Error(data.error || "Something went wrong. Please try again.");
+      err.status = res.status; // callers can tell "wrong table PIN" (403 + needPin) from other problems
+      err.needPin = data.needPin === true;
+      throw err;
+    }
     return data;
   }
 
-  /* orders placed on this device, newest first, so customers can find them again */
+  /* The 4-digit PIN staff tell guests when seating a table. Remembered for this visit only (one per table). */
+  const PIN_RE = /^\d{4}$/;
+  const pinKey = (table) => `seren-pin-v1:${String(table).toLowerCase()}`;
+  function tablePin(table) {
+    try { const v = sessionStorage.getItem(pinKey(table)); return PIN_RE.test(v || "") ? v : ""; } catch (e) { return ""; }
+  }
+  function rememberPin(table, pin) {
+    try { if (PIN_RE.test(String(pin))) sessionStorage.setItem(pinKey(table), String(pin)); } catch (e) { /* storage blocked: the guest types it again next time */ }
+  }
+  function forgetPin(table) {
+    try { sessionStorage.removeItem(pinKey(table)); } catch (e) { /* nothing was saved anyway */ }
+  }
+
+  /* orders placed on this device, newest first, so customers can find them again.
+     Only well-formed entries from the last 30 days are trusted: anything else in storage is ignored. */
+  const CODE_RE = /^SRN-[A-Z0-9]{6}$/;
+  const TOKEN_RE = /^[A-Za-z0-9_-]{32}$/;
+  const ORDER_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
   function savedOrders() {
-    try { const v = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]"); return Array.isArray(v) ? v : []; }
-    catch (e) { return []; }
+    let list;
+    try { list = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]"); } catch (e) { return []; }
+    if (!Array.isArray(list)) return [];
+    const now = Date.now();
+    return list
+      .filter((o) => o && typeof o === "object" && typeof o.code === "string" && typeof o.token === "string" && CODE_RE.test(o.code) && TOKEN_RE.test(o.token))
+      .map((o) => ({ code: o.code, token: o.token, at: Number.isFinite(o.at) ? Math.min(o.at, now) : now })) // older saves had no timestamp: they start their 30 days now
+      .filter((o) => now - o.at <= ORDER_MAX_AGE);
   }
   function rememberOrder(code, token) {
+    if (!CODE_RE.test(String(code)) || !TOKEN_RE.test(String(token))) return;
     const next = [{ code, token, at: Date.now() }, ...savedOrders().filter((o) => o.code !== code)].slice(0, 10);
     try { localStorage.setItem(ORDERS_KEY, JSON.stringify(next)); } catch (e) { /* private mode: the link still works */ }
+  }
+  function forgetOrders() {
+    try { localStorage.removeItem(ORDERS_KEY); } catch (e) { /* storage blocked: nothing was saved anyway */ }
   }
   const orderUrl = (code, token) => `order.html#${encodeURIComponent(code)}.${encodeURIComponent(token)}`;
   const invoiceUrl = (code, token) => `${API}/invoice/${encodeURIComponent(code)}?t=${encodeURIComponent(token)}`;
@@ -52,17 +84,37 @@ window.SerenPay = (function () {
 
   const isPhone = () => window.matchMedia("(pointer:coarse)").matches || window.innerWidth < 700;
 
+  /* The payment link comes from the server. Only trust it if it is a UPI link that pays the UPI ID shown
+     on screen, for exactly this order's total. Returns the cleaned link, or null. */
+  function checkedUpiLink(pay) {
+    try {
+      const u = new URL(String(pay.upi));
+      const one = (k) => { const v = u.searchParams.getAll(k); return v.length === 1 ? v[0] : null; };
+      const pa = one("pa"), am = one("am"), cu = u.searchParams.get("cu");
+      if (u.protocol !== "upi:" || u.hostname !== "pay") return null;
+      if (!pa || !pay.upiId || pa.trim().toLowerCase() !== String(pay.upiId).trim().toLowerCase()) return null;
+      if (!am || !/^\d+(\.\d{1,2})?$/.test(am) || !Number.isFinite(Number(pay.total)) || Math.abs(Number(am) - Number(pay.total) / 100) >= 0.005) return null;
+      if (cu !== null && cu !== "INR") return null;
+      return u.href;
+    } catch (e) { return null; }
+  }
+
   /**
    * Draws the "pay with UPI" panel into `el`.
    * pay = { code, token, total, upi, upiId, upiName, expiresAt }; onSubmitted runs after the customer sends their UPI ref.
    */
   function payPanel(el, pay, onSubmitted) {
+    const upi = checkedUpiLink(pay);
+    if (!upi) {
+      el.innerHTML = `<div class="pay"><p class="err" role="alert">Payment details look wrong — please call the shop</p></div>`;
+      return;
+    }
     const mins = pay.expiresAt ? Math.max(0, Math.round((new Date(pay.expiresAt) - Date.now()) / 60000)) : null;
     el.innerHTML = `
       <div class="pay">
         <p class="pay-amt"><span>Pay</span> ${esc(money(pay.total))}</p>
         <p class="pay-note">Order <b>${esc(pay.code)}</b>${mins ? ` · please pay within ${mins} min` : ""}</p>
-        ${isPhone() ? `<a class="pill fill pay-app" href="${esc(pay.upi)}">Pay with GPay, PhonePe or any UPI app</a>` : ""}
+        ${isPhone() ? `<a class="pill fill pay-app" href="${esc(upi)}">Pay with GPay, PhonePe or any UPI app</a>` : ""}
         <div class="pay-qr" aria-label="UPI QR code for ${esc(money(pay.total))}"><span class="hand">Loading QR…</span></div>
         <p class="pay-id">${isPhone() ? "Or pay" : "Scan with any UPI app, or pay"} to <b>${esc(pay.upiId)}</b> (${esc(pay.upiName)})
           <button type="button" class="linkish" data-copy="${esc(pay.upiId)}">Copy UPI ID</button></p>
@@ -78,7 +130,7 @@ window.SerenPay = (function () {
     loadQr()
       .then(() => {
         const qr = window.qrcode(0, "M");
-        qr.addData(pay.upi);
+        qr.addData(upi);
         qr.make();
         el.querySelector(".pay-qr").innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
       })
@@ -105,5 +157,5 @@ window.SerenPay = (function () {
     });
   }
 
-  return { enabled: Boolean(API), api, money, esc, savedOrders, rememberOrder, orderUrl, invoiceUrl, payPanel };
+  return { enabled: Boolean(API), api, PIN_RE, tablePin, rememberPin, forgetPin, money, esc, savedOrders, rememberOrder, forgetOrders, orderUrl, invoiceUrl, payPanel };
 })();

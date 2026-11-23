@@ -7,32 +7,106 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const img = (name) => (name ? `img/${name}.webp` : "");
   const STORE_KEY = "seren-box-v1";
+  const MAX_QTY = 99;
   const CAT = new Map((window.SEREN_CATALOG || []).map((c) => [c.id, c]));
   const money = (paise) => `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: paise % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
   /* ---------- order box state (immutable updates) ---------- */
+  // A bag line is one product with one set of choices: the same cake with "Large" and with "Small" are two lines.
+  // Its key is the product id, plus the sorted choices (as "group-choice" ids) when there are any.
+  const OPT_RE = /^[a-z0-9-]{1,40}$/;
+  const MAX_OPTS = 10;
+  const lineKey = (id, opts) => (opts && opts.length ? `${id}|${opts.join(",")}` : id);
+  const cleanOpts = (raw) => (Array.isArray(raw) && raw.length <= MAX_OPTS && raw.every((o) => typeof o === "string" && OPT_RE.test(o)) ? [...new Set(raw)].sort() : null);
+  const cleanLabels = (raw) => (Array.isArray(raw) ? raw.filter((x) => typeof x === "string").slice(0, MAX_OPTS).map((x) => x.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 40)) : []);
+  // Products the owner adds in the dashboard (ids start with "x-") are not in the built-in catalog until the shop's data arrives.
+  const CUSTOM_ID = /^x-[a-z0-9-]{1,60}$/;
+  const PHOTO_KEY = /^[A-Z0-9]{12}$/;
   let box = loadBox();
+  // Only products that really are in the catalog (or dashboard-made, checked again once the shop answers), with a whole
+  // quantity from 1 to 99 and well-formed choices, are kept from storage. Names and pictures of built-in products are
+  // rebuilt from the catalog, never taken from what was stored.
   function loadBox() {
-    try { const raw = localStorage.getItem(STORE_KEY); const v = raw ? JSON.parse(raw) : {}; return v && typeof v === "object" ? v : {}; }
-    catch (e) { return {}; }
+    let stored;
+    try { const raw = localStorage.getItem(STORE_KEY); stored = raw ? JSON.parse(raw) : {}; } catch (e) { return {}; }
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
+    const clean = {};
+    for (const [storedKey, entry] of Object.entries(stored)) {
+      if (!entry || typeof entry !== "object") continue;
+      const id = typeof entry.id === "string" ? entry.id : storedKey;
+      const qty = entry.qty;
+      const opts = entry.opts === undefined ? [] : cleanOpts(entry.opts);
+      if (!opts || !Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) continue;
+      const item = CAT.get(id);
+      const base = item
+        ? { id: item.id, name: item.name, img: item.img || null, ...(item.photo ? { photo: item.photo } : {}) }
+        : CUSTOM_ID.test(id) && typeof entry.name === "string" && entry.name.trim()
+          ? { id, name: entry.name.trim().slice(0, 80), img: null, ...(PHOTO_KEY.test(entry.photo || "") ? { photo: entry.photo } : {}) }
+          : null;
+      if (!base) continue;
+      const key = lineKey(id, opts);
+      clean[key] = { ...base, key, qty, opts, labels: opts.length ? cleanLabels(entry.labels) : [] };
+    }
+    return clean;
   }
   function saveBox(next) {
     box = next;
     try { localStorage.setItem(STORE_KEY, JSON.stringify(next)); } catch (e) { /* storage unavailable: box still works for this visit */ }
     renderBox();
   }
-  function addItem(item, fromEl) {
-    const prev = box[item.id];
+  function addItem(item, fromEl, picked) {
+    const opts = picked ? picked.opts : [];
+    const key = lineKey(item.id, opts);
+    const prev = box[key];
     flyToBox(fromEl, item);
-    saveBox({ ...box, [item.id]: { id: item.id, name: item.name, img: item.img || null, qty: (prev ? prev.qty : 0) + 1 } });
+    saveBox({ ...box, [key]: { id: item.id, key, name: item.name, img: item.img || null, ...(item.photo ? { photo: item.photo } : {}), opts, labels: picked ? picked.names : [], qty: Math.min(MAX_QTY, (prev ? prev.qty : 0) + 1) } });
     bumpBadge();
     toast(`${item.name} added to your box`);
   }
-  function setQty(id, qty) {
-    if (qty <= 0) { const { [id]: _gone, ...rest } = box; saveBox(rest); return; }
-    saveBox({ ...box, [id]: { ...box[id], qty } });
+  function setQty(key, qty) {
+    if (!box[key]) return;
+    if (qty <= 0) { const { [key]: _gone, ...rest } = box; saveBox(rest); return; }
+    saveBox({ ...box, [key]: { ...box[key], qty: Math.min(MAX_QTY, qty) } });
   }
   const count = () => Object.values(box).reduce((n, i) => n + i.qty, 0);
+  const qtyOf = (id) => Object.values(box).reduce((n, i) => n + (i.id === id ? i.qty : 0), 0);
+
+  /* ---------- item choices (size, add-ons...) ---------- */
+  // The option groups the owner set for a product, from the shop's data: [{ id, name, pick, required, choices: [{ id, name, price }] }]
+  let optionIndex = { shop: null, map: new Map() };
+  function groupsOf(id) {
+    const shop = window.SEREN_SHOP;
+    if (!shop || !Array.isArray(shop.products)) return [];
+    if (optionIndex.shop !== shop) optionIndex = { shop, map: new Map(shop.products.map((p) => [p.id, Array.isArray(p.options) ? p.options : []])) };
+    return optionIndex.map.get(id) || [];
+  }
+  // Checks chosen options against the groups the way the server does. Returns { ok, extra (paise), names }.
+  function resolveOpts(id, opts) {
+    const left = new Set(opts || []);
+    let extra = 0;
+    const names = [];
+    for (const g of groupsOf(id)) {
+      const hits = g.choices.filter((ch) => left.has(`${g.id}-${ch.id}`));
+      hits.forEach((ch) => left.delete(`${g.id}-${ch.id}`));
+      if ((g.pick === "one" && hits.length > 1) || (g.required && !hits.length)) return { ok: false, extra: 0, names: [] };
+      for (const ch of hits) { extra += Number(ch.price) || 0; names.push(ch.name); }
+    }
+    return { ok: left.size === 0, extra, names };
+  }
+  // The price of one piece of a bag line (base + extras), or null when it can't be ordered right now.
+  function unitPrice(line) {
+    const shop = window.SEREN_SHOP;
+    const p = shop && shop.prices[line.id];
+    const r = resolveOpts(line.id, line.opts);
+    return p && r.ok ? p.price + r.extra : null;
+  }
+  // The names of a line's choices: from the shop's data when it is loaded, otherwise what was saved with the line
+  const lineChoices = (line) => {
+    if (!(line.opts || []).length) return [];
+    const r = window.SEREN_SHOP ? resolveOpts(line.id, line.opts) : null;
+    return r && r.ok ? r.names : line.labels || [];
+  };
+  const lineText = (line) => { const c = lineChoices(line); return c.length ? `${line.name} (${c.join(", ")})` : line.name; };
 
   // Every "Add" button reads its name and picture from the shared catalog (src/catalog.js).
   const addBtn = (id) => {
@@ -173,7 +247,7 @@
 
   /* ---------- drawer ---------- */
   function orderText() {
-    const lines = Object.values(box).map((i) => `${i.qty} × ${i.name}`);
+    const lines = Object.values(box).map((i) => `${i.qty} × ${lineText(i)}`);
     return `Hi SEREN! I'd like to order:\n${lines.join("\n")}`;
   }
   function renderBox() {
@@ -183,9 +257,9 @@
     if (!items.length) {
       list.innerHTML = `<li class="empty" style="display:grid;border:0"><span class="hand">Your box is empty</span><span>Tap "+ Add to box" on anything you'd like.</span></li>`;
     } else {
-      list.innerHTML = items.map((i) => `<li>${i.photo ? `<img src="${esc(photoUrl(i.photo))}" alt="">` : i.img ? `<img src="${img(i.img)}" alt="">` : `<img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">`}
-        <span class="n">${esc(i.name)}${linePrice(i)}</span>
-        <span class="qty"><button type="button" data-q="${esc(i.id)}" data-d="-1" aria-label="One fewer ${esc(i.name)}">−</button><b>${i.qty}</b><button type="button" data-q="${esc(i.id)}" data-d="1" aria-label="One more ${esc(i.name)}">+</button></span></li>`).join("");
+      list.innerHTML = items.map((i) => `<li>${i.photo ? `<img src="${esc(photoUrl(i.photo))}" alt="">` : i.img ? `<img src="${esc(img(i.img))}" alt="">` : `<img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">`}
+        <span class="n">${esc(i.name)}${choiceList(i)}${linePrice(i)}</span>
+        <span class="qty"><button type="button" data-q="${esc(i.key)}" data-d="-1" aria-label="One fewer ${esc(lineText(i))}">−</button><b>${esc(Number(i.qty) | 0)}</b><button type="button" data-q="${esc(i.key)}" data-d="1" aria-label="One more ${esc(lineText(i))}">+</button></span></li>`).join("");
     }
     const wa = $("#waBtn");
     const hasWa = Boolean(CFG.whatsapp) && items.length > 0;
@@ -195,7 +269,7 @@
     const shop = window.SEREN_SHOP; // set by checkout.js when the order system is online
     document.querySelectorAll(".add[data-add]").forEach((b) => {
       const id = JSON.parse(b.dataset.add).id;
-      const inBox = Boolean(box[id]);
+      const inBox = qtyOf(id) > 0;
       const p = shop && shop.prices[id];
       const soldOut = Boolean(p && p.left === 0);
       const blocked = Boolean(shop && shop.live && (!p || !p.available || soldOut));
@@ -203,14 +277,21 @@
       b.classList.toggle("added", inBox);
       b.classList.toggle("off", b.disabled);
       const few = p && p.left !== undefined && p.left <= 5 ? ` · ${p.left} left` : "";
-      b.textContent = inBox ? `✓ In box (${box[id].qty})` : blocked ? (soldOut ? "Sold out today" : p ? "Sold out" : "Coming soon") : p ? `+ Add · ${money(p.price)}${few}` : "+ Add to box";
+      const from = groupsOf(id).length ? "from " : ""; // the price grows with the choices
+      b.textContent = inBox ? `✓ In box (${qtyOf(id)})` : blocked ? (soldOut ? "Sold out today" : p ? "Sold out" : "Coming soon") : p ? `+ Add · ${from}${money(p.price)}${few}` : "+ Add to box";
     });
     document.dispatchEvent(new CustomEvent("seren:box"));
+  }
+  // the choices of a bag line, under its name (one span each, so each can be translated)
+  function choiceList(i) {
+    const names = lineChoices(i);
+    return names.length ? `<small class="ch">${names.map((n) => `<span>${esc(n)}</span>`).join("")}</small>` : "";
   }
   function linePrice(i) {
     const p = window.SEREN_SHOP && window.SEREN_SHOP.prices[i.id];
     if (!p) return "";
-    return `<small>${p.available ? `${esc(money(p.price * i.qty))}${p.unit ? ` · ${esc(p.unit)}` : ""}` : "Not available right now"}</small>`;
+    const unit = unitPrice(i);
+    return `<small>${p.available && unit !== null ? `${esc(money(unit * i.qty))}${p.unit ? ` · ${esc(p.unit)}` : ""}` : "Not available right now"}</small>`;
   }
   function setDrawer(on) {
     const d = $("#drawer");
@@ -271,12 +352,82 @@
   }
   function bumpBadge() { const b = $("#boxBtn"); b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump"); }
 
+  /* ---------- the "choose your options" sheet (size, add-ons...) ---------- */
+  let choosing = null; // { item, trigger, groups, base } while the sheet is open
+  let sheet = null;
+  function choiceSheet() {
+    if (sheet) return sheet;
+    sheet = document.createElement("dialog");
+    sheet.className = "tabsheet optsheet";
+    sheet.setAttribute("data-lenis-prevent", "");
+    document.body.appendChild(sheet);
+    sheet.addEventListener("click", (e) => { if (e.target.closest("[data-close]") || e.target === sheet) sheet.close(); });
+    sheet.addEventListener("close", () => { const t = choosing && choosing.trigger; choosing = null; if (t && t.isConnected && !t.disabled) t.focus({ preventScroll: true }); });
+    sheet.addEventListener("change", () => { if (choosing) refreshChoices(); });
+    sheet.addEventListener("submit", (e) => { e.preventDefault(); submitChoices(); });
+    return sheet;
+  }
+  const pickedOpts = () => [...sheet.querySelectorAll("input[data-opt]:checked")].map((i) => i.dataset.opt);
+  function refreshChoices() {
+    const { groups, base } = choosing;
+    const chosen = new Set(pickedOpts());
+    const extra = groups.reduce((n, g) => n + g.choices.reduce((m, ch) => m + (chosen.has(`${g.id}-${ch.id}`) ? Number(ch.price) || 0 : 0), 0), 0);
+    sheet.querySelector(".os-go").textContent = `Add to box · ${money(base + extra)}`;
+    sheet.querySelector(".err").textContent = "";
+  }
+  function openChoices(item, trigger) {
+    const groups = groupsOf(item.id);
+    const p = window.SEREN_SHOP && window.SEREN_SHOP.prices[item.id];
+    const dlg = choiceSheet();
+    choosing = { item, trigger, groups, base: p ? Number(p.price) || 0 : 0 };
+    dlg.setAttribute("aria-label", item.name);
+    const group = (g) => {
+      const many = g.pick === "many";
+      const input = (value, attrs, label, priceHtml) => `<label class="os-c"><input type="${many ? "checkbox" : "radio"}" name="g-${esc(g.id)}" ${attrs}><span class="os-n">${esc(label)}</span>${priceHtml}</label>`;
+      return `<fieldset class="os-group" data-g="${esc(g.id)}">
+        <legend>${esc(g.name)} <span class="opt">${g.required ? "Required" : many ? "Pick any" : "Optional"}</span></legend>
+        ${!many && !g.required ? `<label class="os-c"><input type="radio" name="g-${esc(g.id)}" checked><span class="os-n">None</span></label>` : ""}
+        ${g.choices.map((ch) => input(ch.id, `value="${esc(ch.id)}" data-opt="${esc(`${g.id}-${ch.id}`)}"`, ch.name, Number(ch.price) > 0 ? `<span class="os-p">+${esc(money(Number(ch.price)))}</span>` : "")).join("")}
+      </fieldset>`;
+    };
+    dlg.innerHTML = `<form class="ts-in os-form" novalidate>
+      <div class="ts-head"><h2>${esc(item.name)}</h2><button class="close" type="button" data-close aria-label="Close">×</button></div>
+      ${groups.map(group).join("")}
+      <p class="err" role="alert"></p>
+      <button class="pill fill os-go" type="submit"></button>
+    </form>`;
+    refreshChoices();
+    if (!dlg.open) dlg.showModal();
+  }
+  function submitChoices() {
+    const { item, trigger, groups } = choosing;
+    const opts = pickedOpts();
+    const err = sheet.querySelector(".err");
+    const have = new Set(opts);
+    const missing = groups.find((g) => g.required && !g.choices.some((ch) => have.has(`${g.id}-${ch.id}`)));
+    if (missing) {
+      err.textContent = `Please choose: ${missing.name}`;
+      const first = sheet.querySelector(`fieldset[data-g="${CSS.escape(missing.id)}"] input`);
+      if (first) first.focus();
+      return;
+    }
+    const r = resolveOpts(item.id, opts);
+    if (!r.ok) { err.textContent = "That choice isn't available any more. Please pick again."; return; }
+    const picked = { opts: [...new Set(opts)].sort(), names: r.names };
+    sheet.close();
+    addItem(item, trigger, picked);
+  }
+
   function wire() {
     document.addEventListener("click", (e) => {
       const add = e.target.closest(".add[data-add]");
-      if (add) { addItem(JSON.parse(add.dataset.add), add); return; }
+      if (add) {
+        const item = JSON.parse(add.dataset.add);
+        if (groupsOf(item.id).length) openChoices(item, add); else addItem(item, add); // items with choices ask first
+        return;
+      }
       const q = e.target.closest("[data-q]");
-      if (q) { const id = q.dataset.q; setQty(id, (box[id]?.qty || 0) + Number(q.dataset.d)); }
+      if (q) { const key = q.dataset.q; setQty(key, (box[key]?.qty || 0) + Number(q.dataset.d)); }
     });
     $("#boxBtn").addEventListener("click", openBox);
     $("#openBox2").addEventListener("click", openBox);
@@ -297,11 +448,22 @@
       const d = JSON.parse(b.dataset.add);
       if (d.id === item.id) b.dataset.add = JSON.stringify({ ...d, name: item.name, photo: item.photo || null });
     });
-    if (box[item.id]) saveBox({ ...box, [item.id]: { ...box[item.id], name: item.name, photo: item.photo || null } });
+    const lines = Object.entries(box).filter(([, l]) => l.id === item.id);
+    if (lines.length) saveBox({ ...box, ...Object.fromEntries(lines.map(([k, l]) => [k, { ...l, name: item.name, photo: item.photo || null }])) });
   }
 
+  // Once the shop's data arrives, dashboard-made products that no longer exist (or are hidden) leave the bag.
+  function dropUnknownCustom() {
+    const shop = window.SEREN_SHOP;
+    if (!shop || !Array.isArray(shop.products)) return;
+    const live = new Set(shop.products.filter((p) => !p.hidden).map((p) => p.id));
+    const keep = Object.entries(box).filter(([, l]) => CAT.has(l.id) || live.has(l.id));
+    if (keep.length !== Object.keys(box).length) saveBox(Object.fromEntries(keep));
+  }
+  document.addEventListener("seren:shop", dropUnknownCustom);
+
   // the online-ordering scripts (checkout.js, products.js) use these
-  window.SEREN_BOX = { items: () => Object.values(box), clear: () => saveBox({}), rerender: renderBox, addBtn, updateItem, photoUrl };
+  window.SEREN_BOX = { items: () => Object.values(box), clear: () => saveBox({}), rerender: renderBox, addBtn, updateItem, photoUrl, unitPrice, lineText, groupsOf };
 
   drips(); marquee(); bomboloni(); cookies(); fruit(); entremets(); pastry(); gelato("signature"); chocolates(); kitchen(); visit();
   wire(); renderBox();

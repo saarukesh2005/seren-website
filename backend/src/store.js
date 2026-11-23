@@ -37,7 +37,7 @@ export async function clearPrice(db, id) {
 }
 
 /* ---------- orders ---------- */
-const ORDER_COLUMNS = `id, code, source, status, customer_name, customer_phone, customer_gstin, mode, table_no, address, pincode,
+const ORDER_COLUMNS = `id, code, advance, receipt_no, cake_message, platform, external_id, rung_by, stock_used, source, status, customer_name, customer_phone, customer_gstin, mode, table_no, address, pincode,
   slot_date, slot_time, notes, lines, subtotal, delivery_fee, total, tax_snapshot, payment_method, utr,
   invoice_no, invoice_date, admin_note, created_at, updated_at, expires_at, paid_at,
   discount, coupon_code, points_used, points_earned, opt_in, channel, tab_id, credit_note_no, credit_note_date, refund_method, refund_ref,
@@ -55,18 +55,20 @@ const eventStmt = (db, code, status, note, actor) =>
  */
 export async function createOrder(db, o, extra = []) {
   const at = now();
-  // A round on a table's tab is only saved while that tab is still open (staff may be making the bill right now).
+  // A round on a table's tab, or the tab's bill, is only saved while that tab is still open: two people making
+  // the bill at the same moment get one bill (the second finds the tab already billed and nothing is saved).
   // If it isn't, nothing is inserted and the event row below fails on its NOT NULL order id, cancelling the batch.
   const insert = db.prepare(`INSERT INTO orders (code, token_hash, source, status, customer_name, customer_phone, customer_gstin, mode,
       address, pincode, slot_date, slot_time, notes, lines, subtotal, delivery_fee, total, tax_snapshot, payment_method,
-      created_at, updated_at, expires_at, table_no, discount, coupon_code, points_used, opt_in, channel, tab_id, coupon_held, points_held, client_ref)
-    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31
-    WHERE ?28 IS NULL OR ?27 = 'tab' OR EXISTS (SELECT 1 FROM tabs WHERE id = ?28 AND status = 'open')`)
+      created_at, updated_at, expires_at, table_no, discount, coupon_code, points_used, opt_in, channel, tab_id, coupon_held, points_held, client_ref,
+      cake_message, platform, external_id, rung_by)
+    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35
+    WHERE ?28 IS NULL OR EXISTS (SELECT 1 FROM tabs WHERE id = ?28 AND status = 'open')`)
     .bind(o.code, o.tokenHash, o.source, o.status, o.name || "", o.phone || "", o.gstin || "", o.mode, o.address || "", o.pincode || "",
       o.date || "", o.time || "", o.notes || "", JSON.stringify(o.lines), o.subtotal, o.deliveryFee || 0, o.total,
       JSON.stringify(o.taxSnapshot), o.paymentMethod || "upi", at, o.expiresAt || null, o.table || "",
       o.discount || 0, o.couponCode || "", o.pointsUsed || 0, o.optIn ? 1 : 0, o.channel || "web", o.tabId ?? null,
-      o.couponCode ? 1 : 0, o.pointsUsed ? 1 : 0, o.clientRef || null);
+      o.couponCode ? 1 : 0, o.pointsUsed ? 1 : 0, o.clientRef || null, o.cakeMessage || "", o.platform || "", o.externalId || null, o.rungBy || "");
   try {
     const res = await db.batch([insert, ...extra, eventStmt(db, o.code, o.status, "", o.actor || "customer")]);
     return { id: res[0].meta.last_row_id };
@@ -74,6 +76,7 @@ export async function createOrder(db, o, extra = []) {
     const msg = String(e.message);
     if (msg.includes("NOT NULL") && o.tabId) return { error: "tab" };
     if (msg.includes("UNIQUE") && msg.includes("client_ref")) return { error: "duplicate" };
+    if (msg.includes("UNIQUE") && msg.includes("external_id")) return { error: "external" };
     if (msg.includes("CHECK") && msg.includes("sold")) return { error: "stock" };
     if (msg.includes("CHECK") && msg.includes("uses")) return { error: "coupon" };
     if (msg.includes("CHECK") && msg.includes("points")) return { error: "points" };
@@ -105,18 +108,19 @@ export async function addOrderLink(db, orderId) {
   return token;
 }
 
-export async function listOrders(db, { status, q, from, to, limit = 50, before, statuses }) {
+export async function listOrders(db, { status, q, from, to, limit = 50, before, statuses, since }) {
   const where = [];
   const args = [];
   const arg = (v) => { args.push(v); return `?${args.length}`; };
   if (statuses) where.push(`status IN (${statuses.map(arg).join(",")})`);
-  else if (status === "active") where.push("status IN ('payment_submitted','paid','on_tab','preparing','ready','out_for_delivery')");
+  else if (status === "active") where.push("status IN ('payment_submitted','paid','on_tab','preparing','ready','out_for_delivery','booked')");
   else if (status) where.push(`status = ${arg(status)}`);
   if (q) {
     const like = `%${q.replace(/[%_]/g, "")}%`;
     where.push(`(code LIKE ${arg(like)} OR customer_name LIKE ${arg(like)} OR customer_phone LIKE ${arg(like)} OR invoice_no LIKE ${arg(like)} OR utr LIKE ${arg(like)} OR table_no LIKE ${arg(like)})`);
   }
   if (from) where.push(`created_at >= ${arg(from)}`);
+  if (since) where.push(`(created_at >= ${arg(since)} OR status IN ('booked','paid','on_tab','preparing','ready','out_for_delivery','payment_submitted'))`);
   if (to) where.push(`created_at < ${arg(to)}`);
   if (before) where.push(`id < ${arg(before)}`);
   const sql = `SELECT ${ORDER_COLUMNS} FROM orders ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY id DESC LIMIT ${arg(Math.min(limit, 500))}`;
@@ -178,25 +182,59 @@ function numberStmts(db, key, orderId, condition) {
  * Owner confirms the money arrived. Gives the next invoice number in this financial year, with no gaps:
  * the counter only moves if the order is still unpaid, and both happen in one transaction.
  */
-export async function confirmPayment(db, order, { method, utr, prefix, actor = "owner" }) {
+export async function confirmPayment(db, order, { method, utr, prefix, actor = "owner", payments = null }) {
   const at = now();
   const today = istParts().date;
   const fy = financialYear(today);
   const key = `invoice:${prefix}:${fy}`;
-  const unpaid = "status IN ('awaiting_payment', 'payment_submitted', 'expired') AND invoice_no IS NULL";
+  const unpaid = "status IN ('awaiting_payment', 'payment_submitted', 'expired', 'booked') AND invoice_no IS NULL";
+  // what was paid now (the advance of a cake order was recorded when it was taken)
+  const due = Math.max(order.total - (order.advance || 0), 0);
+  const parts = payments || [{ method, amount: due, ref: method === "upi" ? utr || order.utr || "" : "" }];
   try {
     const results = await db.batch([
       ...numberStmts(db, key, order.id, unpaid),
       db.prepare(`UPDATE orders SET status = 'paid', payment_method = ?1, utr = COALESCE(?2, utr), paid_at = ?3, updated_at = ?3,
           invoice_date = ?4, invoice_no = ?5 || '/' || ?6 || '/' || printf('%05d', (SELECT n FROM counters WHERE key = ?7))
         WHERE id = ?8 AND ${unpaid}`).bind(method, utr || null, at, today, prefix, fy, key, order.id),
+      // only written if the bill above really was made just now
+      ...parts.filter((p) => p.amount > 0).map((p) => paymentStmt(db, order.id, "payment", p, actor, at, "paid_at")),
     ]);
     if (!results[2].meta.changes) return "stale";
   } catch (e) {
     if (String(e.message).includes("UNIQUE")) return "taken";
     throw e;
   }
-  await addEvent(db, order.id, "paid", method === "upi" ? `UPI ${utr || order.utr || ""}`.trim() : `Paid by ${method}`, actor);
+  const how = parts.length > 1 ? parts.map((p) => `${p.method} ${(p.amount / 100).toFixed(2)}`).join(" + ") : method === "upi" ? `UPI ${utr || order.utr || ""}`.trim() : `Paid by ${method}`;
+  await addEvent(db, order.id, "paid", how, actor);
+  return "ok";
+}
+
+// One money movement, saved only when the order row shows the change we just made (same transaction).
+// The open cash-drawer shift (if any) is noted, so the drawer count knows about it.
+function paymentStmt(db, orderId, kind, p, actor, at, column) {
+  return db.prepare(`INSERT INTO payments (order_id, kind, method, amount, ref, at, actor, shift_id)
+    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, (SELECT id FROM shifts WHERE closed_at IS NULL) WHERE EXISTS (SELECT 1 FROM orders WHERE id = ?1 AND ${column} = ?6)`)
+    .bind(orderId, kind, p.method, p.amount, String(p.ref || "").slice(0, 40), at, actor);
+}
+
+/**
+ * A cake / advance order: the customer pays part now and gets an advance receipt (its own numbered series).
+ * The tax invoice is made later, when the rest is paid at pickup.
+ */
+export async function takeAdvance(db, order, { method, amount, ref, prefix, actor }) {
+  const at = now();
+  const fy = financialYear(istParts().date);
+  const key = `receipt:${prefix}:${fy}`;
+  const open = "status = 'booked' AND receipt_no IS NULL AND invoice_no IS NULL";
+  const results = await db.batch([
+    ...numberStmts(db, key, order.id, open),
+    db.prepare(`UPDATE orders SET advance = ?1, updated_at = ?2, receipt_no = ?3 || 'RV/' || ?4 || '/' || printf('%05d', (SELECT n FROM counters WHERE key = ?5))
+      WHERE id = ?6 AND ${open}`).bind(amount, at, prefix, fy, key, order.id),
+    paymentStmt(db, order.id, "advance", { method, amount, ref }, actor, at, "updated_at"),
+  ]);
+  if (!results[2].meta.changes) return "stale";
+  await addEvent(db, order.id, "booked", `Advance ${(amount / 100).toFixed(2)} by ${method}`, actor);
   return "ok";
 }
 
@@ -205,6 +243,7 @@ export async function confirmPayment(db, order, { method, utr, prefix, actor = "
  * so the accounts show the sale reversed. `extra` = customer/points statements in the same transaction.
  */
 export async function refundOrder(db, order, { method, ref, prefix, actor, extra = [] }) {
+  const at = now();
   const today = istParts().date;
   const fy = financialYear(today);
   const key = `credit:${prefix}:${fy}`;
@@ -213,7 +252,8 @@ export async function refundOrder(db, order, { method, ref, prefix, actor, extra
     ...numberStmts(db, key, order.id, refundable),
     db.prepare(`UPDATE orders SET status = 'cancelled', refund_method = ?1, refund_ref = ?2, updated_at = ?3, credit_note_date = ?4,
         credit_note_no = ?5 || 'CN/' || ?6 || '/' || printf('%05d', (SELECT n FROM counters WHERE key = ?7))
-      WHERE id = ?8 AND ${refundable}`).bind(method, ref, now(), today, prefix, fy, key, order.id),
+      WHERE id = ?8 AND ${refundable}`).bind(method, ref, at, today, prefix, fy, key, order.id),
+    paymentStmt(db, order.id, "refund", { method, amount: order.total, ref }, actor, at, "updated_at"),
   ]);
   if (!results[2].meta.changes) return "stale";
   const after = [
@@ -230,7 +270,8 @@ export async function refundOrder(db, order, { method, ref, prefix, actor, extra
 export async function expireUnpaid(db) {
   const at = now();
   const { results } = await db.prepare("SELECT id FROM orders WHERE status = 'awaiting_payment' AND expires_at < ?1 LIMIT 200").bind(at).all();
-  const stmts = [db.prepare("DELETE FROM rate_hits WHERE win < ?1").bind(Math.floor(Date.now() / 1000) - 86400)];
+  const stmts = [db.prepare("DELETE FROM rate_hits WHERE win < ?1").bind(Math.floor(Date.now() / 1000) - 86400),
+    db.prepare("DELETE FROM sessions WHERE expires_at < ?1").bind(Math.floor(Date.now() / 1000))];
   for (const o of results) {
     stmts.push(
       db.prepare("UPDATE orders SET status = 'expired', updated_at = ?1 WHERE id = ?2 AND status = 'awaiting_payment'").bind(at, o.id),
@@ -274,16 +315,30 @@ export async function limitReached(db, key, limit, windowSeconds) {
   return Boolean(seen && seen.n >= limit);
 }
 
+// Counts one attempt FIRST and says whether this attempt is over the limit. Because the count goes up before
+// anything is checked, a burst of attempts sent at the same moment can't all slip through.
+export async function attemptOver(db, key, limit, windowSeconds) {
+  const win = Math.floor(Date.now() / 1000 / windowSeconds) * windowSeconds;
+  const row = await db.prepare("INSERT INTO rate_hits (key, win, n) VALUES (?1, ?2, 1) ON CONFLICT (key, win) DO UPDATE SET n = n + 1 RETURNING n")
+    .bind(key, win).first();
+  return row.n > limit;
+}
+
+export async function clearAttempts(db, key) {
+  await db.prepare("DELETE FROM rate_hits WHERE key = ?1").bind(key).run();
+}
+
 export async function countHit(db, key, windowSeconds) {
   const win = Math.floor(Date.now() / 1000 / windowSeconds) * windowSeconds;
   await db.prepare("INSERT INTO rate_hits (key, win, n) VALUES (?1, ?2, 1) ON CONFLICT (key, win) DO UPDATE SET n = n + 1").bind(key, win).run();
 }
 
-// Unpaid online orders placed in the last hour, across everyone (a brake on fake-order floods).
-export async function recentUnpaid(db) {
+// Unpaid online orders placed in the last hour: by this phone, and across everyone (a brake on fake-order floods).
+export async function recentUnpaid(db, phone = "") {
   const since = new Date(Date.now() - 3600000).toISOString();
-  const row = await db.prepare("SELECT COUNT(*) AS n FROM orders WHERE source = 'online' AND status IN ('awaiting_payment', 'payment_submitted') AND created_at >= ?1").bind(since).first();
-  return row.n;
+  const row = await db.prepare(`SELECT COUNT(*) AS n, SUM(CASE WHEN customer_phone = ?2 AND ?2 != '' THEN 1 ELSE 0 END) AS mine
+    FROM orders WHERE source = 'online' AND status IN ('awaiting_payment', 'payment_submitted') AND created_at >= ?1`).bind(since, phone).first();
+  return { all: row.n || 0, phone: row.mine || 0 };
 }
 
 // Bills issued between two India dates (inclusive), oldest first, for the accountant.

@@ -16,7 +16,13 @@ Keyboard: **F1** cash · **F2** UPI · **F3** card · **F4** hold · **F6** held
 1. Open the repository's **Releases** page on GitHub: `github.com/saarukesh2005/seren-website/releases`.
 2. Download `SEREN-Counter-Setup-<version>.exe`.
 
-GitHub builds a new installer automatically whenever this folder changes. To release a new version, raise `version` in `package.json`.
+GitHub builds a new installer automatically whenever this folder changes. To release a new version, raise `version` in `package.json`. A release is never overwritten: if that version is already published, the release step fails until the version is raised.
+
+Each release also has `SHA256SUMS.txt` and a signed build-provenance record. To check a download on a PC with the GitHub CLI:
+
+```bash
+gh attestation verify SEREN-Counter-Setup-<version>.exe --repo saarukesh2005/seren-website
+```
 
 ## Install on the shop PC
 
@@ -50,3 +56,6 @@ npm run dist:win                                      # build the installer (bes
 - The window loads `<server>/pos/` (the counter screen lives in `backend/public/pos/`).
 - `preload.js` exposes only `serenNative.printers()` and `serenNative.printHtml()`.
 - The main process answers only pages from the configured server.
+- Hardening: the app never hands links to the OS browser (off-server navigation, redirects and new windows are simply blocked); installed builds accept only an `https://` web name (not an IP number) and ask the owner to confirm the address before saving it; the test switches (`SEREN_SERVER`, `SEREN_USER_DATA`, `SEREN_PRINT_TO_PDF`, plain-http localhost) work only when run from source, never in the installed app.
+- Electron fuses are set in `package.json` (`build.electronFuses`). `grantFileProtocolExtraPrivileges` stays **on** because the setup/offline pages load from `file://`; with it off they fail to load (tested).
+- `overrides` in `package.json` pins `minimatch` to a patched version inside electron-builder (`npm audit` reports 0 issues). Re-test `npx electron-builder --dir` after changing it.

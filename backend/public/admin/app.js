@@ -57,7 +57,9 @@
     if (name === "orders") { $("#newDot").hidden = true; document.title = "SEREN Orders"; SA.orders.load(); setupNotice(); }
     if (name === "tables") { $("#callDot").hidden = true; SA.tablesTab.load(); }
     if (name === "counter") SA.counter.show();
+    if (name === "cash") SA.money.show();
     if (name === "menu" && SA.state.catalog) SA.prices.render();
+    if (name === "stock") SA.inventory.show();
     if (name === "customers") SA.customers.show();
     if (name === "reports") SA.reports.show();
     if (name === "settings" && SA.state.settings) SA.settings.render();

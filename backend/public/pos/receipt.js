@@ -11,7 +11,10 @@
    */
   function receiptModel(bill, shop, extra = {}) {
     const offline = Boolean(bill.offline);
-    const lines = (bill.lines || []).map((l) => ({ name: l.name, qty: l.qty, amount: l.listAmount ?? l.gross ?? l.amount }));
+    const lines = (bill.lines || []).map((l) => ({ name: l.name, qty: Number(l.qty) || 0, amount: Number(l.listAmount ?? l.gross ?? l.amount) || 0 }));
+    const snap = bill.tax_snapshot || {};
+    const charges = (snap.charges || []).map((c) => ({ name: c.name, amount: Number(c.gross) || 0 }));
+    const parts = Array.isArray(extra.payments) && extra.payments.length > 1 ? extra.payments.map((p) => ({ method: String(p.method || "").toUpperCase(), amount: Number(p.amount) || 0 })) : [];
     const tax = offline ? [] : ((bill.tax_snapshot && bill.tax_snapshot.taxSummary) || []).filter((r) => r.rate > 0);
     const at = new Date(offline ? bill.at : bill.paid_at || bill.created_at || Date.now());
     return {
@@ -27,9 +30,13 @@
       discount: bill.discount || 0,
       coupon: bill.coupon_code || "",
       points: bill.points_used || 0,
-      total: bill.total,
+      total: Number(bill.total) || 0,
+      charges,
+      roundOff: Number(snap.roundOff) || 0,
+      parts,
+      app: snap.platform ? `${snap.platform.name} ${bill.external_id || ""}`.trim() : "",
       tax,
-      method: String(bill.payment_method || bill.method || "").toUpperCase(),
+      method: snap.platform ? snap.platform.name.toUpperCase() : parts.length ? "SPLIT" : String(bill.payment_method || bill.method || "").toUpperCase(),
       tendered: extra.tendered || 0,
       change: extra.tendered ? Math.max(extra.tendered - bill.total, 0) : 0,
       note: offline ? "Bill number will be issued when the shop is back online. Keep this slip." : shop.invoiceNote || "",
@@ -61,12 +68,16 @@
       ${m.table ? row("Table", esc(m.table)) : ""}
       ${m.customer ? row("Customer", esc(m.customer)) : ""}
       <hr>
-      ${m.lines.map((l) => `<div class="it">${row(`${esc(l.name)}<div class="q">${l.qty} ×</div>`, esc(money(l.amount)))}</div>`).join("")}
+      ${m.lines.map((l) => `<div class="it">${row(`${esc(l.name)}<div class="q">${Number(l.qty) || 0} ×</div>`, esc(money(l.amount)))}</div>`).join("")}
+      ${(m.charges || []).map((c) => row(esc(c.name), esc(money(c.amount)))).join("")}
       <hr>
-      ${m.discount ? row("Subtotal", esc(money(m.subtotal))) + row(`Discount${m.coupon ? ` (${esc(m.coupon)})` : ""}${m.points ? ` · ${m.points} pts` : ""}`, `−${esc(money(m.discount))}`) : ""}
-      ${m.tax.map((r) => row(`GST ${r.rate}% (CGST ${esc(money(r.cgst))} + SGST ${esc(money(r.sgst))})`, esc(money(r.tax)), "muted")).join("")}
+      ${m.discount ? row("Subtotal", esc(money(m.subtotal))) + row(`Discount${m.coupon ? ` (${esc(m.coupon)})` : ""}${m.points ? ` · ${Number(m.points) || 0} pts` : ""}`, `−${esc(money(m.discount))}`) : ""}
+      ${m.tax.map((r) => row(`GST ${Number(r.rate) || 0}% (CGST ${esc(money(r.cgst))} + SGST ${esc(money(r.sgst))})`, esc(money(r.tax)), "muted")).join("")}
+      ${m.roundOff ? row("Round off", `${m.roundOff > 0 ? "+" : "−"}${esc(money(Math.abs(m.roundOff)))}`, "muted") : ""}
       ${row("TOTAL", esc(money(m.total)), "big")}
       ${m.method ? row("Paid by", esc(m.method)) : ""}
+      ${(m.parts || []).map((p) => row(`· ${esc(p.method)}`, esc(money(p.amount)))).join("")}
+      ${m.app ? `<div class="c muted">${esc(m.app)} order · GST paid by the app</div>` : ""}
       ${m.tendered ? row("Cash given", esc(money(m.tendered))) + row("Change", esc(money(m.change))) : ""}
       ${m.number === "" && m.title === "ORDER SLIP" ? `<div class="slip">NOT A TAX INVOICE</div>` : ""}
       <hr>

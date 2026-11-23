@@ -1,4 +1,5 @@
 // Dashboard API: staff, activity log, customers, coupons, feedback and WhatsApp broadcast lists.
+import { setOwnerPin } from "./auth.js";
 import { HttpError, json, readJson } from "./http.js";
 import { checkCouponInput, favourites, listCoupons, listCustomers, saveCoupon, updateCustomer } from "./offers.js";
 import { addStaff, audit, listAudit, listStaff, logoutEveryone, updateStaff } from "./staff.js";
@@ -16,8 +17,16 @@ export async function createStaff({ env, request, user }) {
 export async function changeStaff({ env, params, request, user }) {
   const body = await readJson(request);
   const name = await updateStaff(env, env.DB, Number(params[0]), body);
-  const what = [body.role && `role ${body.role}`, body.active !== undefined && (body.active ? "switched on" : "switched off"), body.password && "new password"].filter(Boolean).join(", ");
-  await audit(env.DB, user, "staff changed", `${name}: ${what}`);
+  const what = [body.role && `role ${body.role}`, body.active !== undefined && (body.active ? "switched on" : "switched off"), body.password && "new password", body.pin !== undefined && (body.pin ? "new approval PIN" : "PIN removed")].filter(Boolean).join(", ");
+  await audit(env.DB, user, "staff changed", `${name}: ${what}`, env);
+  return json({ ok: true });
+}
+
+// The owner's own approval PIN.
+export async function ownerPin({ env, request, user }) {
+  const body = await readJson(request);
+  await setOwnerPin(env, env.DB, String(body.pin || ""));
+  await audit(env.DB, user, "approval PIN changed", "Owner");
   return json({ ok: true });
 }
 
@@ -69,7 +78,7 @@ export const coupons = async ({ env }) => json({ coupons: await listCoupons(env.
 export async function createCoupon({ env, request, user }) {
   const c = checkCouponInput(await readJson(request), null);
   await saveCoupon(env.DB, c, true);
-  await audit(env.DB, user, "coupon added", `${c.code} ${c.kind === "percent" ? `${c.value}%` : `₹${c.value / 100}`}`);
+  await audit(env.DB, user, "coupon added", `${c.code} ${c.kind === "percent" ? `${c.value}%` : `₹${c.value / 100}`}`, env);
   return json({ ok: true }, 201);
 }
 
@@ -78,7 +87,7 @@ export async function changeCoupon({ env, params, request, user }) {
   if (!existing) throw new HttpError(404, "Coupon not found");
   const c = checkCouponInput(await readJson(request), existing);
   await saveCoupon(env.DB, c, false);
-  await audit(env.DB, user, "coupon changed", c.code);
+  await audit(env.DB, user, "coupon changed", c.code, env);
   return json({ ok: true });
 }
 

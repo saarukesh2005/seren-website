@@ -104,6 +104,34 @@ SA.settings = (function () {
         ${rupeeObj("loyalty.pointValue", "Each point is worth", s.loyalty.pointValue)}
         <label class="full">Google review link <span class="help">happy customers (4–5 stars) are invited to post a review</span><input name="googleReviewUrl" value="${esc(s.googleReviewUrl)}" placeholder="https://g.page/r/..."></label>
       </fieldset>
+      <fieldset><legend>Bill extras &amp; staff limits</legend>
+        ${rupeeObj("charges.packing", "Packing charge per takeaway / delivery order", s.charges.packing)}
+        <label>Service charge for dine-in (%) <span class="help">0 = off. It is always optional for the guest: staff can remove it.</span><input name="charges.servicePercent" inputmode="decimal" value="${esc(String(s.charges.servicePercent))}"></label>
+        <div class="full">${checkObj("charges.roundOff", "Round bills to the nearest rupee", s.charges.roundOff)}</div>
+        <label>SAC code for charges<input name="charges.hsn" value="${esc(s.charges.hsn)}" inputmode="numeric" maxlength="8"></label>
+        <label>Staff may give up to (% discount) <span class="help">more needs a manager's PIN</span><input name="approvals.discountPercent" inputmode="numeric" value="${esc(String(s.approvals.discountPercent))}"></label>
+        <label>Staff may spend up to (points) <span class="help">more needs a manager's PIN</span><input name="approvals.points" inputmode="numeric" value="${esc(String(s.approvals.points))}"></label>
+        <div class="full">${checkObj("approvals.counterUpiNeedsRef", "Counter UPI bills need the UPI reference (stops \"UPI\" bills that were really cash)", s.approvals.counterUpiNeedsRef)}</div>
+        <div class="full">${checkObj("lowStockAlerts", "Tell me on Telegram when a raw material runs low", { v: s.lowStockAlerts }.v)}</div>
+      </fieldset>
+      <fieldset><legend>Kitchen stations</legend>
+        <label class="full">Stations <span class="help">comma-separated, e.g. Kitchen, Bakery, Drinks. Each gets its own kitchen screen and tickets.</span><input name="stations.list" value="${esc(s.stations.list.join(", "))}"></label>
+        <div class="full taxgrid"><b>Category</b><b>Made at</b><b></b>
+          ${Object.entries(categories).map(([k, l]) => `<span>${esc(l)}</span><select name="station:${esc(k)}">${s.stations.list.map((st) => `<option ${(s.stations.byCategory[k] || s.stations.list[0]) === st ? "selected" : ""}>${esc(st)}</option>`).join("")}</select><span></span>`).join("")}
+        </div>
+      </fieldset>
+      <fieldset><legend>Swiggy, Zomato &amp; other apps</legend>
+        <p class="full help">Orders from these apps are entered at the counter (button "Swiggy · Zomato · ONDC") or sent in automatically by a connector. Commission is only used to show what the app will pay you.</p>
+        <div class="full taxgrid"><b>App</b><b>Commission %</b><b></b>
+          ${s.platforms.map((p, i) => `<input name="plat.name:${i}" value="${esc(p.name)}" aria-label="App name"><input name="plat.comm:${i}" value="${esc(String(p.commission))}" inputmode="decimal" aria-label="${esc(p.name)} commission"><input type="hidden" name="plat.id:${i}" value="${esc(p.id)}"><span></span>`).join("")}
+          <input name="plat.name:new" placeholder="Add another app" aria-label="New app name"><input name="plat.comm:new" inputmode="decimal" placeholder="%" aria-label="New app commission"><span></span>
+        </div>
+      </fieldset>
+      <fieldset><legend>Your approval PIN</legend>
+        <p class="full help">Managers and you approve big discounts, voids and refunds at the counter with a short PIN (4–8 digits). Set managers' PINs in Staff below.</p>
+        <label>New PIN<input id="ownerPin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password"></label>
+        <div><button class="btn ghost small" type="button" id="savePin">Save my PIN</button></div>
+      </fieldset>
       <div class="save-bar"><span class="err" id="setErr" role="alert"></span><button class="btn primary" type="submit">Save settings</button></div>`;
     const f = $("#settingsForm");
     f.querySelector("#rotateTables").addEventListener("click", async () => {
@@ -113,6 +141,11 @@ SA.settings = (function () {
         SA.state.settings = settings;
         toast("Old table cards no longer work. Print the new ones.");
       } catch (ex) { toast(ex.message, true); }
+    });
+    f.querySelector("#savePin").addEventListener("click", async () => {
+      const pin = f.querySelector("#ownerPin").value.trim();
+      try { await api("/approval-pin", { pin }); f.querySelector("#ownerPin").value = ""; toast("Your approval PIN is saved"); }
+      catch (ex) { toast(ex.message, true); }
     });
     SA.staff.render();
   }
@@ -144,6 +177,19 @@ SA.settings = (function () {
     const worth = toPaise(el("loyalty.pointValue").value);
     if (Number.isNaN(earn) || Number.isNaN(worth)) throw new Error("Loyalty amounts take numbers only");
     out.loyalty = { enabled: el("loyalty.enabled").checked, earnEvery: earn || 10000, pointValue: worth || 100 };
+    const packing = toPaise(el("charges.packing").value);
+    if (Number.isNaN(packing)) throw new Error("Packing charge takes numbers only");
+    out.charges = { packing: packing || 0, servicePercent: Number(el("charges.servicePercent").value) || 0, roundOff: el("charges.roundOff").checked, hsn: el("charges.hsn").value.trim() };
+    out.approvals = { discountPercent: Number(el("approvals.discountPercent").value) || 0, points: Number(el("approvals.points").value) || 0, counterUpiNeedsRef: el("approvals.counterUpiNeedsRef").checked };
+    out.lowStockAlerts = el("lowStockAlerts").checked;
+    const list = el("stations.list").value.split(",").map((x) => x.trim()).filter(Boolean);
+    out.stations = { list, byCategory: Object.fromEntries(Object.keys(categories).map((k) => [k, el(`station:${k}`) ? el(`station:${k}`).value : list[0]]).filter(([, v]) => list.includes(v))) };
+    const apps = [];
+    const current = SA.state.settings.platforms;
+    current.forEach((p, i) => { const name = el(`plat.name:${i}`).value.trim(); if (name) apps.push({ id: p.id, name, commission: Number(el(`plat.comm:${i}`).value) || 0 }); });
+    const newName = el("plat.name:new").value.trim();
+    if (newName) apps.push({ id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 20) || "app", name: newName, commission: Number(el("plat.comm:new").value) || 0 });
+    out.platforms = apps;
     return out;
   }
 

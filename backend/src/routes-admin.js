@@ -1,45 +1,67 @@
 // Dashboard API: logging in, orders, payments, refunds, WhatsApp messages, counter bills, kitchen.
 // Every handler gets c = { request, env, ctx, url, params, user }.
-import { ROLE_NAMES, PERMS, can, checkLogin, clearCookie, sessionCookie } from "./auth.js";
+import { ROLE_NAMES, PERMS, approval, can, checkLogin, clearCookie, endSession, sessionCookie } from "./auth.js";
+import { notifyOwner } from "./notify.js";
 import { HttpError, clientIp, json, readJson } from "./http.js";
+import { crossedLow, ingredientsOfOrder, lowStockText, useStockStmts } from "./inventory.js";
 import { invoiceHtml } from "./invoice.js";
 import { kotHtml } from "./kot.js";
-import { couponAmount, getCustomer, paidCustomerStmts, pointsFor, refundCustomerStmts, reholdCouponStmts, spendPointsStmts, usableCoupon, useCouponStmt } from "./offers.js";
-import { checkCart, priceOrder } from "./pricing.js";
-import { loadCatalog, orderable } from "./products.js";
-import { TABLE } from "./settings.js";
+import { getCustomer, paidCustomerStmts, pointsFor, refundCustomerStmts, reholdCouponStmts } from "./offers.js";
 import { audit } from "./staff.js";
-import { KITCHEN_MOVES, STATUS, TO_MAKE, canConfirmPayment, canMove } from "./status.js";
-import { reholdStmts, reserveStmts, shortage } from "./stock.js";
+import { KITCHEN_MOVES, NEEDS_MANAGER_TO_CANCEL, STATUS, TO_MAKE, canConfirmPayment, canMove } from "./status.js";
+import { reholdStmts } from "./stock.js";
 import * as store from "./store.js";
 import { checkUtr } from "./upi.js";
-import { istParts, randomCode, randomToken, sha256hex } from "./util.js";
-import { ipKey, snapshot } from "./routes-public.js";
+import { addDays, istParts, rupees, sha256hex } from "./util.js";
+import { ipKey, orderPayments } from "./routes-public.js";
+import { stationFor } from "./settings.js";
 import { ORDER_CODE } from "./validate.js";
 import { fillTemplate, orderVars, sendTemplate, waMeLink } from "./whatsapp.js";
 
-const METHODS = ["upi", "cash", "card"];
+export const METHODS = ["upi", "cash", "card"];
 const STATUSES = Object.keys(STATUS);
 
 /* ---------- login ---------- */
-export async function login({ request, env }) {
+const ACCOUNT_FAILS = 30; // wrong passwords for one name from ALL addresses together, per hour
+
+export async function login({ request, env, ctx }) {
   const body = await readJson(request);
   const ip = ipKey(clientIp(request));
   const name = String(body.name || "owner").trim().toLowerCase().slice(0, 30) || "owner";
-  // only FAILED attempts count, so staff logging in at the start of a shift never lock each other out
-  const keys = [[`loginfail:${(await sha256hex(`${name}|${ip}`)).slice(0, 32)}`, 5], [`loginfail:${(await sha256hex(`ip|${ip}`)).slice(0, 32)}`, 20]];
-  for (const [key, max] of keys) if (await store.limitReached(env.DB, key, max, 900)) throw new HttpError(429, "Too many wrong tries. Wait 15 minutes.");
+  const mine = `loginfail:${(await sha256hex(`${name}|${ip}`)).slice(0, 32)}`;
+  const device = `loginfail:${(await sha256hex(`ip|${ip}`)).slice(0, 32)}`;
+  const account = `loginfail:acct:${(await sha256hex(name)).slice(0, 32)}`;
+  // Many wrong passwords for this name from everywhere: only devices that already got it wrong are stopped,
+  // so a stranger can't lock the real owner out by guessing on purpose.
+  if ((await store.limitReached(env.DB, account, ACCOUNT_FAILS, 3600)) && (await store.limitReached(env.DB, mine, 1, 900))) {
+    throw new HttpError(429, "Too many wrong passwords for this login. Wait an hour, or use another device. The owner has been told.");
+  }
+  // every try is counted before the password is checked, so a burst of guesses can't slip past the limit;
+  // a correct login takes its own try back, so staff starting a shift never lock each other out
+  if ((await store.attemptOver(env.DB, mine, 5, 900)) | (await store.attemptOver(env.DB, device, 20, 900))) {
+    throw new HttpError(429, "Too many wrong tries. Wait 15 minutes.");
+  }
   const user = await checkLogin(env, env.DB, body.name, body.password);
   if (!user) {
-    for (const [key] of keys) await store.countHit(env.DB, key, 900);
+    await store.countHit(env.DB, account, 3600);
     await audit(env.DB, null, "login failed", name);
+    if (await store.limitReached(env.DB, account, ACCOUNT_FAILS, 3600)) {
+      ctx.waitUntil(notifyOwner(env, `SEREN security: the login "${name}" got ${ACCOUNT_FAILS} wrong passwords in an hour. If this wasn't your staff, someone is guessing passwords.`));
+    }
     throw new HttpError(401, "Wrong name or password");
   }
+  await env.DB.batch([
+    env.DB.prepare("UPDATE rate_hits SET n = MAX(n - 1, 0) WHERE key = ?1").bind(mine),
+    env.DB.prepare("UPDATE rate_hits SET n = MAX(n - 1, 0) WHERE key = ?1").bind(device),
+  ]);
   await audit(env.DB, user, "logged in");
-  return json({ ok: true }, 200, { "Set-Cookie": await sessionCookie(env, user) });
+  return json({ ok: true }, 200, { "Set-Cookie": await sessionCookie(env, env.DB, user) });
 }
 
-export const logout = () => json({ ok: true }, 200, { "Set-Cookie": clearCookie() });
+export async function logout({ request, env }) {
+  await endSession(request, env.DB);
+  return json({ ok: true }, 200, { "Set-Cookie": clearCookie() });
+}
 
 export const me = ({ user }) => json({
   user: { name: user.name, role: user.role, roleName: ROLE_NAMES[user.role] },
@@ -47,8 +69,11 @@ export const me = ({ user }) => json({
 });
 
 /* ---------- orders ---------- */
-export async function orders({ env, url }) {
+const RECENT_HOURS = 48; // cashiers and kitchen see recent orders only (customer details stay private)
+
+export async function orders({ env, url, user }) {
   const p = url.searchParams;
+  const since = can(user, "customers") ? undefined : new Date(Date.now() - RECENT_HOURS * 3600000).toISOString();
   const status = p.get("status") || "";
   if (status && status !== "active" && !STATUSES.includes(status)) throw new HttpError(400, "Unknown status");
   const list = await store.listOrders(env.DB, {
@@ -56,6 +81,7 @@ export async function orders({ env, url }) {
     q: (p.get("q") || "").slice(0, 40),
     before: Number(p.get("before")) || undefined,
     limit: Math.min(Number(p.get("limit")) || 50, 200),
+    since,
   });
   return json({ orders: list, summary: await store.summary(env.DB), statuses: STATUS });
 }
@@ -67,14 +93,23 @@ export async function findOrder(env, code) {
   return order;
 }
 
-export async function order({ env, params }) {
-  const o = await findOrder(env, params[0]);
+// Cashiers and kitchen staff only open recent or still-open orders (older customer details stay private).
+export function recentOnly(user, o) {
+  if (can(user, "customers")) return o;
+  const open = ["booked", "paid", "on_tab", "preparing", "ready", "out_for_delivery", "payment_submitted", "awaiting_payment"].includes(o.status);
+  if (!open && o.created_at < new Date(Date.now() - RECENT_HOURS * 3600000).toISOString()) throw new HttpError(403, "Older orders are only shown to managers");
+  return o;
+}
+
+export async function order({ env, params, user }) {
+  const o = recentOnly(user, await findOrder(env, params[0]));
   const fb = await env.DB.prepare("SELECT stars, comment, at FROM feedback WHERE order_id = ?1").bind(o.id).first();
-  return json({ order: o, events: await store.getEvents(env.DB, o.id), statuses: STATUS, feedback: fb || null });
+  const { results: payments } = await env.DB.prepare("SELECT kind, method, amount, ref, at, actor FROM payments WHERE order_id = ?1 ORDER BY id").bind(o.id).all();
+  return json({ order: o, events: await store.getEvents(env.DB, o.id), statuses: STATUS, feedback: fb || null, payments });
 }
 
 // After money is confirmed: customer totals and loyalty points, closing a table's tab, automatic WhatsApp.
-async function afterPaid(c, code, settings) {
+export async function afterPaid(c, code, settings) {
   const o = await store.getOrder(c.env.DB, code);
   const stmts = [];
   if (o.customer_phone) stmts.push(...paidCustomerStmts(c.env.DB, o, pointsFor(settings, o.total)));
@@ -85,7 +120,14 @@ async function afterPaid(c, code, settings) {
       c.env.DB.prepare("UPDATE orders SET status = 'completed' WHERE id = ?1 AND status = 'paid'").bind(o.id),
     );
   }
-  if (stmts.length) await c.env.DB.batch(stmts);
+  // raw materials leave stock once per paid bill (see inventory.js); remember levels first to alert when one runs low
+  const before = settings.lowStockAlerts ? await ingredientsOfOrder(c.env.DB, o) : null;
+  stmts.push(...useStockStmts(c.env.DB, o));
+  await c.env.DB.batch(stmts);
+  if (before && before.size) {
+    const crossed = crossedLow(before, await ingredientsOfOrder(c.env.DB, o));
+    if (crossed.length) c.ctx.waitUntil(notifyOwner(c.env, lowStockText(crossed)));
+  }
   if (o.customer_phone && settings.waApi.enabled && o.source === "online") {
     const token = await store.addOrderLink(c.env.DB, o.id);
     const v = orderVars(o, customerLink(settings, o.code, token));
@@ -96,20 +138,39 @@ async function afterPaid(c, code, settings) {
 
 const customerLink = (settings, code, token) => `${settings.siteUrl.replace(/\/?$/, "/")}order.html#${code}.${token}`;
 
+// Checks a split payment: [{ method, amount, ref }] adding up to exactly what is due.
+export function checkSplit(raw, due) {
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > 4) throw new HttpError(400, "Split into 1 to 4 payments");
+  const parts = raw.map((p) => ({ method: p?.method, amount: Number(p?.amount), ref: String(p?.ref || "").replace(/[^A-Za-z0-9-]/g, "").slice(0, 40) }));
+  if (parts.some((p) => !METHODS.includes(p.method) || !Number.isInteger(p.amount) || p.amount <= 0)) throw new HttpError(400, "Each part needs cash, UPI or card and an amount");
+  if (parts.reduce((n, p) => n + p.amount, 0) !== due) throw new HttpError(400, `The parts must add up to ${rupees(due)}`);
+  return parts;
+}
+const mainMethod = (parts) => [...parts].sort((a, b) => b.amount - a.amount)[0].method;
+
 export async function confirm(c) {
   const { env, params, user } = c;
   const o = await findOrder(env, params[0]);
   const body = await readJson(c.request);
-  if (!METHODS.includes(body.method)) throw new HttpError(400, "Choose UPI, cash or card");
   if (!canConfirmPayment(o.status)) throw new HttpError(409, `This order is already "${STATUS[o.status]}"`);
+  const due = Math.max(o.total - (o.advance || 0), 0);
+  const parts = body.split ? checkSplit(body.split, due) : null;
+  const method = parts ? mainMethod(parts) : body.method;
+  if (!METHODS.includes(method)) throw new HttpError(400, "Choose UPI, cash or card");
+  // an online order marked as cash/card has no bank proof: a manager must agree
+  let approvedBy = "";
+  if (o.source === "online" && (parts ? parts.some((p) => p.method !== "upi") : method !== "upi")) {
+    approvedBy = await approval(env, env.DB, user, body, "Marking an online order as paid in cash or card", store);
+  }
   let utr = null;
-  if (body.method === "upi" && (body.utr || !o.utr)) {
-    const u = checkUtr(body.utr);
+  const upiPart = parts ? parts.find((p) => p.method === "upi") : null;
+  if ((!parts && method === "upi" && (body.utr || !o.utr)) || (upiPart && upiPart.ref)) {
+    const u = checkUtr(parts ? upiPart.ref : body.utr);
     if (u.error) throw new HttpError(400, u.error);
     utr = u.value;
   }
   const settings = await store.getSettings(env.DB);
-  const result = await store.confirmPayment(env.DB, o, { method: body.method, utr, prefix: settings.invoicePrefix, actor: user.name });
+  const result = await store.confirmPayment(env.DB, o, { method, utr, prefix: settings.invoicePrefix, actor: user.name, payments: parts });
   if (result === "taken") throw new HttpError(409, "That UPI reference is already on another order");
   if (result === "stale") throw new HttpError(409, "Someone else just changed this order. Refresh and try again.");
   if (o.status === "expired") {
@@ -123,7 +184,7 @@ export async function confirm(c) {
     ]);
   }
   const paid = await afterPaid(c, o.code, settings);
-  await audit(env.DB, user, "confirmed payment", `${o.code} ${paid.invoice_no} ${body.method}`);
+  await audit(env.DB, user, "confirmed payment", `${o.code} ${paid.invoice_no} ${parts ? parts.map((p) => p.method).join("+") : method}${approvedBy && approvedBy !== user.name ? ` · OK by ${approvedBy}` : ""}`, env);
   return json({ order: paid });
 }
 
@@ -136,8 +197,17 @@ export async function move(c) {
   if (to === "cancelled" && o.invoice_no) throw new HttpError(409, "This order was paid. Use Refund, so the accounts get a credit note.");
   if (!canMove(o.status, to)) throw new HttpError(409, `Can't move from "${STATUS[o.status]}" to "${STATUS[to] || to}"`);
   const note = String(body.note || "").trim().slice(0, 200);
+  let approvedBy = "";
+  if (to === "cancelled" && NEEDS_MANAGER_TO_CANCEL.includes(o.status)) approvedBy = await approval(env, env.DB, user, body, "Cancelling food already sent to the kitchen", store);
+  // giving back a cake advance: how the money went back
+  const advanceBack = to === "cancelled" && o.advance > 0;
+  if (advanceBack && ![...METHODS, "store_credit"].includes(body.refundMethod)) throw new HttpError(400, `How was the advance of ${rupees(o.advance)} given back?`);
   if (!(await store.moveStatus(env.DB, o, to, note, user.name))) throw new HttpError(409, "Someone else just changed this order. Refresh and try again.");
-  if (to === "cancelled") await audit(env.DB, user, "cancelled order", o.code);
+  if (advanceBack) {
+    await env.DB.prepare("INSERT INTO payments (order_id, kind, method, amount, ref, at, actor, shift_id) VALUES (?1, 'refund', ?2, ?3, '', ?4, ?5, (SELECT id FROM shifts WHERE closed_at IS NULL))")
+      .bind(o.id, body.refundMethod, o.advance, new Date().toISOString(), user.name).run();
+  }
+  if (to === "cancelled") await audit(env.DB, user, "cancelled order", `${o.code}${note ? ` (${note})` : ""}${advanceBack ? ` · advance ${rupees(o.advance)} back by ${body.refundMethod}` : ""}${approvedBy && approvedBy !== user.name ? ` · OK by ${approvedBy}` : ""}`, env);
   const settings = await store.getSettings(env.DB);
   if (["ready", "out_for_delivery"].includes(to) && o.customer_phone && settings.waApi.enabled && settings.waApi.readyTemplate && o.mode !== "dinein") {
     const v = orderVars(o, "");
@@ -158,19 +228,27 @@ export async function refund({ env, params, request, user }) {
   const body = await readJson(request);
   if (!o.invoice_no) throw new HttpError(409, "Only paid orders can be refunded. Cancel it instead.");
   if (o.credit_note_no) throw new HttpError(409, "Already refunded");
-  if (![...METHODS, "store_credit"].includes(body.method)) throw new HttpError(400, "How was the money returned?");
+  if (![...METHODS, "store_credit", "platform"].includes(body.method)) throw new HttpError(400, "How was the money returned?");
   const ref = String(body.ref || "").replace(/[\u0000-\u001f]/g, "").trim().slice(0, 40);
   const settings = await store.getSettings(env.DB);
+  // points this bill earned that the customer has already spent can't be taken back: don't refund them as money too
+  if (o.points_earned > 0 && o.customer_phone) {
+    const cust = await getCustomer(env.DB, o.customer_phone);
+    const spent = Math.max(o.points_earned - (cust ? cust.points : 0), 0);
+    if (spent && !(user.role === "owner" && body.pointsOk === true)) {
+      throw new HttpError(409, `The customer already used ${spent} points earned on this bill (worth ${rupees(spent * settings.loyalty.pointValue)}). Give back that much less, then the owner can finish the refund.`, { pointsSpent: spent });
+    }
+  }
   const result = await store.refundOrder(env.DB, o, { method: body.method, ref, prefix: settings.invoicePrefix, actor: user.name, extra: refundCustomerStmts(env.DB, o) });
   if (result === "stale") throw new HttpError(409, "Someone else just changed this order. Refresh and try again.");
   const after = await store.getOrder(env.DB, o.code);
-  await audit(env.DB, user, "refunded", `${o.code} ${o.invoice_no} → ${after.credit_note_no} ${body.method}`);
+  await audit(env.DB, user, "refunded", `${o.code} ${o.invoice_no} → ${after.credit_note_no} ${body.method}`, env);
   return json({ order: after });
 }
 
 // A WhatsApp message ready to send to the customer (opens the owner's WhatsApp; free).
 export async function whatsappLink({ env, params, request, user }) {
-  const o = await findOrder(env, params[0]);
+  const o = recentOnly(user, await findOrder(env, params[0]));
   const body = await readJson(request);
   const settings = await store.getSettings(env.DB);
   const template = settings.waTemplates[body.kind];
@@ -182,122 +260,49 @@ export async function whatsappLink({ env, params, request, user }) {
   return json({ url: waMeLink(o.customer_phone, text), text });
 }
 
-/* ---------- counter bills ---------- */
-// A bill for a walk-in customer: created already paid, with its invoice number. Coupons and loyalty points work here.
-export async function counterSale(c) {
-  const { env, request, user } = c;
-  const body = await readJson(request);
-  // The counter app gives every bill its own id. If the same bill is sent twice (e.g. syncing after
-  // the internet came back), we return the bill already saved instead of making a second one.
-  const clientRef = body.clientRef === undefined ? null : String(body.clientRef);
-  if (clientRef !== null && !/^[A-Za-z0-9-]{8,40}$/.test(clientRef)) throw new HttpError(400, "Bad bill id");
-  if (clientRef) {
-    const existing = await env.DB.prepare("SELECT code FROM orders WHERE client_ref = ?1").bind(clientRef).first();
-    if (existing) return json({ order: await store.getOrder(env.DB, existing.code), duplicate: true });
-  }
-  const offlineAt = typeof body.offlineAt === "string" && !Number.isNaN(Date.parse(body.offlineAt)) ? new Date(body.offlineAt) : null;
-  const settings = await store.getSettings(env.DB);
-  const cart = checkCart(body.items);
-  if (cart.error) throw new HttpError(400, cart.error);
-  if (!METHODS.includes(body.method)) throw new HttpError(400, "Choose UPI, cash or card");
-  let utr = null;
-  if (body.method === "upi" && body.utr) {
-    const u = checkUtr(body.utr);
-    if (u.error) throw new HttpError(400, u.error);
-    utr = u.value;
-  }
-  if (utr && (await env.DB.prepare("SELECT 1 FROM orders WHERE utr = ?1").bind(utr).first())) throw new HttpError(409, "That UPI reference is already on another order");
-  const gstin = String(body.gstin || "").trim().toUpperCase();
-  if (gstin && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstin)) throw new HttpError(400, "Customer GSTIN doesn't look right");
-  const phone = String(body.phone || "").replace(/\D/g, "").slice(-10);
-  const validPhone = /^[6-9]\d{9}$/.test(phone) ? phone : "";
-  const table = String(body.table || "").trim();
-  if (table && !TABLE.test(table)) throw new HttpError(400, "Table: up to 10 letters or numbers");
-
-  let coupon = null;
-  if (body.coupon) {
-    const found = await usableCoupon(env.DB, body.coupon, validPhone);
-    if (found.error) throw new HttpError(400, found.error);
-    coupon = found.coupon;
-  }
-  // loyalty points: only staff can spend them (they can see the customer in front of them)
-  const points = Number(body.points) || 0;
-  if (points) {
-    if (!settings.loyalty.enabled) throw new HttpError(400, "Loyalty points are switched off");
-    if (!validPhone) throw new HttpError(400, "Add the customer's mobile number to use points");
-    if (!Number.isInteger(points) || points < 0) throw new HttpError(400, "Points must be a whole number");
-    const cust = await getCustomer(env.DB, validPhone);
-    if (!cust || cust.points < points) throw new HttpError(400, `This customer has ${cust ? cust.points : 0} points`);
-  }
-
-  const [prices, catalog] = await Promise.all([store.getPrices(env.DB), loadCatalog(env.DB)]);
-  const priced = priceOrder(cart.value, orderable(catalog), prices, settings, "counter", {
-    ...(coupon ? { coupon: (t) => couponAmount(coupon, t) } : {}),
-    points: points * settings.loyalty.pointValue,
-  });
-  if (priced.error) throw new HttpError(409, priced.error);
-  const usedPoints = settings.loyalty.pointValue ? Math.ceil(priced.value.pointsDiscount / settings.loyalty.pointValue) : 0;
-  // price check only (the counter app shows the exact amount on the UPI QR before the customer pays)
-  if (c.quote) {
-    return json({ quote: { total: priced.value.total, subtotal: priced.value.subtotal, discount: priced.value.discount, pointsUsed: usedPoints,
-      couponCode: coupon ? coupon.code : "", lines: priced.value.lines.map((l) => ({ id: l.id, name: l.name, qty: l.qty, amount: l.gross })) } });
-  }
-  const code = `SRN-${randomCode()}`;
-  const today = istParts();
-  const extra = [
-    ...reserveStmts(env.DB, code, priced.value.lines, today.date, prices),
-    ...(coupon ? [useCouponStmt(env.DB, coupon.code)] : []),
-    ...(usedPoints ? spendPointsStmts(env.DB, validPhone, usedPoints, code) : []),
-  ];
-  const saved = await store.createOrder(env.DB, {
-    code, tokenHash: await sha256hex(randomToken()), source: "counter", status: "awaiting_payment",
-    name: String(body.name || "").replace(/[\u0000-\u001f]/g, "").trim().slice(0, 60), phone: validPhone, gstin,
-    mode: table ? "dinein" : "counter", table, date: today.date, time: today.time,
-    lines: priced.value.lines, subtotal: priced.value.subtotal, discount: priced.value.discount, couponCode: coupon ? coupon.code : "",
-    pointsUsed: usedPoints, total: priced.value.total, taxSnapshot: snapshot(settings, priced.value), paymentMethod: body.method,
-    optIn: body.optIn === true && Boolean(validPhone), channel: "counter", actor: user.name, clientRef,
-    notes: offlineAt ? `Billed offline at ${offlineAt.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}` : "",
-    expiresAt: new Date(Date.now() + 30 * 60000).toISOString(), // only matters if confirming below fails
-  }, extra);
-  if (saved.error === "duplicate") {
-    const existing = await env.DB.prepare("SELECT code FROM orders WHERE client_ref = ?1").bind(clientRef).first();
-    return json({ order: await store.getOrder(env.DB, existing.code), duplicate: true });
-  }
-  if (saved.error === "points") throw new HttpError(409, "Not enough points");
-  if (saved.error === "coupon") throw new HttpError(409, "That code has just been fully used");
-  if (saved.error) throw new HttpError(409, (await shortage(env.DB, priced.value.lines, today.date, prices)) || "Something is sold out");
-  const created = await store.getOrder(env.DB, code);
-  const result = await store.confirmPayment(env.DB, created, { method: body.method, utr, prefix: settings.invoicePrefix, actor: user.name });
-  if (result === "taken") {
-    await store.moveStatus(env.DB, created, "cancelled", "UPI reference already used", "system");
-    throw new HttpError(409, "That UPI reference is already on another order");
-  }
-  const paid = await afterPaid(c, code, settings);
-  await audit(env.DB, user, "counter bill", `${code} ${paid.invoice_no} ${body.method}${usedPoints ? ` · ${usedPoints} points of ${validPhone}` : ""}`);
-  return json({ order: paid }, 201);
-}
-
 /* ---------- printouts and kitchen ---------- */
-export async function invoice({ env, params, url }, renderHtml) {
-  const o = await findOrder(env, params[0]);
-  return renderHtml(invoiceHtml(o, { size: url.searchParams.get("size") }));
+export async function invoice({ env, params, url, user }, renderHtml) {
+  const o = recentOnly(user, await findOrder(env, params[0]));
+  return renderHtml(invoiceHtml(o, { size: url.searchParams.get("size"), payments: await orderPayments(env.DB, o.id) }));
 }
 
-export async function creditNote({ env, params, url }, renderHtml) {
-  const o = await findOrder(env, params[0]);
+// The advance receipt of a cake / advance order.
+export async function advanceReceipt({ env, params, url, user }, renderHtml) {
+  const o = recentOnly(user, await findOrder(env, params[0]));
+  if (!o.receipt_no) throw new HttpError(404, "No advance on this order");
+  return renderHtml(invoiceHtml(o, { size: url.searchParams.get("size") || "80mm", advance: true, payments: await orderPayments(env.DB, o.id) }));
+}
+
+export async function creditNote({ env, params, url, user }, renderHtml) {
+  const o = recentOnly(user, await findOrder(env, params[0]));
   if (!o.credit_note_no) throw new HttpError(404, "No credit note for this order");
-  return renderHtml(invoiceHtml(o, { size: url.searchParams.get("size"), credit: true }));
+  return renderHtml(invoiceHtml(o, { size: url.searchParams.get("size"), credit: true, payments: await orderPayments(env.DB, o.id) }));
 }
 
-export async function kot({ env, params, url }, renderHtml) {
-  const o = await findOrder(env, params[0]);
+export async function kot({ env, params, url, user }, renderHtml) {
+  const o = recentOnly(user, await findOrder(env, params[0]));
   // the kitchen screen prints tickets through a hidden frame on the same site
-  return renderHtml(kotHtml(o, { autoprint: url.searchParams.get("print") === "1" }), 200, { "X-Frame-Options": "SAMEORIGIN" });
+  const settings = await store.getSettings(env.DB);
+  const station = settings.stations.list.includes(url.searchParams.get("station")) ? url.searchParams.get("station") : "";
+  return renderHtml(kotHtml(o, { autoprint: url.searchParams.get("print") === "1", station, stationOf: (l) => stationFor(settings, l.category) }), 200, { "X-Frame-Options": "SAMEORIGIN" });
 }
 
-// What the kitchen should be making, earliest first.
+// What the kitchen should be making, earliest first. Each line says which station makes it;
+// cake / advance bookings show from the day before they are due.
 export async function kitchen({ env }) {
-  const list = (await store.listOrders(env.DB, { statuses: [...TO_MAKE, "ready"], limit: 100 })).filter((o) => o.channel !== "tab");
+  const settings = await store.getSettings(env.DB);
+  const tomorrow = addDays(istParts().date, 1);
+  const list = (await store.listOrders(env.DB, { statuses: [...TO_MAKE, "ready", "booked"], limit: 150 }))
+    .filter((o) => o.channel !== "tab" && (o.status !== "booked" || o.slot_date <= tomorrow));
   const sorted = [...list].sort((a, b) => `${a.slot_date} ${a.slot_time}`.localeCompare(`${b.slot_date} ${b.slot_time}`) || a.id - b.id);
-  return json({ orders: sorted.map((o) => ({ code: o.code, status: o.status, mode: o.mode, table: o.table_no, name: o.customer_name, date: o.slot_date, time: o.slot_time, notes: o.notes, lines: o.lines.map((l) => ({ name: l.name, qty: l.qty })), createdAt: o.created_at, paid: Boolean(o.invoice_no), tab: o.channel === "table" })), statuses: STATUS });
+  return json({
+    stations: settings.stations.list,
+    orders: sorted.map((o) => ({
+      code: o.code, status: o.status, mode: o.mode, table: o.table_no, name: o.customer_name, date: o.slot_date, time: o.slot_time, notes: o.notes,
+      cakeMessage: o.cake_message, app: o.tax_snapshot.platform ? o.tax_snapshot.platform.name : "", appOrder: o.external_id || "",
+      lines: o.lines.map((l) => ({ name: l.name, qty: l.qty, station: stationFor(settings, l.category) })),
+      createdAt: o.created_at, paid: Boolean(o.invoice_no), tab: o.channel === "table",
+    })),
+    statuses: STATUS,
+  });
 }

@@ -16,6 +16,7 @@ async function login(b, name, password, device = "iPhone 13") {
   const p = await b.newPage();
   if (device) await p.emulate(puppeteer.KnownDevices[device]); else await p.setViewport({ width: 1280, height: 900 });
   p.errs = [];
+  p.on("dialog", (d) => d.accept()); // "Add the service charge?" and other confirmations
   p.on("pageerror", (e) => p.errs.push(e.message));
   p.on("console", (m) => { if (m.type() === "error" && !/status of 40[0-9]/.test(m.text())) p.errs.push(m.text()); });
   await p.goto(`${BASE}/admin/`, { waitUntil: "networkidle0" });
@@ -37,9 +38,9 @@ const tab = async (p, name) => { await p.evaluate((n) => document.querySelector(
   await o.evaluate(async (t) => fetch("/api/admin/settings", { method: "POST", headers: { "X-Seren": "1", "Content-Type": "application/json" }, body: JSON.stringify({ dineIn: true, dineInPayLater: true, dineInTables: `1, 2, ${t}` }) }), T);
   const links = await o.evaluate(async () => (await (await fetch("/api/admin/table-links", { headers: { "X-Seren": "1" } })).json()).links);
   const t2 = new URL(links.find((l) => l.table === T).url);
-  await o.evaluate(async (t) => fetch(`/api/admin/tables/${t}/open`, { method: "POST", headers: { "X-Seren": "1", "Content-Type": "application/json" }, body: "{}" }), T);
+  const seated = await o.evaluate(async (t) => (await fetch(`/api/admin/tables/${t}/open`, { method: "POST", headers: { "X-Seren": "1", "Content-Type": "application/json" }, body: "{}" })).json(), T);
   await fetch(`${BASE}/api/tables/${T}/call`, { method: "POST", headers: { "Content-Type": "application/json", Origin: "http://localhost:4321" }, body: JSON.stringify({ k: t2.searchParams.get("k"), kind: "waiter" }) });
-  await fetch(`${BASE}/api/orders`, { method: "POST", headers: { "Content-Type": "application/json", Origin: "http://localhost:4321" }, body: JSON.stringify({ name: "Kiran", mode: "dinein", table: T, payLater: true, k: t2.searchParams.get("k"), items: [{ id: "bomb-tiramisu", qty: 2 }] }) });
+  await fetch(`${BASE}/api/orders`, { method: "POST", headers: { "Content-Type": "application/json", Origin: "http://localhost:4321" }, body: JSON.stringify({ name: "Kiran", mode: "dinein", table: T, payLater: true, k: t2.searchParams.get("k"), pin: seated.pin, items: [{ id: "bomb-vanilla", qty: 2 }] }) });
 
   await tab(o, "tables");
   check("tables tab shows the waiter call", (await o.$eval("#callList", (e) => e.textContent)).includes(`Table ${T}`));
@@ -122,7 +123,7 @@ const tab = async (p, name) => { await p.evaluate((n) => document.querySelector(
   const ctx = await b.createBrowserContext(); // separate cookies from the owner's
   const c = await login(ctx, `Sam${sfx}`, "counter-pass-9");
   const visible = await c.$$eval(".tabs [data-tab]", (els) => els.filter((e) => !e.hidden).map((e) => e.dataset.tab));
-  check("cashier sees orders, tables and new bill only", JSON.stringify(visible) === JSON.stringify(["orders", "tables", "counter"]), JSON.stringify(visible));
+  check("cashier sees orders, tables, new bill and the cash drawer only", JSON.stringify(visible) === JSON.stringify(["orders", "tables", "counter", "cash"]), JSON.stringify(visible));
   check("no script errors (cashier)", c.errs.length === 0, c.errs.join(" | "));
 
   // kitchen screen on a tablet

@@ -28,8 +28,28 @@ window.POS = (function () {
     let data = {};
     try { data = await res.json(); } catch (e) { /* not JSON */ }
     if (res.status === 401 && path !== "/login") emit("logout");
-    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    if (!res.ok) {
+      const err = new Error(data.error || `Request failed (${res.status})`);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
     return data;
+  }
+
+  /**
+   * Some actions need a manager's OK (big discount, many points, cancelling food from the kitchen). When the
+   * order system asks for it, a manager types their name and PIN right here and the same request is sent again.
+   */
+  async function withApproval(send, body) {
+    try {
+      return await send(body);
+    } catch (e) {
+      if (!(e.data && e.data.needApproval) || !window.POSX) throw e;
+      const ok = await POSX.askManager(e.data.what || e.message, e.data.error);
+      if (!ok) throw new Error("Cancelled: needs a manager's OK");
+      return withApproval(send, { ...body, approval: ok });
+    }
   }
 
   /* ---------- products and settings, kept on this PC for offline billing ---------- */
@@ -69,8 +89,11 @@ window.POS = (function () {
   /* ---------- bills ---------- */
   const newRef = () => `POS-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
 
+  // The exact price from the order system. Returns { quote, body } — body carries any manager approval given.
   async function quote(payload) {
-    return (await api("/counter/quote", payload)).quote;
+    let sent = payload;
+    const res = await withApproval((b) => { sent = b; return api("/counter/quote", b); }, payload);
+    return { quote: res.quote, body: sent };
   }
 
   // Sends a bill. If the internet is down, the bill waits in the queue (same id, so it's never saved twice).
@@ -83,7 +106,10 @@ window.POS = (function () {
     } catch (e) {
       if (!(e instanceof NetworkError)) throw e;
       setOnline(false);
-      const queued = { ...bill, offlineAt: new Date().toISOString(), estimate: payload.estimate };
+      // who rang it up is kept, because someone else may be logged in when it is finally sent
+      const who = (window.POSApp && POSApp.user && POSApp.user.name) || "";
+      const { approval: _pin, ...safe } = bill; // a manager's PIN is never stored on the PC
+      const queued = { ...safe, offlineAt: new Date().toISOString(), estimate: payload.estimate, rungBy: who };
       write(KEYS.queue, [...queue(), queued]);
       emit("queue", queue());
       return { offline: true, bill: queued };
@@ -113,7 +139,13 @@ window.POS = (function () {
       emit("queue", queue());
     }
   }
-  function dropQueued(ref) { write(KEYS.queue, queue().filter((b) => b.clientRef !== ref)); emit("queue", queue()); }
+  // Removing a bill the order system refused: the owner sees it in the activity log.
+  function dropQueued(ref) {
+    const bill = queue().find((b) => b.clientRef === ref);
+    write(KEYS.queue, queue().filter((b) => b.clientRef !== ref));
+    emit("queue", queue());
+    if (bill) api("/counter/dropped", { clientRef: ref, estimate: Number(bill.estimate) || 0, problem: String(bill.problem || "").slice(0, 120), rungBy: String(bill.rungBy || "") }).catch(() => { /* logged next time */ });
+  }
   setInterval(() => { if (queue().length) sync(); }, 15000);
 
   /* ---------- held bills and favourites (this PC only) ---------- */
@@ -126,7 +158,7 @@ window.POS = (function () {
   const setPrefs = (p) => write(KEYS.prefs, { ...prefs(), ...p });
 
   return {
-    api, refresh, sync, quote, sendBill, queue, dropQueued, hold, unhold, held, favs, countSale, prefs, setPrefs, on,
+    api, withApproval, refresh, sync, quote, sendBill, queue, dropQueued, hold, unhold, held, favs, countSale, prefs, setPrefs, on,
     get catalog() { return catalog; }, get settings() { return settings; }, get online() { return online; }, sellable, NetworkError,
   };
 })();

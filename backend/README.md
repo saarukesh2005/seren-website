@@ -30,7 +30,22 @@ Walk-in customers: use **New bill** in the dashboard. Pick products, take cash /
 - **Feedback**: 1–5 stars on the order page; 4–5 star customers are invited to your Google review page.
 - **Reports**: sales by day and hour, best sellers, payment split, coupons, refunds, rating; printable **day closing** with the cash expected in the drawer.
 - **Products**: rename, describe, add photos, hide, or add new products from the dashboard; the website updates by itself.
-- **Backups**: download any time; sent to Telegram every night if Telegram is set up.
+- **Backups**: download any time; sent to Telegram every night if Telegram is set up. Set the secret `BACKUP_PASSWORD` (12+ characters) and the nightly file is locked; open it with `node tools/open-backup.mjs <file>`.
+
+### Added in the "final product" upgrade
+
+- **Sizes, flavours and add-ons** for any item (Menu → edit product → Sizes & add-ons). Extra prices are added automatically, on the website, the counter, the kitchen ticket and the bill.
+- **Split payments**: one bill paid part cash, part UPI or card (counter **F5**, or "Split" when confirming an order).
+- **Packing charge, optional service charge, round-off to the rupee** (Settings → Bill extras). Service charge is never forced: staff remove it if the guest asks.
+- **Manager's OK**: big discounts, spending many points, cancelling food already sent to the kitchen, and marking an online order as cash need a manager's name and PIN. Set your own PIN in Settings and managers' PINs in Staff.
+- **Cake / advance orders**: book at the counter with a pickup date, the message on the cake and an advance. You get an advance receipt (its own RV/ number series); the tax invoice is made when the customer collects and pays the rest.
+- **Swiggy, Zomato, ONDC, Magicpin in one place**: enter the app's order at the counter ("Swiggy · Zomato · ONDC" button). It goes to the kitchen screen, can't be entered twice, has no GST on your bill (the app pays it under section 9(5)), and the reports show what each app owes you after commission. An automatic connector can post orders to `/api/hooks/orders` once you set the secret `APP_ORDERS_TOKEN` (see Notes).
+- **Cash drawer (Cash tab)**: open the drawer with a float, record cash in and out, close with a blind count; the owner is told if it's over or short.
+- **Expenses** (milk, gas, packaging…) and a **GST pack for your accountant** (B2B, B2CS, HSN summary, credit notes, app orders, documents issued, turnover warning before the ₹5 crore e-invoice limit) in Reports.
+- **Raw-material stock (Stock tab)**: ingredients, recipes per item (private, never shown to customers), purchases with supplier bills, wastage, stock counts, food cost %, and a Telegram alert when something runs low.
+- **Kitchen stations**: each section goes to Kitchen, Bakery or Drinks (Settings); the kitchen screen and tickets can show one station.
+- **Tables**: a 4-digit **table PIN** is made when staff seat guests (tell it to them; pay-at-the-end needs it), **move or join tables**, and **waiters take orders on their phone** (Tables → Take order).
+- **WhatsApp bill**: after a counter bill with the customer's mobile, one tap opens WhatsApp with their bill link ready.
 
 ## The dashboard
 
@@ -81,6 +96,9 @@ node test/api.mjs                        # API checks against the local backend
 node test/upgrade.mjs                    # staff, stock, coupons, loyalty, refunds, tables, WhatsApp, reports
 node test/admin-ui.cjs /tmp              # dashboard in a headless browser
 node test/admin-ui2.cjs /tmp             # the newer dashboard screens and the kitchen screen
+node test/final.mjs                      # options, charges, manager OK, split, cake advances, app orders, table PINs, security
+node test/money.mjs                      # cash drawer, expenses, GST pack, day closing
+node test/inventory.mjs                  # raw-material stock, recipes, purchases
 ```
 
 Website against the local backend:
@@ -100,4 +118,6 @@ Build again **without** `SEREN_API` before pushing.
 - **GST.** Bills are worked out as intra-state sales (CGST + SGST). Ask your accountant which HSN codes and rates to use.
 - **Don't change `SESSION_SECRET` casually.** Staff passwords and the printed table QR cards are tied to it. Changing it logs everyone out, means every staff password must be set again, and needs new table cards. If it ever leaks, change it and do all three.
 - **Pay at the end** only works once staff open the table ("Seat a table" in the Tables tab), so a photo of a table card can't be used to order on credit from elsewhere. The tab closes when its bill is paid.
-- **Loyalty points** are spent at the counter by mobile number. Check it's really the customer (their name shows up). Every use is in the activity log. If a refunded order's points were already spent, they aren't taken back.
+- **Security, in short**: staff sessions end on logout; changing `ADMIN_PASSWORD` logs the owner out everywhere; 30 wrong passwords for one login in an hour lock that login on the guessing devices and alert you; Cloudflare's own rate limiter stops floods before they reach the database; a few unpaid orders per phone number at most; bills and kitchen tickets only run their own scripts; the counter PC opens offline only with the last password used there.
+- **App connector (optional)**: only if you sign up with a middleman such as UrbanPiper that forwards Swiggy/Zomato orders. Create a long random token, `npx wrangler secret put APP_ORDERS_TOKEN`, and give the connector `https://<your-worker>.workers.dev/api/hooks/orders` with the header `Authorization: Bearer <token>`. Send items by SEREN product id: `{ "platform": "swiggy", "externalId": "…", "mode": "delivery", "items": [{ "id": "bomb-vanilla", "qty": 2 }] }`. Without the secret this address is closed.
+- **Loyalty points** are spent at the counter by mobile number. Check it's really the customer (their name shows up). Every use is in the activity log. If a bill's points were already spent, its refund is stopped until the owner gives back that much less (so a refund can never pay out twice).

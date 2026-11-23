@@ -1,15 +1,21 @@
 // Staff accounts and the activity log (who did what, when).
-import { bumpOwnerEpoch, hashPassword } from "./auth.js";
+import { bumpOwnerEpoch, checkPin, hashPassword, hashPin } from "./auth.js";
 import { HttpError } from "./http.js";
+import { notifyOwner } from "./notify.js";
 import { randomToken } from "./util.js";
 
 const now = () => new Date().toISOString();
 const NAME = /^[\p{L}\p{N} .'-]{2,30}$/u;
 const ROLES = ["manager", "cashier", "kitchen"];
 
-export async function audit(db, user, action, detail = "") {
+// Actions the owner hears about on their phone (Telegram) when someone else does them.
+const ALERT = new Set(["cancelled order", "refunded", "confirmed payment", "price changed", "price removed", "coupon added", "coupon changed",
+  "manager approved", "offline bill removed", "app order", "shift closed", "cash taken out", "aggregator order cancelled", "staff changed"]);
+
+export async function audit(db, user, action, detail = "", env = null) {
   await db.prepare("INSERT INTO audit (at, actor, action, detail) VALUES (?1, ?2, ?3, ?4)")
     .bind(now(), user ? user.name : "system", action, String(detail).slice(0, 300)).run();
+  if (env && user && user.role !== "owner" && ALERT.has(action)) await notifyOwner(env, `SEREN: ${user.name} — ${action}: ${String(detail).slice(0, 300)}`);
 }
 
 export async function listAudit(db, { before, limit = 100 } = {}) {
@@ -20,7 +26,7 @@ export async function listAudit(db, { before, limit = 100 } = {}) {
 }
 
 export async function listStaff(db) {
-  const { results } = await db.prepare("SELECT id, name, role, active, created_at FROM staff ORDER BY active DESC, name").all();
+  const { results } = await db.prepare("SELECT id, name, role, active, created_at, pin_hash IS NOT NULL AS has_pin FROM staff ORDER BY active DESC, name").all();
   return results;
 }
 
@@ -62,12 +68,24 @@ export async function updateStaff(env, db, id, body) {
     add("salt", salt);
     add("pass_hash", await hashPassword(env, body.password, salt));
   }
+  if (body.pin !== undefined) {
+    if (body.pin === "") { add("pin_hash", null); add("pin_salt", null); }
+    else {
+      checkPin(body.pin);
+      const pinSalt = randomToken(12);
+      add("pin_salt", pinSalt);
+      add("pin_hash", await hashPin(env, body.pin, pinSalt));
+    }
+  }
   args.push(id);
-  await db.prepare(`UPDATE staff SET ${sets.join(", ")} WHERE id = ?${args.length}`).bind(...args).run();
+  await db.batch([
+    db.prepare(`UPDATE staff SET ${sets.join(", ")} WHERE id = ?${args.length}`).bind(...args),
+    db.prepare("DELETE FROM sessions WHERE user_id = ?1").bind(id),
+  ]);
   return row.name;
 }
 
 export async function logoutEveryone(db) {
   await bumpOwnerEpoch(db);
-  await db.prepare("UPDATE staff SET session_version = session_version + 1").run();
+  await db.batch([db.prepare("UPDATE staff SET session_version = session_version + 1"), db.prepare("DELETE FROM sessions")]);
 }

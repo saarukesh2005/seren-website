@@ -6,7 +6,7 @@ window.POSUI = (function () {
   const { money } = SerenReceipt;
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const channel = "BroadcastChannel" in window ? new BroadcastChannel("seren-pos") : null;
-  let cart = {};          // id -> qty
+  let cart = {};          // line key ("id|choices") -> { id, opts, qty }
   let cat = "fav";
   let query = "";
   let quoteTotal = null;  // exact total from the order system (after coupon / points), when known
@@ -14,12 +14,34 @@ window.POSUI = (function () {
 
   const items = () => POS.sellable();
   const byId = () => new Map(items().map((i) => [i.id, i]));
-  const lines = () => { const m = byId(); return Object.entries(cart).filter(([id]) => m.has(id)).map(([id, qty]) => ({ ...m.get(id), qty })); };
+  // the chosen options of an item: names and extra price
+  function chosen(item, opts) {
+    const out = [];
+    for (const g of item.options || []) for (const ch of g.choices) if (opts.includes(`${g.id}-${ch.id}`)) out.push(ch);
+    return out;
+  }
+  const keyOf = (id, opts) => `${id}|${[...opts].sort().join(",")}`;
+  // old held bills stored plain quantities
+  const normal = (c) => Object.fromEntries(Object.entries(c || {}).map(([k, v]) => [typeof v === "number" ? keyOf(k, []) : k, typeof v === "number" ? { id: k, opts: [], qty: v } : v]));
+  const lines = () => {
+    const m = byId();
+    return Object.entries(cart).filter(([, v]) => m.has(v.id)).map(([key, v]) => {
+      const item = m.get(v.id);
+      const ch = chosen(item, v.opts);
+      return { ...item, key, qty: v.qty, opts: v.opts, choices: ch.map((c) => c.name), price: item.price + ch.reduce((n, c) => n + c.price, 0) };
+    });
+  };
   const estimate = () => lines().reduce((n, l) => n + l.price * l.qty, 0);
-  const extras = () => ({
-    phone: $("#phone").value.trim(), name: $("#cname").value.trim(), table: $("#table").value.trim(),
-    coupon: $("#coupon").value.trim(), points: Number(($("#usePoints") || {}).value || 0) || 0,
-  });
+  const extras = () => {
+    const pct = Number(($("#discPct") || {}).value || 0);
+    const amt = Math.round(Number(($("#discAmt") || {}).value || 0) * 100);
+    return {
+      phone: $("#phone").value.trim(), name: $("#cname").value.trim(), table: $("#table").value.trim(),
+      coupon: $("#coupon").value.trim(), points: Number(($("#usePoints") || {}).value || 0) || 0,
+      packing: Boolean(($("#packing") || {}).checked),
+      discount: pct > 0 ? { percent: Math.min(pct, 100) } : amt > 0 ? { amount: amt } : null,
+    };
+  };
 
   function toast(msg, bad) {
     const t = $("#toast");
@@ -58,43 +80,61 @@ window.POSUI = (function () {
           return `<button class="tile" type="button" data-add="${esc(i.id)}" ${i.leftToday === 0 ? "disabled" : ""}>
             ${src ? `<img src="${esc(src)}" alt="" loading="lazy">` : ""}
             <span class="nm">${esc(i.name)}</span><span class="pr">${esc(money(i.price))}</span>${left}
-            ${cart[i.id] ? `<b class="q">${cart[i.id]}</b>` : ""}</button>`;
+            ${(i.options || []).length ? `<i class="opt-mark">options</i>` : ""}
+            ${countOf(i.id) ? `<b class="q">${countOf(i.id)}</b>` : ""}</button>`;
         }).join("")
       : `<p class="empty">${items().length ? "Nothing matches" : "No priced products yet. Set prices in the dashboard (Menu)."}</p>`;
   }
 
   /* ---------- the bill ---------- */
-  function setQty(id, qty) {
-    const { [id]: _old, ...rest } = cart;
-    cart = qty > 0 ? { ...rest, [id]: Math.min(qty, 50) } : rest;
+  const countOf = (id) => Object.values(cart).filter((v) => v.id === id).reduce((n, v) => n + v.qty, 0);
+  function setQty(key, qty) {
+    const { [key]: old, ...rest } = cart;
+    if (!old) return;
+    cart = qty > 0 ? { ...rest, [key]: { ...old, qty: Math.min(qty, 50) } } : rest;
     quoteTotal = null;
     render();
   }
-  const add = (id) => setQty(id, (cart[id] || 0) + 1);
+  function addLine(id, opts) {
+    const key = keyOf(id, opts);
+    const prev = cart[key];
+    cart = { ...cart, [key]: { id, opts: [...opts].sort(), qty: Math.min((prev ? prev.qty : 0) + 1, 50) } };
+    quoteTotal = null;
+    render();
+  }
+  // items with sizes / add-ons ask which ones first
+  async function add(id) {
+    const item = byId().get(id);
+    if (!item) return;
+    if (!(item.options || []).length || !window.POSX) { addLine(id, []); return; }
+    const opts = await POSX.pickOptions(item);
+    if (opts) addLine(id, opts);
+  }
 
   function renderBill() {
     const ls = lines();
     $("#lines").innerHTML = ls.length
-      ? ls.map((l) => `<li><span class="n">${esc(l.name)}<small>${esc(money(l.price))}${l.unit ? ` · ${esc(l.unit)}` : ""}</small></span>
-          <span class="qty"><button type="button" data-q="${esc(l.id)}" data-d="-1" aria-label="One fewer">−</button><b>${l.qty}</b><button type="button" data-q="${esc(l.id)}" data-d="1" aria-label="One more">+</button></span>
+      ? ls.map((l) => `<li><span class="n">${esc(l.name)}${l.choices.length ? `<em class="ch">${esc(l.choices.join(", "))}</em>` : ""}<small>${esc(money(l.price))}${l.unit ? ` · ${esc(l.unit)}` : ""}</small></span>
+          <span class="qty"><button type="button" data-q="${esc(l.key)}" data-d="-1" aria-label="One fewer">−</button><b>${Number(l.qty)}</b><button type="button" data-q="${esc(l.key)}" data-d="1" aria-label="One more">+</button></span>
           <b class="amt">${esc(money(l.price * l.qty))}</b></li>`).join("")
       : `<li class="empty">Tap products to start a bill</li>`;
     const count = ls.reduce((n, l) => n + l.qty, 0);
     $("#itemCount").textContent = `${count} item${count === 1 ? "" : "s"}`;
     const ex = extras();
-    const needsQuote = ex.coupon || ex.points;
+    const needsQuote = ex.coupon || ex.points || ex.discount || ex.packing || ((POS.settings || {}).charges || {}).roundOff;
     $("#total").textContent = money(quoteTotal ?? estimate());
-    $("#estNote").textContent = needsQuote && quoteTotal === null ? "discount worked out at payment" : "";
+    $("#estNote").textContent = needsQuote && quoteTotal === null ? "exact total at payment" : "";
     document.querySelectorAll("[data-pay]").forEach((b) => { b.disabled = !ls.length; });
     $("#holdBtn").disabled = !ls.length;
-    broadcast({ type: "cart", lines: ls.map((l) => ({ name: l.name, qty: l.qty, amount: l.price * l.qty })), total: quoteTotal ?? estimate() });
+    broadcast({ type: "cart", lines: ls.map((l) => ({ name: l.choices.length ? `${l.name} (${l.choices.join(", ")})` : l.name, qty: l.qty, amount: l.price * l.qty })), total: quoteTotal ?? estimate() });
   }
 
   function render() { renderGrid(); renderBill(); }
 
   function clear() {
     cart = {}; quoteTotal = null;
-    ["#phone", "#cname", "#table", "#coupon"].forEach((s) => { $(s).value = ""; });
+    ["#phone", "#cname", "#table", "#coupon", "#discPct", "#discAmt"].forEach((s) => { if ($(s)) $(s).value = ""; });
+    if ($("#packing")) $("#packing").checked = false;
     $("#loyal").hidden = true; $("#loyal").innerHTML = "";
     $("#extras").open = false;
     render();
@@ -140,7 +180,7 @@ window.POSUI = (function () {
     const list = POS.held();
     d.innerHTML = `<div class="dlg-in"><div class="dlg-head"><h2 id="heldTitle">Held bills</h2><button class="x" type="button" data-close aria-label="Close">×</button></div>
       ${list.length ? `<ul class="held">${list.map((h) => {
-        const n = Object.values(h.cart.cart).reduce((a, b) => a + b, 0);
+        const n = Object.values(normal(h.cart.cart)).reduce((a, b) => a + b.qty, 0);
         const who = h.cart.extras.name || (h.cart.extras.table ? `Table ${h.cart.extras.table}` : "Walk-in");
         return `<li><button type="button" data-unhold="${esc(h.id)}"><b>${esc(who)}</b><span>${n} item${n === 1 ? "" : "s"} · held ${esc(new Date(h.at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }))}</span></button></li>`;
       }).join("")}</ul>` : `<p class="empty">No held bills</p>`}</div>`;
@@ -150,7 +190,7 @@ window.POSUI = (function () {
     if (lines().length) POS.hold({ cart, extras: extras() }); // keep what's on screen
     const h = POS.unhold(id);
     if (!h) return;
-    cart = h.cart; quoteTotal = null;
+    cart = normal(h.cart.cart || h.cart); quoteTotal = null;
     $("#phone").value = h.extras.phone || ""; $("#cname").value = h.extras.name || ""; $("#table").value = h.extras.table || ""; $("#coupon").value = h.extras.coupon || "";
     $("#extras").open = Boolean(h.extras.phone || h.extras.name || h.extras.table || h.extras.coupon);
     $("#heldDlg").close();
@@ -198,7 +238,7 @@ window.POSUI = (function () {
     const q = POS.queue();
     d.innerHTML = `<div class="dlg-in"><div class="dlg-head"><h2 id="queueTitle">Bills waiting to send</h2><button class="x" type="button" data-close aria-label="Close">×</button></div>
       <p class="hint">${POS.online ? "Online." : "Offline."} Bills taken without internet are sent automatically when it's back; each gets its bill number then.</p>
-      ${q.length ? `<ul class="held">${q.map((b) => `<li class="${b.problem ? "problem" : ""}"><div><b>${esc(b.clientRef)}</b><span>${esc(money(b.estimate || 0))} · ${esc(b.method.toUpperCase())} · ${esc(new Date(b.offlineAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }))}</span>
+      ${q.length ? `<ul class="held">${q.map((b) => `<li class="${b.problem ? "problem" : ""}"><div><b>${esc(b.clientRef)}</b><span>${esc(money(Number(b.estimate) || 0))} · ${esc(String(b.method || (b.split ? "split" : "")).toUpperCase())} · ${esc(new Date(b.offlineAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }))}</span>
         ${b.problem ? `<span class="err">${esc(b.problem)}</span><div class="btns"><button class="btn ghost small" type="button" data-retry>Try again</button><button class="btn ghost small" type="button" data-drop="${esc(b.clientRef)}">Remove (I'll bill it again)</button></div>` : ""}</div></li>`).join("")}</ul>`
       : `<p class="empty">Nothing waiting</p>`}</div>`;
     d.showModal();
@@ -211,7 +251,7 @@ window.POSUI = (function () {
     $("#search").addEventListener("keydown", (e) => { if (e.key === "Enter") { const first = visible()[0]; if (first) { add(first.id); e.target.select(); } } });
     $("#grid").addEventListener("click", (e) => { const t = e.target.closest("[data-add]"); if (t) add(t.dataset.add); });
     $("#grid").addEventListener("error", (e) => { if (e.target.tagName === "IMG") e.target.remove(); }, true); // offline: no photo, just the name
-    $("#lines").addEventListener("click", (e) => { const b = e.target.closest("[data-q]"); if (b) setQty(b.dataset.q, (cart[b.dataset.q] || 0) + Number(b.dataset.d)); });
+    $("#lines").addEventListener("click", (e) => { const b = e.target.closest("[data-q]"); if (b && cart[b.dataset.q]) setQty(b.dataset.q, cart[b.dataset.q].qty + Number(b.dataset.d)); });
     $("#clearBtn").addEventListener("click", () => { if (!lines().length || window.confirm("Clear this bill?")) clear(); });
     $("#holdBtn").addEventListener("click", hold);
     $("#heldBtn").addEventListener("click", showHeld);
@@ -219,7 +259,7 @@ window.POSUI = (function () {
     $("#printerBtn").addEventListener("click", showPrinter);
     $("#status").addEventListener("click", showQueue);
     $("#phone").addEventListener("input", lookup);
-    ["#coupon", "#phone"].forEach((s) => $(s).addEventListener("input", () => { quoteTotal = null; renderBill(); }));
+    ["#coupon", "#phone", "#discPct", "#discAmt", "#packing"].forEach((s) => { if ($(s)) $(s).addEventListener("input", () => { quoteTotal = null; renderBill(); }); });
     $("#extras").addEventListener("input", (e) => { if (e.target.id === "usePoints") { quoteTotal = null; renderBill(); } });
     document.addEventListener("click", (e) => {
       if (e.target.closest("[data-close]")) e.target.closest("dialog").close();

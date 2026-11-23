@@ -12,6 +12,9 @@ const check = (name, ok, detail = "") => results.push(`${ok ? "PASS" : "FAIL"}  
 const pw = fs.readFileSync(path.join(__dirname, "../.dev.vars"), "utf8").match(/ADMIN_PASSWORD="([^"]+)"/)[1];
 const sfx = Date.now().toString(36).slice(-4).toUpperCase();
 
+const CASHIER = `Selvi${Date.now().toString(36).slice(-4)}`;
+const CASHIER_PW = "counter-cake-77";
+
 async function setup() {
   const h = { Origin: BASE, "X-Seren": "1", "Content-Type": "application/json" };
   const login = await fetch(`${BASE}/api/admin/login`, { method: "POST", headers: h, body: JSON.stringify({ password: pw }) });
@@ -20,6 +23,8 @@ async function setup() {
   await post("/api/admin/settings", { upiId: "seren@okhdfcbank", acceptingOrders: true, loyalty: { enabled: true, earnEvery: 10000, pointValue: 100 } });
   for (const [id, price] of [["bomb-vanilla", 18000], ["bomb-tiramisu", 20000], ["cookie-biscoff", 15000], ["tiramisu", 32000]]) await post(`/api/admin/prices/${id}`, { price, unit: "per piece", available: true });
   await post("/api/admin/coupons", { code: `POS${sfx}`, kind: "flat", value: 5000 });
+  // the counter is used by a cashier (only staff logins can unlock it offline)
+  await post("/api/admin/staff", { name: CASHIER, role: "cashier", password: CASHIER_PW });
   return post;
 }
 
@@ -33,7 +38,8 @@ async function setup() {
   p.on("console", (m) => { if (m.type() === "error" && !/status of 40[0-9]|ERR_INTERNET_DISCONNECTED|Failed to fetch/.test(m.text())) errs.push(m.text()); });
   await p.goto(`${BASE}/pos/`, { waitUntil: "networkidle0" });
   check("login screen first", await p.$eval("#login", (e) => !e.hidden));
-  await p.type("#pw", pw);
+  await p.type("#who", CASHIER);
+  await p.type("#pw", CASHIER_PW);
   await p.evaluate(() => document.getElementById("loginForm").requestSubmit());
   await p.waitForSelector("#app:not([hidden]) .tile", { timeout: 8000 });
   // capture receipts instead of opening the print window
@@ -124,7 +130,17 @@ async function setup() {
   // restart with no internet: the counter still opens and can bill (offline helper + remembered products)
   await p.setOfflineMode(true);
   await p.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
-  await p.waitForSelector("#app:not([hidden]) .tile", { timeout: 10000 }).catch(() => {});
+  // offline it asks for the password of the last person logged in here (checked on this PC)
+  await p.waitForSelector("#login:not([hidden]) #pw", { timeout: 10000 }).catch(() => {});
+  check("offline, the counter asks for the password first", await p.evaluate(() => !document.getElementById("login").hidden && /password/i.test(document.getElementById("loginHint").textContent)));
+  await p.type("#pw", "not-the-password");
+  await p.click("#loginForm button");
+  await p.waitForFunction(() => document.getElementById("loginErr").textContent.length > 0, { timeout: 15000 }).catch(() => {});
+  check("offline, a wrong password doesn't open it", await p.evaluate(() => document.getElementById("app").hidden));
+  await p.$eval("#pw", (e) => { e.value = ""; });
+  await p.type("#pw", CASHIER_PW);
+  await p.click("#loginForm button");
+  await p.waitForSelector("#app:not([hidden]) .tile", { timeout: 15000 }).catch(() => {});
   const off = await p.evaluate(() => ({ app: !document.getElementById("app").hidden, tiles: document.querySelectorAll(".tile").length, status: document.getElementById("status").textContent }));
   check("restarted with no internet, the counter still opens", off.app && off.tiles >= 4 && /Offline/.test(off.status), JSON.stringify(off));
   await p.setOfflineMode(false);

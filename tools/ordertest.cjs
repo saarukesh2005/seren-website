@@ -34,13 +34,21 @@ async function owner(method, p, body) {
   const cat = await owner("GET", "/api/admin/catalog");
   for (const it of cat.data.items) await owner("POST", `/api/admin/prices/${it.id}`, { price: it.category === "entremets" ? 210000 : 18000, unit: it.category === "entremets" ? "6-inch cake" : "per piece", available: it.id !== "cookie-matcha" });
   await owner("POST", "/api/admin/settings", { upiId: "seren@okhdfcbank", acceptingOrders: true, openTime: "00:00", closeTime: "23:59", prepMinutes: 0, minOrder: 0, deliveryFee: 4000, freeDeliveryAbove: 100000,
-    dineIn: true, dineInTables: "", dineInPayLater: true, whatsappNumber: "919876543210" });
+    dineIn: true, dineInTables: "", dineInPayLater: true, whatsappNumber: "919876543210", charges: { packing: 0, servicePercent: 0, roundOff: true } });
+  await owner("POST", "/api/admin/products/bomb-tiramisu", { options: [] }); // this journey adds a plain Tiramisu (choices have their own test: optionstest.cjs)
   const couponCode = `SAVE${Date.now().toString(36).slice(-4).toUpperCase()}`;
   await owner("POST", "/api/admin/coupons", { code: couponCode, kind: "flat", value: 5000 });
   const links = (await owner("GET", "/api/admin/table-links")).data.links;
-  const t3 = new URL(links.find((l) => l.table === "3").url);
-  await owner("POST", "/api/admin/tables/3/close", {}).catch(() => {});
-  await owner("POST", "/api/admin/tables/3/open", {}); // staff seat table 3 so it can pay at the end
+  // staff seat a table so it can pay at the end: they get a 4-digit PIN to tell the guests
+  // (a table still open from an older run may have no PIN, so try the next one)
+  let seated = null, pin = "";
+  for (const l of links.slice(0, 6)) {
+    await owner("POST", `/api/admin/tables/${l.table}/close`, {}); // works only on an empty tab
+    const seat = await owner("POST", `/api/admin/tables/${l.table}/open`, {});
+    if (/^\d{4}$/.test(seat.data.pin || "")) { seated = l; pin = seat.data.pin; break; }
+  }
+  if (!seated) throw new Error("no table could be seated with a PIN");
+  const t3 = new URL(seated.url);
 
   const b = await puppeteer.launch({ headless: true });
   const p = await b.newPage();
@@ -76,7 +84,7 @@ async function owner(method, p, body) {
   await wait(200);
   check("empty form shows a friendly error", (await p.$eval("#checkout .err", (e) => e.textContent)).includes("name"));
   await p.type('#checkout input[name="name"]', "Asha Raman");
-  await p.type('#checkout input[name="phone"]', "98765 43210");
+  await p.type('#checkout input[name="phone"]', `9${Math.floor(Math.random() * 1e9)}`.padEnd(10, "0").slice(0, 10)); // a fresh number each run (a number can only have a few unpaid orders)
   await p.evaluate(() => document.querySelector('#checkout input[value="delivery"]').click());
   await p.type('#checkout textarea[name="address"]', "12 Long Street, Mylapore, Chennai");
   await p.type('#checkout input[name="pincode"]', "600004");
@@ -195,6 +203,8 @@ async function owner(method, p, body) {
   await g.evaluate(() => document.getElementById("checkoutBtn").click());
   await g.waitForSelector("#checkout .paywhen", { timeout: 8000 });
   await g.type('#checkout input[name="name"]', "Lakshmi");
+  check("pay-at-the-end asks for the table PIN", !(await g.$eval("#checkout .pin", (e) => e.hidden)));
+  await g.type('#checkout input[name="pin"]', pin);
   const lbl = await g.$eval('#checkout button[type="submit"]', (e) => e.textContent);
   check("pay-at-the-end is the default at a table", lbl === "Send to the kitchen", lbl);
   await g.screenshot({ path: `${out}/o-paylater.jpg`, type: "jpeg", quality: 60 });

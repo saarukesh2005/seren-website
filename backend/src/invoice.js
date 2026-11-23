@@ -6,15 +6,26 @@ const money = (p) => esc(rupees(p));
 const fmtDate = (ymd) => (ymd ? new Date(`${ymd}T00:00:00Z`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }) : "");
 
 // credit = true prints the credit note for a refunded bill.
-export function invoiceHtml(order, { size = "a4", credit = false } = {}) {
+const METHOD = { cash: "Cash", upi: "UPI", card: "Card", platform: "Delivery app", store_credit: "Store credit" };
+
+/**
+ * @param order   an order from the store
+ * @param payments rows of the payments table for this order (split payments, advances)
+ * @param advance  true = the advance receipt of a cake / advance order instead of the bill
+ */
+export function invoiceHtml(order, { size = "a4", credit = false, payments = [], advance = false } = {}) {
   const seller = order.tax_snapshot.seller;
   const gst = Boolean(seller.gstin);
   const paid = Boolean(order.invoice_no); // only orders whose payment was confirmed have a bill number
   const isCredit = credit && Boolean(order.credit_note_no);
-  const title = isCredit ? "Credit Note" : !paid ? "Order summary (not paid yet)" : gst ? "Tax Invoice" : "Bill";
-  const docNo = isCredit ? order.credit_note_no : order.invoice_no;
-  const docDate = isCredit ? order.credit_note_date : order.invoice_date;
-  const rows = [...order.lines, ...(order.tax_snapshot.delivery ? [{ ...order.tax_snapshot.delivery, qty: 1, unit: "" }] : [])];
+  const app = order.tax_snapshot.platform || null;
+  const isAdvance = advance && Boolean(order.receipt_no);
+  const title = isCredit ? "Credit Note" : isAdvance ? "Advance Receipt" : !paid ? (order.status === "booked" ? "Booking (balance due)" : "Order summary (not paid yet)") : gst && !app ? "Tax Invoice" : "Bill";
+  const docNo = isCredit ? order.credit_note_no : isAdvance ? order.receipt_no : order.invoice_no;
+  const advanceRow = payments.find((p) => p.kind === "advance");
+  const docDate = isCredit ? order.credit_note_date : isAdvance ? (advanceRow ? advanceRow.at.slice(0, 10) : order.created_at.slice(0, 10)) : order.invoice_date;
+  const charges = order.tax_snapshot.charges || [];
+  const rows = [...order.lines, ...(order.tax_snapshot.delivery ? [{ ...order.tax_snapshot.delivery, qty: 1, unit: "" }] : []), ...charges.map((c) => ({ ...c, qty: 1, unit: "" }))];
   const summary = order.tax_snapshot.taxSummary.filter((r) => r.rate > 0);
   const narrow = size === "80mm";
 
@@ -22,7 +33,7 @@ export function invoiceHtml(order, { size = "a4", credit = false } = {}) {
       <td>${i + 1}</td>
       <td>${esc(l.name)}${l.unit ? `<small>${esc(l.unit)}</small>` : ""}</td>
       ${gst && !narrow ? `<td>${esc(l.hsn || "")}</td>` : ""}
-      <td class="r">${l.qty}</td>
+      <td class="r">${Number(l.qty) || 0}</td>
       ${gst && !narrow ? `<td class="r">${money(l.taxable)}</td><td class="r">${l.rate}%</td>` : ""}
       <td class="r">${money(l.listAmount ?? l.gross)}</td>
     </tr>`).join("");
@@ -31,7 +42,16 @@ export function invoiceHtml(order, { size = "a4", credit = false } = {}) {
        <tr><td>Discount${order.coupon_code ? ` (${esc(order.coupon_code)})` : ""}${order.points_used ? ` · ${order.points_used} loyalty points` : ""}</td><td class="r">−${money(order.discount)}</td></tr>`
     : "";
 
-  const taxRows = gst ? summary.map((r) => `<tr><td>GST ${r.rate}% on ${money(r.taxable)}</td><td class="r">CGST ${money(r.cgst)} · SGST ${money(r.sgst)}</td></tr>`).join("") : "";
+  const roundOff = order.tax_snapshot.roundOff || 0;
+  const roundRow = roundOff ? `<tr><td>Round off</td><td class="r">${roundOff > 0 ? "+" : "−"}${money(Math.abs(roundOff))}</td></tr>` : "";
+  const paidParts = payments.filter((p) => p.kind !== "refund");
+  const payRows = paidParts.length > 1 || advanceRow
+    ? paidParts.map((p) => `<tr><td>${p.kind === "advance" ? "Advance paid" : "Paid"} · ${esc(METHOD[p.method] || p.method)}${p.ref ? ` · ${esc(p.ref)}` : ""}</td><td class="r">${money(p.amount)}</td></tr>`).join("")
+    : "";
+  const due = order.total - paidParts.reduce((n, p) => n + p.amount, 0);
+  const dueRow = !isCredit && due > 0 && paidParts.length ? `<tr class="grand"><td>Balance to pay</td><td class="r">${money(due)}</td></tr>` : "";
+  const payWord = paidParts.length > 1 ? paidParts.map((p) => METHOD[p.method] || p.method).join(" + ") : app ? `${app.name} (order ${order.external_id || ""})` : String(order.payment_method).toUpperCase();
+  const taxRows = gst && !app ? summary.map((r) => `<tr><td>GST ${r.rate}% on ${money(r.taxable)}</td><td class="r">CGST ${money(r.cgst)} · SGST ${money(r.sgst)}</td></tr>`).join("") : "";
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} ${esc(docNo || order.code)}</title>
@@ -54,7 +74,7 @@ export function invoiceHtml(order, { size = "a4", credit = false } = {}) {
   .bar a{background:#fff;color:var(--ink)}
   @media print{body{background:#fff}.sheet{box-shadow:none;margin:0;max-width:none}.bar{display:none}@page{size:${narrow ? "80mm auto" : "A4"};margin:${narrow ? "2mm" : "12mm"}}}
 </style></head><body>
-<div class="bar"><a href="?${new URLSearchParams({ ...(order._token ? { t: order._token } : {}), size: narrow ? "a4" : "80mm" })}">${narrow ? "A4 size" : "Receipt size"}</a><button onclick="print()">Print / Save PDF</button></div>
+<div class="bar"><a href="?${new URLSearchParams({ ...(order._token ? { t: order._token } : {}), size: narrow ? "a4" : "80mm" })}">${narrow ? "A4 size" : "Receipt size"}</a><button id="printBtn">Print / Save PDF</button></div><script>document.getElementById("printBtn").addEventListener("click", () => print());</script>
 <main class="sheet">
   <div class="top">
     <div>
@@ -79,7 +99,8 @@ export function invoiceHtml(order, { size = "a4", credit = false } = {}) {
       ${order.table_no ? `Table ${esc(order.table_no)}<br>` : ""}
       ${order.slot_date ? `${esc(fmtDate(order.slot_date))} · ${esc(order.slot_time)}<br>` : ""}
       ${gst && seller.stateName ? `Place of supply: ${esc(seller.stateName)}<br>` : ""}
-      Payment: ${esc(order.payment_method.toUpperCase())}${order.utr ? ` · Ref ${esc(order.utr)}` : ""}
+      ${paid || isAdvance ? `Payment: ${esc(payWord)}${order.utr && !app ? ` · Ref ${esc(order.utr)}` : ""}` : ""}
+      ${order.cake_message ? `<br>On the cake: “${esc(order.cake_message)}”` : ""}
       ${isCredit ? `<br>Refund: ${esc(String(order.refund_method).toUpperCase())}${order.refund_ref ? ` · ${esc(order.refund_ref)}` : ""}` : ""}</div>
   </div>
   <table>
@@ -89,12 +110,17 @@ export function invoiceHtml(order, { size = "a4", credit = false } = {}) {
   <table class="totals" style="margin-top:8px">
     ${discountRows}
     ${taxRows}
-    ${gst ? `<tr><td>${seller.pricesIncludeGst ? "Prices include GST" : "GST added to prices"}</td><td class="r">Total GST ${money(summary.reduce((n, r) => n + r.tax, 0))}</td></tr>` : ""}
+    ${gst && !app ? `<tr><td>${seller.pricesIncludeGst ? "Prices include GST" : "GST added to prices"}</td><td class="r">Total GST ${money(summary.reduce((n, r) => n + r.tax, 0))}</td></tr>` : ""}
+    ${roundRow}
     <tr class="grand"><td>${isCredit ? "Amount refunded" : "Total"}</td><td class="r">${money(order.total)}</td></tr>
+    ${payRows}
+    ${isAdvance ? `<tr class="grand"><td>Advance received</td><td class="r">${money(order.advance)}</td></tr><tr><td>Balance to pay at pickup</td><td class="r">${money(order.total - order.advance)}</td></tr>` : dueRow}
   </table>
+  ${app ? `<p class="muted">${esc(app.note)}</p>` : ""}
+  ${isAdvance ? `<p class="muted">This is a receipt for the advance, not a tax invoice. The bill is made when you collect your order.</p>` : ""}
   <div class="foot">
     <span>${esc(seller.invoiceNote || "")}</span>
-    <span>${gst ? `This is a computer-generated ${isCredit ? "credit note" : "invoice"}.` : esc(STATUS[order.status] || "")}</span>
+    <span>${gst && !isAdvance ? `This is a computer-generated ${isCredit ? "credit note" : "invoice"}.` : esc(STATUS[order.status] || "")}</span>
   </div>
 </main></body></html>`;
 }

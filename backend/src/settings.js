@@ -50,6 +50,20 @@ export const DEFAULT_SETTINGS = Object.freeze({
   waApi: { enabled: false, phoneNumberId: "", version: "v23.0", lang: "en", paidTemplate: "", readyTemplate: "" },
   loyalty: { enabled: false, earnEvery: 10000, pointValue: 100 }, // 1 point per ₹100 spent, 1 point = ₹1 off
   googleReviewUrl: "",
+  // bill extras
+  charges: { packing: 0, servicePercent: 0, roundOff: true, hsn: "996331" }, // packing in paise per takeaway order
+  // what staff may do without a manager's PIN
+  approvals: { discountPercent: 10, points: 100, counterUpiNeedsRef: false },
+  // kitchen stations: each category goes to one screen / printer
+  stations: { list: ["Kitchen", "Bakery", "Drinks"], byCategory: {} },
+  // delivery apps (Swiggy, Zomato, ONDC…): their commission, to show what you really receive
+  platforms: [
+    { id: "swiggy", name: "Swiggy", commission: 25 },
+    { id: "zomato", name: "Zomato", commission: 25 },
+    { id: "ondc", name: "ONDC", commission: 8 },
+    { id: "magicpin", name: "Magicpin", commission: 15 },
+  ],
+  lowStockAlerts: true,
 });
 
 const GST_RATES = [0, 0.25, 3, 5, 12, 18, 28, 40];
@@ -110,7 +124,15 @@ export function checkSettings(input, current = DEFAULT_SETTINGS) {
     waApi: null,
     loyalty: null,
     googleReviewUrl: text(s.googleReviewUrl, 300),
+    charges: null,
+    approvals: null,
+    stations: null,
+    platforms: null,
+    lowStockAlerts: s.lowStockAlerts === undefined ? true : Boolean(s.lowStockAlerts),
   };
+  const extras = checkExtras(s);
+  if (extras.error) return extras;
+  Object.assign(out, extras.value);
   if (out.tableKeyVersion === null) return { error: "tableKeyVersion is not valid" };
   if (out.whatsappNumber && !/^91[6-9]\d{9}$/.test(out.whatsappNumber)) return { error: "WhatsApp number: 91 followed by the 10-digit mobile, e.g. 919876543210" };
   if (out.googleReviewUrl && !/^https:\/\/[^\s"'<>]+$/.test(out.googleReviewUrl)) return { error: "Google review link must start with https://" };
@@ -163,6 +185,40 @@ export function checkSettings(input, current = DEFAULT_SETTINGS) {
   return { value: out };
 }
 
+// Charges, approval limits, kitchen stations and delivery apps.
+function checkExtras(s) {
+  const d = DEFAULT_SETTINGS;
+  const obj = (v, def) => ({ ...def, ...(v && typeof v === "object" && !Array.isArray(v) ? v : {}) });
+  const ch = obj(s.charges, d.charges);
+  const charges = { packing: int(ch.packing, 0, 100000), servicePercent: Number(ch.servicePercent), roundOff: Boolean(ch.roundOff), hsn: text(ch.hsn, 8) };
+  if (charges.packing === null) return { error: "Packing charge must be a whole number of paise" };
+  if (!(charges.servicePercent >= 0 && charges.servicePercent <= 20)) return { error: "Service charge: 0 to 20%" };
+  if (!HSN.test(charges.hsn)) return { error: "Charges: SAC code must be 4, 6 or 8 digits" };
+  const ap = obj(s.approvals, d.approvals);
+  const approvals = { discountPercent: int(ap.discountPercent, 0, 100), points: int(ap.points, 0, 1000000), counterUpiNeedsRef: Boolean(ap.counterUpiNeedsRef) };
+  if (approvals.discountPercent === null || approvals.points === null) return { error: "Approval limits must be whole numbers" };
+  const st = obj(s.stations, d.stations);
+  const list = (Array.isArray(st.list) ? st.list : []).map((x) => text(x, 20)).filter(Boolean).slice(0, 8);
+  if (!list.length || list.some((x) => !/^[\p{L}\p{N} &-]{1,20}$/u.test(x))) return { error: "Kitchen stations: 1 to 8 names" };
+  const byCategory = {};
+  for (const [cat, name] of Object.entries(st.byCategory && typeof st.byCategory === "object" ? st.byCategory : {})) {
+    if (Object.hasOwn(CATEGORIES, cat) && list.includes(name)) byCategory[cat] = name;
+  }
+  const raw = Array.isArray(s.platforms) ? s.platforms : d.platforms;
+  const platforms = [];
+  for (const p of raw.slice(0, 8)) {
+    const id = text(p?.id, 20).toLowerCase();
+    const name = text(p?.name, 20);
+    const commission = Number(p?.commission);
+    if (!/^[a-z0-9-]{2,20}$/.test(id) || !name || !(commission >= 0 && commission <= 60)) return { error: "Delivery apps: a short id, a name and a commission between 0 and 60%" };
+    if (!platforms.some((x) => x.id === id)) platforms.push({ id, name, commission });
+  }
+  return { value: { charges, approvals, stations: { list, byCategory }, platforms } };
+}
+
+// Which kitchen station makes this category.
+export const stationFor = (settings, category) => settings.stations.byCategory[category] || settings.stations.list[0];
+
 function checkTax(t, label) {
   const hsn = text(t?.hsn, 8);
   const rate = Number(t?.rate);
@@ -195,6 +251,7 @@ export function publicSettings(s) {
     dineInPayLater: s.dineIn && s.dineInPayLater,
     whatsapp: s.whatsappNumber,
     googleReviewUrl: s.googleReviewUrl,
+    charges: { packing: s.charges.packing, servicePercent: s.charges.servicePercent, roundOff: s.charges.roundOff },
     loyalty: s.loyalty.enabled ? { earnEvery: s.loyalty.earnEvery, pointValue: s.loyalty.pointValue } : null,
   };
 }

@@ -1,6 +1,7 @@
 // Order life cycle and which moves the owner may make.
 
 export const STATUS = Object.freeze({
+  booked: "Booked, advance taken",
   awaiting_payment: "Waiting for payment",
   payment_submitted: "Payment sent, checking",
   paid: "Paid, confirmed",
@@ -15,6 +16,7 @@ export const STATUS = Object.freeze({
 
 // Owner moves. "paid" is reached only through the confirm-payment action (it issues the invoice).
 const NEXT = Object.freeze({
+  booked: ["cancelled"],
   awaiting_payment: ["cancelled"],
   payment_submitted: ["awaiting_payment", "cancelled"],
   paid: ["preparing", "ready", "out_for_delivery", "completed", "cancelled"],
@@ -28,7 +30,9 @@ const NEXT = Object.freeze({
 });
 
 export const canMove = (from, to) => (NEXT[from] || []).includes(to);
-export const canConfirmPayment = (status) => status === "awaiting_payment" || status === "payment_submitted" || status === "expired";
+export const canConfirmPayment = (status) => ["awaiting_payment", "payment_submitted", "expired", "booked"].includes(status);
+// Cancelling these takes back food the kitchen may already be making: a manager must agree.
+export const NEEDS_MANAGER_TO_CANCEL = ["on_tab", "preparing", "ready", "out_for_delivery", "booked"];
 // Moves the kitchen login may make.
 export const KITCHEN_MOVES = ["preparing", "ready"];
 // Orders the kitchen should be working on.

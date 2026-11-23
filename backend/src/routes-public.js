@@ -11,29 +11,39 @@ import { TABLE, publicSettings } from "./settings.js";
 import { STATUS } from "./status.js";
 import { leftOn, reserveStmts, shortage } from "./stock.js";
 import * as store from "./store.js";
-import { addCall, mergeLines, openTab, tabForOrder, tabOrders, validTableKey } from "./tables.js";
+import { addCall, billToken, checkTabPin, mergeLines, openTab, tabForOrder, tabOrders, validTableKey } from "./tables.js";
 import { checkUtr, upiLink } from "./upi.js";
 import { istParts, randomCode, randomToken, rupees, sha256hex } from "./util.js";
 import { ORDER_CODE, TOKEN, checkCustomer } from "./validate.js";
 
-const MAX_UNPAID_PER_HOUR = 60;
+const MAX_UNPAID_PER_HOUR = 150;
+const MAX_UNPAID_PER_PHONE = 3;
 
 // IPv6 users can switch addresses inside their /64 block, so count the whole block as one.
 export function ipKey(ip) {
-  return ip.includes(":") ? ip.split(":").slice(0, 4).join(":") : ip;
+  if (!ip.includes(":")) return ip;
+  // expand "::" so every IPv6 address of the same /64 gives the same key
+  const [head, tail = ""] = ip.toLowerCase().split("::");
+  const a = head ? head.split(":") : [];
+  const b = ip.includes("::") ? (tail ? tail.split(":") : []) : [];
+  const full = ip.includes("::") ? [...a, ...Array(Math.max(8 - a.length - b.length, 0)).fill("0"), ...b] : a;
+  return full.slice(0, 4).map((x) => x.replace(/^0+(?=.)/, "")).join(":");
 }
 
 // Shop-wide caps per action (10 minutes), so many addresses together can't flood the shop either.
 const GLOBAL = { order: 300, coupon: 400, utr: 300, call: 200, feedback: 200 };
 
+// The shop-wide cap is checked first and only read, so once it is full a flood from new addresses
+// costs no database writes at all.
 export async function limit(env, request, action, max, windowSeconds) {
+  if (GLOBAL[action] && (await store.limitReached(env.DB, `${action}:all`, GLOBAL[action], 600))) {
+    throw new HttpError(429, "We're very busy right now. Please try again in a few minutes.");
+  }
   const who = await sha256hex(`${env.SESSION_SECRET || "dev"}|${ipKey(clientIp(request))}`);
   if (!(await store.underLimit(env.DB, `${action}:${who.slice(0, 32)}`, max, windowSeconds))) {
     throw new HttpError(429, "Too many tries. Please wait a few minutes and try again.");
   }
-  if (GLOBAL[action] && !(await store.underLimit(env.DB, `${action}:all`, GLOBAL[action], 600))) {
-    throw new HttpError(429, "We're very busy right now. Please try again in a few minutes.");
-  }
+  if (GLOBAL[action]) await store.countHit(env.DB, `${action}:all`, 600);
 }
 
 /* ---------- menu, slots, photos ---------- */
@@ -48,7 +58,7 @@ export async function menu({ env }) {
   }
   // dashboard edits to the website's products, and products added in the dashboard
   const products = catalog.filter((c) => c.custom || c.edited)
-    .map((c) => ({ id: c.id, name: c.name, category: c.category, description: c.description, photo: c.photo, veg: c.veg, hidden: c.hidden, custom: c.custom, nameTa: c.nameTa, descriptionTa: c.descriptionTa }));
+    .map((c) => ({ id: c.id, name: c.name, category: c.category, description: c.description, photo: c.photo, veg: c.veg, hidden: c.hidden, custom: c.custom, nameTa: c.nameTa, descriptionTa: c.descriptionTa, options: c.options }));
   return json({ settings: publicSettings(settings), prices: visible, products }, 200, { "Cache-Control": "public, max-age=30" });
 }
 
@@ -78,13 +88,16 @@ export async function placeOrder({ request, env, ctx }) {
   const body = await readJson(request);
   const settings = await store.getSettings(env.DB);
   if (!settings.acceptingOrders || !settings.upiId) throw new HttpError(503, "Online orders are paused right now. Please message us instead.");
-  if ((await store.recentUnpaid(env.DB)) >= MAX_UNPAID_PER_HOUR) throw new HttpError(503, "We're very busy right now. Please try again in a few minutes or message us.");
 
   const cart = checkCart(body.items);
   if (cart.error) throw new HttpError(400, cart.error);
   const customer = checkCustomer(body, settings);
   if (customer.error) throw new HttpError(400, customer.error);
   const c = customer.value;
+  // fake-order floods: a few unpaid orders per phone number, and a high shop-wide brake
+  const unpaid = await store.recentUnpaid(env.DB, c.phone);
+  if (c.phone && unpaid.phone >= MAX_UNPAID_PER_PHONE) throw new HttpError(429, "You already have orders waiting for payment. Please pay or wait for them to expire.");
+  if (unpaid.all >= MAX_UNPAID_PER_HOUR) throw new HttpError(503, "We're very busy right now. Please try again in a few minutes or message us.");
 
   // pay at the end: only from the real table card (signed link) and when the owner allows it
   const payLater = body.payLater === true;
@@ -100,7 +113,8 @@ export async function placeOrder({ request, env, ctx }) {
   }
 
   const [prices, catalog] = await Promise.all([store.getPrices(env.DB), loadCatalog(env.DB)]);
-  const priced = priceOrder(cart.value, orderable(catalog), prices, settings, c.mode, coupon ? { coupon: (t) => couponAmount(coupon, t) } : {});
+  const roundSettings = payLater ? { ...settings, charges: { ...settings.charges, roundOff: false } } : settings; // a tab's charges go on its one bill
+  const priced = priceOrder(cart.value, orderable(catalog), prices, roundSettings, c.mode, { ...(coupon ? { coupon: (t) => couponAmount(coupon, t) } : {}), ...(payLater ? { service: false } : {}) });
   if (priced.error === "minOrder") throw new HttpError(400, `Delivery orders start at ${rupees(priced.minOrder)}`);
   if (priced.error) throw new HttpError(409, priced.error);
   if (coupon && !priced.value.couponDiscount) throw new HttpError(400, `This code works on orders of ${rupees(coupon.min_order)} or more`);
@@ -109,7 +123,7 @@ export async function placeOrder({ request, env, ctx }) {
   const slot = c.mode === "dinein" ? dineInSlot(settings, notice) : checkSlot(body.date, body.time, settings, notice);
   if (slot.error) throw new HttpError(400, slot.error);
 
-  const tab = payLater ? await tabForOrder(env.DB, c.table) : null;
+  const tab = payLater ? await tabForOrder(env.DB, c.table, body.pin, store) : null;
   const token = randomToken();
   const code = `SRN-${randomCode()}`;
   const order = {
@@ -151,11 +165,18 @@ function dineInSlot(settings, notice) {
   return { value: { date: now.date, time: now.time } };
 }
 
+export async function orderPayments(db, orderId) {
+  const { results } = await db.prepare("SELECT kind, method, amount, ref, at FROM payments WHERE order_id = ?1 ORDER BY id").bind(orderId).all();
+  return results;
+}
+
 export function snapshot(settings, priced) {
   const { storeName, legalName, gstin, address, stateName, phone, email, pricesIncludeGst, invoiceNote } = settings;
   return {
     seller: { storeName, legalName, gstin, address, stateName, phone, email, pricesIncludeGst, invoiceNote },
     delivery: priced.delivery,
+    charges: priced.charges || [],
+    roundOff: priced.roundOff || 0,
     taxSummary: priced.taxSummary,
   };
 }
@@ -244,7 +265,7 @@ export async function feedback({ request, env, params }) {
 export async function customerInvoice({ env, params, url }, renderHtml) {
   const token = url.searchParams.get("t");
   const order = await ownOrder(env, params[0], token);
-  return renderHtml(invoiceHtml({ ...order, _token: token }, { size: url.searchParams.get("size") }));
+  return renderHtml(invoiceHtml({ ...order, _token: token }, { size: url.searchParams.get("size"), payments: await orderPayments(env.DB, order.id) }));
 }
 
 /* ---------- tables (dine-in) ---------- */
@@ -262,12 +283,15 @@ export async function tableView({ env, params, url }) {
   const { table, settings } = await tableFrom(env, params, url.searchParams.get("k"));
   const tab = await openTab(env.DB, table);
   if (!tab) return json({ table, payLater: settings.dineInPayLater, open: false, tab: null });
+  // the tab and its bill are only shown with the PIN staff gave the guests
+  if (!url.searchParams.get("pin")) return json({ table, payLater: settings.dineInPayLater, open: tab.status === "open", needPin: true, tab: null, bill: null });
+  await checkTabPin(env.DB, tab, url.searchParams.get("pin"), store);
   const rounds = await tabOrders(env.DB, tab.id);
   const merged = mergeLines(rounds);
   let bill = null;
-  if (tab.bill_order_id && tab.bill_token) {
+  if (tab.bill_order_id) {
     const o = await store.getOrderById(env.DB, tab.bill_order_id);
-    bill = { code: o.code, token: tab.bill_token, total: o.total, status: o.status, paid: Boolean(o.invoice_no) };
+    bill = { code: o.code, token: tab.bill_token || (await billToken(env, o.code)), total: o.total, status: o.status, paid: Boolean(o.invoice_no) };
   }
   return json({
     table, payLater: settings.dineInPayLater, open: tab.status === "open",

@@ -6,23 +6,56 @@ import { randomCode } from "./util.js";
 const now = () => new Date().toISOString();
 const text = (v, max) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 const MAX_IMAGE_BYTES = 400 * 1024;
+const MAX_IMAGES = 500;
 const MIME = { "image/webp": [0x52, 0x49, 0x46, 0x46], "image/jpeg": [0xff, 0xd8, 0xff], "image/png": [0x89, 0x50, 0x4e, 0x47] };
 
 /** Every product with dashboard edits applied: { id, name, category, img, photo, veg, description, hidden, custom } */
 export async function loadCatalog(db) {
-  const { results } = await db.prepare("SELECT id, category, name, description, img, veg, hidden, custom, name_ta, description_ta FROM products").all();
+  const { results } = await db.prepare("SELECT id, category, name, description, img, veg, hidden, custom, name_ta, description_ta, options FROM products").all();
   const edits = new Map(results.map((r) => [r.id, r]));
   const base = CATALOG.map((c) => {
     const e = edits.get(c.id);
     return e
-      ? { ...c, name: e.name, description: e.description, photo: e.img, veg: e.veg === null ? c.veg : Boolean(e.veg), hidden: Boolean(e.hidden), custom: false, edited: true, nameTa: e.name_ta, descriptionTa: e.description_ta }
-      : { ...c, description: "", photo: null, hidden: false, custom: false, edited: false, nameTa: "", descriptionTa: "" };
+      ? { ...c, name: e.name, description: e.description, photo: e.img, veg: e.veg === null ? c.veg : Boolean(e.veg), hidden: Boolean(e.hidden), custom: false, edited: true, nameTa: e.name_ta, descriptionTa: e.description_ta, options: readOptions(e.options) }
+      : { ...c, description: "", photo: null, hidden: false, custom: false, edited: false, nameTa: "", descriptionTa: "", options: [] };
   });
   const extra = results.filter((r) => r.custom).map((r) => ({
     id: r.id, name: r.name, category: r.category, img: null, photo: r.img, veg: r.veg === null ? null : Boolean(r.veg),
-    description: r.description, hidden: Boolean(r.hidden), custom: true, edited: true, nameTa: r.name_ta, descriptionTa: r.description_ta,
+    description: r.description, hidden: Boolean(r.hidden), custom: true, edited: true, nameTa: r.name_ta, descriptionTa: r.description_ta, options: readOptions(r.options),
   }));
   return [...base, ...extra];
+}
+
+function readOptions(raw) {
+  try { const v = JSON.parse(raw || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
+}
+
+const slug = (v) => String(v).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 18);
+
+/**
+ * Item options as the owner types them: [{ name: "Size", pick: "one", required: true, choices: [{ name: "1 kg", price: 60000 }] }].
+ * Ids come from the names, so a saved bag still matches after small edits elsewhere.
+ */
+export function checkOptions(raw) {
+  if (!Array.isArray(raw) || raw.length > 5) throw new HttpError(400, "Up to 5 option groups per item");
+  const groups = [];
+  for (const g of raw) {
+    const name = text(g?.name, 30);
+    const id = slug(name);
+    if (!id || groups.some((x) => x.id === id)) throw new HttpError(400, "Each option group needs its own name (like Size or Add-ons)");
+    if (!Array.isArray(g.choices) || !g.choices.length || g.choices.length > 12) throw new HttpError(400, `${name}: 1 to 12 choices`);
+    const choices = [];
+    for (const ch of g.choices) {
+      const cname = text(ch?.name, 30);
+      const cid = slug(cname);
+      const price = Number(ch?.price ?? 0);
+      if (!cid || choices.some((x) => x.id === cid)) throw new HttpError(400, `${name}: each choice needs its own name`);
+      if (!Number.isInteger(price) || price < 0 || price > 10000000) throw new HttpError(400, `${name} · ${cname}: extra price must be 0 or more`);
+      choices.push({ id: cid, name: cname, price });
+    }
+    groups.push({ id, name, pick: g.pick === "many" ? "many" : "one", required: g.pick !== "many" && Boolean(g.required), choices });
+  }
+  return groups;
 }
 
 // Only products customers can order (not hidden).
@@ -43,6 +76,7 @@ function checkProduct(body, { requireAll }) {
   if (body.descriptionTa !== undefined) out.descriptionTa = text(body.descriptionTa, 240);
   if (body.veg !== undefined) out.veg = body.veg === null ? null : body.veg ? 1 : 0;
   if (body.hidden !== undefined) out.hidden = body.hidden ? 1 : 0;
+  if (body.options !== undefined) out.options = JSON.stringify(checkOptions(body.options));
   if (body.img !== undefined) {
     if (body.img !== null && !/^[A-Z0-9]{12}$/.test(String(body.img))) throw new HttpError(400, "Unknown photo");
     out.img = body.img;
@@ -55,21 +89,21 @@ export async function editProduct(db, catalog, id, body) {
   const current = catalog.find((c) => c.id === id);
   if (!current) throw new HttpError(404, "Unknown product");
   const p = { name: current.name, category: current.category, description: current.description, img: current.photo, veg: current.veg === null ? null : current.veg ? 1 : 0, hidden: current.hidden ? 1 : 0,
-    nameTa: current.nameTa || "", descriptionTa: current.descriptionTa || "", ...checkProduct(body, { requireAll: false }) };
+    nameTa: current.nameTa || "", descriptionTa: current.descriptionTa || "", options: JSON.stringify(current.options || []), ...checkProduct(body, { requireAll: false }) };
   if (!current.custom) p.category = current.category; // website products stay in their section
-  await db.prepare(`INSERT INTO products (id, category, name, description, img, veg, hidden, custom, updated_at, name_ta, description_ta) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+  await db.prepare(`INSERT INTO products (id, category, name, description, img, veg, hidden, custom, updated_at, name_ta, description_ta, options) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
     ON CONFLICT (id) DO UPDATE SET category = excluded.category, name = excluded.name, description = excluded.description, img = excluded.img,
-    veg = excluded.veg, hidden = excluded.hidden, updated_at = excluded.updated_at, name_ta = excluded.name_ta, description_ta = excluded.description_ta`)
-    .bind(id, p.category, p.name, p.description, p.img ?? null, p.veg, p.hidden, current.custom ? 1 : 0, now(), p.nameTa, p.descriptionTa).run();
+    veg = excluded.veg, hidden = excluded.hidden, updated_at = excluded.updated_at, name_ta = excluded.name_ta, description_ta = excluded.description_ta, options = excluded.options`)
+    .bind(id, p.category, p.name, p.description, p.img ?? null, p.veg, p.hidden, current.custom ? 1 : 0, now(), p.nameTa, p.descriptionTa, p.options).run();
   return p.name;
 }
 
 export async function addProduct(db, body) {
-  const p = { description: "", img: null, veg: null, hidden: 0, nameTa: "", descriptionTa: "", ...checkProduct(body, { requireAll: true }) };
+  const p = { description: "", img: null, veg: null, hidden: 0, nameTa: "", descriptionTa: "", options: "[]", ...checkProduct(body, { requireAll: true }) };
   const slug = p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "item";
   const id = `x-${slug}-${randomCode(4).toLowerCase()}`;
-  await db.prepare("INSERT INTO products (id, category, name, description, img, veg, hidden, custom, updated_at, name_ta, description_ta) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10)")
-    .bind(id, p.category, p.name, p.description, p.img, p.veg, p.hidden, now(), p.nameTa, p.descriptionTa).run();
+  await db.prepare("INSERT INTO products (id, category, name, description, img, veg, hidden, custom, updated_at, name_ta, description_ta, options) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10, ?11)")
+    .bind(id, p.category, p.name, p.description, p.img, p.veg, p.hidden, now(), p.nameTa, p.descriptionTa, p.options).run();
   return { id, name: p.name };
 }
 
@@ -81,6 +115,11 @@ export async function saveImage(db, dataUrl) {
   try { bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0)); } catch { throw new HttpError(400, "That photo didn't upload properly. Try again."); }
   if (bytes.length > MAX_IMAGE_BYTES) throw new HttpError(413, "Photo too large even after shrinking (max 400 KB)");
   if (!MIME[m[1]].every((b, i) => bytes[i] === b)) throw new HttpError(400, "That file isn't a real image");
+  // photos no product uses any more are cleared out first, and the total stays capped (the free database is 5 GB)
+  await db.prepare("DELETE FROM images WHERE created_at < ?1 AND key NOT IN (SELECT img FROM products WHERE img IS NOT NULL)")
+    .bind(new Date(Date.now() - 86400000).toISOString()).run();
+  const count = await db.prepare("SELECT COUNT(*) AS n FROM images").first();
+  if (count.n >= MAX_IMAGES) throw new HttpError(409, `Photo limit reached (${MAX_IMAGES}). Remove unused photos first.`);
   const key = randomCode(12);
   await db.prepare("INSERT INTO images (key, mime, data, created_at) VALUES (?1, ?2, ?3, ?4)").bind(key, m[1], bytes, now()).run();
   return key;
