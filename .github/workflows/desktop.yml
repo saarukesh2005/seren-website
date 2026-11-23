@@ -1,9 +1,10 @@
-name: Build SEREN Counter for Windows
+name: Build SEREN Counter (Windows + Mac)
 
-# Builds the Windows installer (SEREN-Counter-Setup-<version>.exe) on a real Windows machine
-# whenever the desktop app changes. Two jobs:
-#   build   - read-only; makes the installer and its SHA256 checksum.
-#   release - only on main; vouches for the file (build provenance) and puts it on the Releases page.
+# Builds the counter app for both systems whenever the desktop app changes:
+#   build      - Windows installer SEREN-Counter-Setup-<version>.exe, on a real Windows machine (read-only job)
+#   build-mac  - Mac app SEREN-Counter-<version>-mac-<arm64|x64>.dmg / .zip, on a real Mac (read-only job)
+#   release    - only on main; checks the checksums, vouches for every file (build provenance)
+#                and puts Windows + Mac together on one Releases page.
 # A release tag (counter-v<version>) is never overwritten: raise "version" in desktop/package.json for a new one.
 on:
   push:
@@ -62,8 +63,46 @@ jobs:
             desktop/dist/SHA256SUMS.txt
           if-no-files-found: error
 
+  build-mac:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Build the Mac app (Apple chip and Intel)
+        run: npx electron-builder --mac dmg zip --arm64 --x64 --publish never
+      - name: Check the apps are signed (ad-hoc)
+        run: |
+          for app in dist/mac*/*.app; do codesign --verify --deep --strict "$app" && echo "signed: $app"; done
+      - name: Write the SHA256 checksums
+        run: |
+          cd dist
+          shasum -a 256 SEREN-Counter-*-mac-*.dmg SEREN-Counter-*-mac-*.zip > SHA256SUMS-mac.txt
+          cat SHA256SUMS-mac.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: SEREN-Counter-Mac
+          path: |
+            desktop/dist/SEREN-Counter-*-mac-*.dmg
+            desktop/dist/SEREN-Counter-*-mac-*.zip
+            desktop/dist/SHA256SUMS-mac.txt
+          if-no-files-found: error
+
   release:
-    needs: build
+    needs: [build, build-mac]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -79,9 +118,18 @@ jobs:
         with:
           name: SEREN-Counter-Windows
           path: dist
-      - name: Check the checksum survived the trip
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: SEREN-Counter-Mac
+          path: dist
+      - name: Check the checksums survived the trip, then join them
         working-directory: dist
-        run: sha256sum --check SHA256SUMS.txt
+        run: |
+          sha256sum --check SHA256SUMS.txt
+          sha256sum --check SHA256SUMS-mac.txt
+          cat SHA256SUMS-mac.txt >> SHA256SUMS.txt
+          rm SHA256SUMS-mac.txt
+          cat SHA256SUMS.txt
       - name: Refuse to overwrite an existing release
         run: |
           TAG="counter-v$VERSION"
@@ -91,11 +139,21 @@ jobs:
           fi
       - uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
         with:
-          subject-path: dist/SEREN-Counter-Setup-*.exe
+          subject-path: |
+            dist/SEREN-Counter-Setup-*.exe
+            dist/SEREN-Counter-*-mac-*.dmg
+            dist/SEREN-Counter-*-mac-*.zip
       - name: Put it on the Releases page
         run: |
           TAG="counter-v$VERSION"
-          gh release create "$TAG" dist/SEREN-Counter-Setup-*.exe dist/SHA256SUMS.txt \
+          gh release create "$TAG" dist/SEREN-Counter-Setup-*.exe dist/SEREN-Counter-*-mac-*.dmg dist/SEREN-Counter-*-mac-*.zip dist/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "SEREN Counter $VERSION (Windows)" \
-            --notes "Windows installer for the SEREN shop counter. Download SEREN-Counter-Setup-$VERSION.exe below, run it, and type your shop server address on first start. SHA256SUMS.txt holds the file's checksum, and the build is attested with GitHub build provenance (verify with: gh attestation verify <file> --repo $GITHUB_REPOSITORY)."
+            --title "SEREN Counter $VERSION (Windows + Mac)" \
+            --notes "SEREN shop counter $VERSION.
+
+          - Windows: SEREN-Counter-Setup-$VERSION.exe (if Windows warns, click More info, then Run anyway).
+          - Mac with Apple chip (M1-M4): SEREN-Counter-$VERSION-mac-arm64.dmg
+          - Mac with Intel chip: SEREN-Counter-$VERSION-mac-x64.dmg
+            First open on a Mac: right-click the app, choose Open, then Open (it is not signed with a paid Apple certificate).
+
+          Type your shop server address on first start. SHA256SUMS.txt holds every file's checksum, and each file is attested with GitHub build provenance (verify with: gh attestation verify <file> --repo $GITHUB_REPOSITORY)."

@@ -193,6 +193,8 @@ function menu() {
       { label: "Change shop server…", click: () => win.loadFile(path.join(__dirname, "setup.html")) },
       { role: "reload" }, { type: "separator" }, { role: "quit" },
     ] },
+    // copy / paste / undo in text boxes (on a Mac these shortcuts only work when the Edit menu exists)
+    { role: "editMenu" },
     { label: "View", submenu: [{ role: "togglefullscreen" }, { role: "zoomIn" }, { role: "zoomOut" }, { role: "resetZoom" }] },
   ]));
 }

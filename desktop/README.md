@@ -1,4 +1,4 @@
-# SEREN Counter (Windows)
+# SEREN Counter (Windows and Mac)
 
 The shop-counter billing program for SEREN. It installs like normal Windows software and gives you:
 
@@ -14,9 +14,12 @@ Keyboard: **F1** cash · **F2** UPI · **F3** card · **F4** hold · **F6** held
 ## Get the installer
 
 1. Open the repository's **Releases** page on GitHub: `github.com/saarukesh2005/seren-website/releases`.
-2. Download `SEREN-Counter-Setup-<version>.exe`.
+2. Download the file for your computer:
+   - **Windows:** `SEREN-Counter-Setup-<version>.exe`
+   - **Mac with an Apple chip (M1–M4):** `SEREN-Counter-<version>-mac-arm64.dmg`
+   - **Mac with an Intel chip:** `SEREN-Counter-<version>-mac-x64.dmg`
 
-GitHub builds a new installer automatically whenever this folder changes. To release a new version, raise `version` in `package.json`. A release is never overwritten: if that version is already published, the release step fails until the version is raised.
+GitHub builds the Windows and Mac versions together automatically whenever this folder changes. To release a new version, raise `version` in `package.json`. A release is never overwritten: if that version is already published, the release step fails until the version is raised.
 
 Each release also has `SHA256SUMS.txt` and a signed build-provenance record. To check a download on a PC with the GitHub CLI:
 
@@ -35,6 +38,15 @@ gh attestation verify SEREN-Counter-Setup-<version>.exe --repo saarukesh2005/ser
 
 To change the server address later, press **Alt** to show the menu, then **SEREN → Change shop server…**.
 
+## Install on a Mac (for testing)
+
+1. Open the `.dmg` and drag **SEREN Counter** into **Applications**.
+2. The first time, **right-click** the app → **Open** → **Open**. The Mac warns because the app isn't signed with a paid Apple Developer certificate (about ₹8,000 a year); after this first time it opens normally.
+   If the Mac still refuses: System Settings → Privacy & Security → scroll down → **Open Anyway**.
+3. Type the shop server address (it must start with `https://`), then log in as on Windows.
+
+Silent receipt printing works on a Mac too: add the printer in System Settings → Printers & Scanners first.
+
 ## Receipt printer
 
 1. Install the printer's **Windows driver** from the box or the maker's website, so Windows shows it as a printer.
@@ -50,7 +62,8 @@ To change the server address later, press **Alt** to show the menu, then **SEREN
 npm install
 SEREN_SERVER=http://127.0.0.1:8790 npm start          # run against the local backend
 node test/desktop.cjs /tmp                            # drives the real app; receipts saved as PDF
-npm run dist:win                                      # build the installer (best on Windows; CI does this)
+npm run dist:win                                      # build the Windows installer (best on Windows; CI does this)
+npm run dist:mac                                      # build the Mac app (.dmg and .zip, Apple chip and Intel)
 ```
 
 - The window loads `<server>/pos/` (the counter screen lives in `backend/public/pos/`).
