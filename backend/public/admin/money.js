@@ -13,6 +13,7 @@ SA.money = (function () {
   let result = null;     // what we show right after closing a drawer
   let moveMode = null;   // "in" | "out" | null (which cash form is open)
   let armed = null;      // the counted amount waiting for a second tap
+  const DENOMS = [500, 200, 100, 50, 20, 10, 5, 2, 1]; // notes and coins in use (₹2,000 notes were withdrawn in 2023)
   let range = "30";
   const canSeeMore = () => SA.can("reports");
 
@@ -83,6 +84,9 @@ SA.money = (function () {
       <form class="cash-form" id="cashCloseForm" autocomplete="off">
         <h4>Close the drawer</h4>
         <p class="opt">Count every note and coin in the drawer, then type the total. We will show you how it compares once you close.</p>
+        <details class="cash-notes"><summary>Count note by note</summary>
+          <div class="denoms">${DENOMS.map((d) => `<label><span>₹${d}</span><input data-denom="${d}" inputmode="numeric" placeholder="0" aria-label="How many ₹${d}"></label>`).join("")}</div>
+          <p class="opt">The total goes into "Cash counted" by itself.</p></details>
         <label>Cash counted (₹)<input name="counted" inputmode="decimal" required></label>
         <label>Note <span class="opt">(optional)</span><input name="note" maxlength="200"></label>
         <p class="err" id="cashCloseErr" role="alert"></p>
@@ -254,6 +258,14 @@ SA.money = (function () {
   }
 
   function onInput(e) {
+    // note-by-note count: how many of each note / coin, added up into "Cash counted"
+    if (e.target.dataset && e.target.dataset.denom) {
+      const total = [...document.querySelectorAll("#cashCloseForm [data-denom]")].reduce((n, i) => n + (Math.max(0, parseInt(i.value, 10) || 0) * Number(i.dataset.denom)), 0);
+      const box = document.querySelector('#cashCloseForm [name="counted"]');
+      box.value = String(total);
+      if (armed !== null) { armed = null; $("#cashCloseBtn").textContent = "Close drawer"; }
+      return;
+    }
     if (e.target.name === "counted" && armed !== null) { armed = null; $("#cashCloseBtn").textContent = "Close drawer"; }
   }
 

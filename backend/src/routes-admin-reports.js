@@ -4,7 +4,7 @@ import { CATEGORIES } from "./catalog.js";
 import { dateRange, csvCell } from "./gst-report.js";
 import { HttpError, json, readJson } from "./http.js";
 import { dayClose, dayCloseHtml, salesReport } from "./reports.js";
-import { checkSettings } from "./settings.js";
+import { gstWarnings, checkSettings } from "./settings.js";
 import { audit } from "./staff.js";
 import * as store from "./store.js";
 import { addDays, istParts } from "./util.js";
@@ -12,7 +12,8 @@ import { addDays, istParts } from "./util.js";
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function getSettings({ env }) {
-  return json({ settings: await store.getSettings(env.DB), categories: CATEGORIES, hasWhatsappToken: Boolean(env.WHATSAPP_TOKEN), hasTelegram: Boolean(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) });
+  const settings = await store.getSettings(env.DB);
+  return json({ settings, categories: CATEGORIES, gstWarnings: gstWarnings(settings, CATEGORIES), hasWhatsappToken: Boolean(env.WHATSAPP_TOKEN), hasTelegram: Boolean(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) });
 }
 
 export async function putSettings({ env, request, user }) {
@@ -20,9 +21,10 @@ export async function putSettings({ env, request, user }) {
   const checked = checkSettings(await readJson(request), current);
   if (checked.error) throw new HttpError(400, checked.error);
   await store.saveSettings(env.DB, checked.value);
+  const warnings = gstWarnings(checked.value, CATEGORIES);
   const changed = Object.keys(checked.value).filter((k) => JSON.stringify(checked.value[k]) !== JSON.stringify(current[k]));
   if (changed.length) await audit(env.DB, user, "settings changed", changed.join(", "));
-  return json({ settings: checked.value });
+  return json({ settings: checked.value, gstWarnings: warnings });
 }
 
 export async function report({ env, url }) {
@@ -30,7 +32,14 @@ export async function report({ env, url }) {
   const from = YMD.test(url.searchParams.get("from") || "") ? url.searchParams.get("from") : addDays(today, -6);
   const to = YMD.test(url.searchParams.get("to") || "") ? url.searchParams.get("to") : today;
   if (to < from) throw new HttpError(400, "The end date is before the start date");
-  return json({ report: await salesReport(env.DB, from, to, (await store.getSettings(env.DB)).platforms) });
+  // the same number of days just before, to compare against ("▲ 12% vs the previous 7 days")
+  const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) + 1;
+  const prevTo = addDays(from, -1);
+  const prevFrom = addDays(prevTo, -(days - 1));
+  const prev = await env.DB.prepare(`SELECT COUNT(*) AS orders, COALESCE(SUM(total), 0) AS revenue FROM orders
+    WHERE invoice_no IS NOT NULL AND credit_note_no IS NULL AND date(paid_at, '+330 minutes') BETWEEN ?1 AND ?2`).bind(prevFrom, prevTo).first();
+  const report = await salesReport(env.DB, from, to, (await store.getSettings(env.DB)).platforms);
+  return json({ report: { ...report, previous: { from: prevFrom, to: prevTo, days, orders: prev.orders, revenue: prev.revenue } } });
 }
 
 export async function closing({ env, url, user }, renderHtml) {

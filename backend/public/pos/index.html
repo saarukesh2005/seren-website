@@ -45,7 +45,8 @@
   <main class="pos">
     <section class="catalog" aria-label="Products">
       <div class="tools">
-        <input type="search" id="search" placeholder="Find a product  ( / )" aria-label="Find a product" autocomplete="off">
+        <div class="find-row"><input type="search" id="search" placeholder="Find a product  ( / )" aria-label="Find a product" autocomplete="off">
+          <button class="view" type="button" id="viewBtn" aria-pressed="false" title="Show product photos or a compact list">Photos: on</button></div>
         <div class="chips" id="cats" role="group" aria-label="Sections"></div>
       </div>
       <div class="grid" id="grid"></div>
@@ -64,6 +65,7 @@
           <label>Discount % <input id="discPct" inputmode="decimal" maxlength="5" autocomplete="off"></label>
           <label>or ₹ off <input id="discAmt" inputmode="decimal" maxlength="8" autocomplete="off"></label>
           <label class="check"><input type="checkbox" id="packing"> Takeaway packing charge</label>
+          <label class="wide">Kitchen note <input id="knote" maxlength="200" autocomplete="off" placeholder="less sugar, birthday candle…"></label>
         </div>
         <div class="loyal" id="loyal" hidden></div>
       </details>
@@ -79,6 +81,7 @@
       </div>
       <div class="morebtns">
         <button class="btn ghost hold" type="button" id="holdBtn">Hold this bill <kbd>F4</kbd></button>
+        <button class="btn ghost" type="button" id="repeatBtn">Repeat last bill <kbd>F9</kbd></button>
         <button class="btn ghost" type="button" id="advBtn">Cake / advance order</button>
         <button class="btn ghost" type="button" id="appBtn">Swiggy · Zomato · ONDC</button>
       </div>

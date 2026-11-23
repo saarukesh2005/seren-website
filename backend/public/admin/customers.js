@@ -14,22 +14,45 @@ SA.customers = (function () {
   async function list(q = "") {
     const body = $("#custBody");
     if (!body.querySelector("#custSearch")) {
-      body.innerHTML = `<input type="search" id="custSearch" placeholder="Search name or mobile" aria-label="Search customers"><div class="table-wrap"><table class="grid" id="custTable"></table></div>`;
+      body.innerHTML = `<section class="box bdays" id="bdays" hidden></section><input type="search" id="custSearch" placeholder="Search name or mobile" aria-label="Search customers"><div class="table-wrap"><table class="grid" id="custTable"></table></div>`;
+      birthdays();
       let t;
       body.querySelector("#custSearch").addEventListener("input", (e) => { clearTimeout(t); t = setTimeout(() => list(e.target.value.trim()), 300); });
     }
     try {
       const { customers } = await api(`/customers?q=${encodeURIComponent(q)}`);
-      $("#custTable").innerHTML = `<thead><tr><th>Customer</th><th>Orders</th><th>Spent</th><th>Points</th><th>Usually orders</th><th>Last order</th><th>Offers on WhatsApp</th></tr></thead>
+      $("#custTable").innerHTML = `<thead><tr><th>Customer</th><th>Orders</th><th>Spent</th><th>Points</th><th>Usually orders</th><th>Last order</th><th>Birthday</th><th>Offers on WhatsApp</th></tr></thead>
         <tbody>${customers.length ? customers.map((c) => `<tr>
           <td><b>${esc(c.name || "—")}</b><br><a href="https://wa.me/91${esc(c.phone)}" target="_blank" rel="noopener">${esc(c.phone)}</a></td>
           <td>${c.orders}</td><td>${esc(money(c.spent))}</td><td>${c.points}</td><td>${esc(c.favourite || "")}</td><td>${esc(ago(c.last_at))}</td>
+          <td><input class="bday" data-bday="${esc(c.phone)}" value="${esc(ddmm(c.birthday))}" placeholder="DD/MM" inputmode="numeric" maxlength="5" aria-label="Birthday of ${esc(c.name || c.phone)}"></td>
           <td><label class="switch"><input type="checkbox" data-optin="${esc(c.phone)}" ${c.opt_in ? "checked" : ""}> ${c.opt_in ? "Yes" : "No"}</label></td></tr>`).join("")
-        : `<tr><td colspan="7" class="empty">Customers appear here after their first paid order</td></tr>`}</tbody>`;
+        : `<tr><td colspan="8" class="empty">Customers appear here after their first paid order</td></tr>`}</tbody>`;
     } catch (e) { toast(e.message, true); }
   }
 
   /* ---------- coupons ---------- */
+  const ddmm = (mmdd) => (/^\d{2}-\d{2}$/.test(mmdd || "") ? `${mmdd.slice(3)}/${mmdd.slice(0, 2)}` : "");
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  // Birthdays in the next 7 days: a ready WhatsApp greeting for customers who said yes to offers
+  async function birthdays() {
+    const box = $("#bdays");
+    if (!box) return;
+    try {
+      const { birthdays: list } = await api("/customers/birthdays");
+      box.hidden = !list.length;
+      if (!list.length) return;
+      const shop = (SA.state.settings && SA.state.settings.storeName) || "SEREN";
+      box.innerHTML = `<h3>Birthdays this week 🎂</h3><ul class="bday-list">${list.map((c) => {
+        const when = c.inDays === 0 ? "today" : c.inDays === 1 ? "tomorrow" : `in ${c.inDays} days`;
+        const msg = `Hi ${c.name || ""}! Happy birthday from ${shop}! 🎂 Order your birthday cake with us this week.`;
+        return `<li><span><b>${esc(c.name || c.phone)}</b> · ${esc(Number(c.birthday.slice(3)))} ${esc(MONTHS[Number(c.birthday.slice(0, 2)) - 1])} (${esc(when)})</span>
+          ${c.opt_in ? `<a class="btn ghost small" href="https://wa.me/91${esc(c.phone)}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Send wishes on WhatsApp</a>` : `<span class="opt">hasn't said yes to offers</span>`}</li>`;
+      }).join("")}</ul>`;
+    } catch (e) { box.hidden = true; }
+  }
+
   async function coupons() {
     const body = $("#custBody");
     try {
@@ -114,6 +137,15 @@ SA.customers = (function () {
       const cp = e.target.closest("[data-coupon]");
       try {
         if (opt) { await api(`/customers/${opt.dataset.optin}`, { opt_in: opt.checked }); toast(opt.checked ? "Offers on" : "Offers off"); }
+        const bd = e.target.closest("[data-bday]");
+        if (bd) {
+          const m = /^(\d{1,2})[/.-](\d{1,2})$/.exec(bd.value.trim());
+          if (bd.value.trim() && !m) { toast("Birthday like 25/12", true); return; }
+          const birthday = m ? `${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : "";
+          await api(`/customers/${bd.dataset.bday}`, { birthday });
+          toast(birthday ? "Birthday saved" : "Birthday removed");
+          birthdays();
+        }
         if (cp) { await api(`/coupons/${encodeURIComponent(cp.dataset.coupon)}`, { active: cp.checked }); toast(cp.checked ? "Coupon on" : "Coupon off"); }
       } catch (ex) { toast(ex.message, true); }
     });

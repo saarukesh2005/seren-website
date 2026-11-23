@@ -96,6 +96,8 @@
         <div class="inline"><input name="table" id="seatTable" list="tableNames" maxlength="10" placeholder="Table" required aria-label="Table to seat"><datalist id="tableNames"></datalist>
         <button class="btn plum" type="submit">Open tab</button></div></form>
       <div class="calls" id="callList" aria-live="polite"></div>
+      <h2 class="sec">Free tables</h2>
+      <div class="freegrid" id="freeGrid"></div>
       <h2 class="sec">Open tables</h2>
       <div class="tabgrid" id="tabGrid"></div>
       <p class="lead" id="payLaterHint"></p>
@@ -106,6 +108,7 @@
         <p class="lead">Set a price to sell a product online; empty price = hidden. "Per day" limits how many can be sold each day. Changes save by themselves.</p>
         <button class="btn plum" type="button" id="addProduct">+ Add a product</button>
       </div>
+      <input type="search" id="menuFind" class="menu-find" placeholder="Find a product…" aria-label="Find a product" autocomplete="off">
       <div id="priceGroups"></div>
     </section>
 

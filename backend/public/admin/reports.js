@@ -55,15 +55,24 @@ SA.reports = (function () {
       <span class="track" aria-hidden="true"><i style="width:${total ? (r.revenue / total) * 100 : 0}%"></i></span><b>${esc(money(r.revenue))}</b><span class="opt">${r.orders}</span></li>`).join("")}</ul>` : `<p class="empty">—</p>`}</section>`;
   }
 
+  // ▲ / ▼ against the same number of days just before
+  function trend(now, before, prev) {
+    if (!prev || before === null || before === undefined) return "";
+    if (!before) return now ? `<small class="trend up">new · nothing in the ${esc(String(prev.days))} days before</small>` : "";
+    const pct = Math.round(((now - before) / before) * 100);
+    const word = prev.days === 1 ? "the day before" : `the previous ${prev.days} days`;
+    return `<small class="trend ${pct >= 0 ? "up" : "down"}">${pct >= 0 ? "▲" : "▼"} ${esc(String(Math.abs(pct)))}% vs ${esc(word)}</small>`;
+  }
+
   function render(r) {
     const t = r.totals;
     const days = r.byDay.map((d) => ({ label: dayShort(d.day), value: d.revenue, sub: `${d.orders} bill${d.orders === 1 ? "" : "s"}` }));
     const hours = r.byHour.map((h) => ({ label: hourLabel(h.hour), value: h.orders, sub: money(h.revenue) }));
     $("#repBody").innerHTML = `
       <div class="stats">
-        <div class="stat hero"><b>${esc(money(t.revenue))}</b><span>Sales</span></div>
-        <div class="stat"><b>${t.orders}</b><span>Bills</span></div>
-        <div class="stat"><b>${esc(money(t.average))}</b><span>Average bill</span></div>
+        <div class="stat hero"><b>${esc(money(t.revenue))}</b><span>Sales</span>${trend(t.revenue, r.previous && r.previous.revenue, r.previous)}</div>
+        <div class="stat"><b>${esc(String(Number(t.orders) || 0))}</b><span>Bills</span>${trend(t.orders, r.previous && r.previous.orders, r.previous)}</div>
+        <div class="stat"><b>${esc(money(t.average))}</b><span>Average bill</span>${trend(t.average, r.previous && r.previous.orders ? Math.round(r.previous.revenue / r.previous.orders) : null, r.previous)}</div>
         <div class="stat"><b>${esc(money(t.discounts))}</b><span>Discounts given</span></div>
         <div class="stat"><b>${r.refunds.n ? esc(money(r.refunds.amount)) : "₹0"}</b><span>Refunded (${r.refunds.n})</span></div>
         <div class="stat"><b>${r.rating.average ?? "—"}</b><span>Rating (${r.rating.count})</span></div>
@@ -91,7 +100,7 @@ SA.reports = (function () {
   }
 
   /* ---------- GST for the accountant ---------- */
-  const GST_PARTS = [["b2b", "Business customers (B2B)"], ["b2cs", "Other customers (B2C)"], ["hsn", "Items by HSN code"], ["cdnr", "Credit notes (refunds)"], ["eco", "Delivery-app sales"], ["docs", "Bill numbers used"]];
+  const GST_PARTS = [["b2b", "Business customers (B2B)"], ["b2cs", "Other customers (B2C)"], ["hsn", "Items by HSN code"], ["cdnr", "Credit notes (refunds)"], ["eco", "Delivery-app sales"], ["adv", "Cake advances (GST)"], ["docs", "Bill numbers used"]];
   let gstToken = 0;
   async function loadGst(from, to) {
     const token = ++gstToken;

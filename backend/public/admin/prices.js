@@ -13,6 +13,7 @@ SA.prices = (function () {
   }
 
   function render() {
+    setTimeout(() => { if ($("#menuFind") && $("#menuFind").value) filterMenu($("#menuFind").value); }, 0);
     const { categories, items } = SA.state.catalog;
     $("#priceGroups").innerHTML = Object.entries(categories).map(([key, label]) => `
       <section class="pgroup"><h2>${esc(label)}</h2>
@@ -72,6 +73,12 @@ SA.prices = (function () {
         <button class="btn ghost small" type="button" id="addGroup">+ Add a choice group</button>
         <p class="meta">"Pick one" groups (like Size) can be required. Extra price is added to the item's price.</p>
       </details>
+      <details class="box" ${p.tax ? "open" : ""}><summary><b>GST for this item</b> <span class="opt">(only if it differs from its section, e.g. a packed chocolate sold as goods)</span></summary>
+        <label class="check"><input type="checkbox" name="ownTax" ${p.tax ? "checked" : ""}> This item has its own GST</label>
+        <div class="two"><label>HSN / SAC<input name="taxHsn" inputmode="numeric" maxlength="8" value="${esc(p.tax ? p.tax.hsn : "")}" placeholder="e.g. 1806"></label>
+        <label>GST rate<select name="taxRate">${[0, 0.25, 3, 5, 12, 18, 28, 40].map((r) => `<option value="${r}" ${p.tax && Number(p.tax.rate) === r ? "selected" : !p.tax && r === 5 ? "selected" : ""}>${r}%</option>`).join("")}</select></label></div>
+        <p class="meta">Ask your CA. After GST 2.0 (22 Sep 2025) cakes, pastries, cookies, chocolates and ice cream sold as goods are mostly 5%; plain bread is nil.</p>
+      </details>
       <fieldset class="seg"><legend>Food mark</legend>
         ${[["", "None"], ["1", "Veg"], ["0", "Non-veg"]].map(([v, l]) => `<label><input type="radio" name="veg" value="${v}" ${String(p.veg === null ? "" : p.veg ? 1 : 0) === v ? "checked" : ""}><span>${l}</span></label>`).join("")}</fieldset>
       <div class="photo">
@@ -112,7 +119,8 @@ SA.prices = (function () {
       const v = (n) => f.elements.namedItem(n);
       const vegRaw = v("veg").value;
       const body = { name: v("name").value, description: v("description").value, veg: vegRaw === "" ? null : vegRaw === "1", hidden: v("hidden").checked, img: photo,
-        nameTa: v("nameTa").value, descriptionTa: v("descriptionTa").value, options: readOptions(ed) };
+        nameTa: v("nameTa").value, descriptionTa: v("descriptionTa").value, options: readOptions(ed),
+        tax: v("ownTax").checked ? { hsn: v("taxHsn").value.trim(), rate: Number(v("taxRate").value) } : null };
       if (v("category")) body.category = v("category").value;
       try {
         if (isNew) await api("/products", body);
@@ -166,6 +174,15 @@ SA.prices = (function () {
     });
   }
 
+  function filterMenu(raw) {
+    const q = String(raw || "").trim().toLowerCase();
+    document.querySelectorAll("#priceGroups .pgroup").forEach((g) => {
+      let shown = 0;
+      g.querySelectorAll(".prow").forEach((r) => { const hit = !q || r.textContent.toLowerCase().includes(q); r.hidden = !hit; if (hit) shown += 1; });
+      g.hidden = shown === 0;
+    });
+  }
+
   function start() {
     $("#priceGroups").addEventListener("input", (e) => { const row = e.target.closest(".prow"); if (row && e.target.name !== "available") queue(row); });
     $("#priceGroups").addEventListener("change", (e) => { const row = e.target.closest(".prow"); if (row && e.target.type === "checkbox") queue(row); });
@@ -174,6 +191,8 @@ SA.prices = (function () {
       if (b) editor(SA.state.catalog.items.find((i) => i.id === b.dataset.edit));
     });
     $("#addProduct").addEventListener("click", () => editor(null));
+    // find a product by name: other rows and empty sections hide while typing
+    $("#menuFind").addEventListener("input", (e) => filterMenu(e.target.value));
     if (!SA.can("menu")) $("#addProduct").hidden = true;
   }
   return { start, render, loadCatalog };

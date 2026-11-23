@@ -34,6 +34,13 @@ SA.tablesTab = (function () {
                <button class="btn ghost small" type="button" data-reopen="${esc(t.table_no)}">Undo bill</button></div>`}
         </article>`).join("")
       : `<p class="empty">No open tables</p>`;
+    // every table from Settings: the free ones are one tap to seat (that also makes the table PIN)
+    const names = ((SA.state.settings && SA.state.settings.dineInTables) || "").split(",").map((t) => t.trim()).filter(Boolean);
+    const busy = new Set(tabs.map((t) => String(t.table_no).toLowerCase()));
+    const free = names.filter((n) => !busy.has(n.toLowerCase()));
+    $("#freeGrid").innerHTML = names.length
+      ? (free.length ? free.map((n) => `<button class="freetile" type="button" data-seat="${esc(n)}"><b>${esc(n)}</b><span>Tap to seat</span></button>`).join("") : `<p class="empty">Every table is taken</p>`)
+      : `<p class="empty">Add your table names in Settings → Dine-in to see them here.</p>`;
     const s = SA.state.settings;
     $("#payLaterHint").textContent = s && s.dineInPayLater
       ? "Guests ordering from the table card can pay at the end. Each table's rounds collect here until you make the bill."
@@ -71,6 +78,12 @@ SA.tablesTab = (function () {
       const openBill = e.target.closest("[data-open]");
       const close = e.target.closest("[data-close]");
       const take = e.target.closest("[data-take]");
+      const seatBtn = e.target.closest("[data-seat]");
+      if (seatBtn) {
+        try { const r = await api(`/tables/${encodeURIComponent(seatBtn.dataset.seat)}/open`, {}); toast(`Table ${seatBtn.dataset.seat} seated. Tell the guests their PIN: ${r.pin}`); load(); }
+        catch (ex) { toast(ex.message, true); }
+        return;
+      }
       const mv = e.target.closest("[data-move]");
       try {
         if (done) { await api(`/calls/${done.dataset.done}/done`, {}); load(); }

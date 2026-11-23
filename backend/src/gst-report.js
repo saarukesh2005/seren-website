@@ -4,7 +4,7 @@ import { HttpError } from "./http.js";
 import { addDays, financialYear, rupees } from "./util.js";
 
 export const MAX_RANGE_DAYS = 366;
-export const PARTS = ["b2b", "b2cs", "hsn", "cdnr", "eco", "docs"];
+export const PARTS = ["b2b", "b2cs", "hsn", "cdnr", "eco", "adv", "docs"];
 const FOUR_CRORE = 4_000_000_000; // ₹4 crore in paise
 const FIVE_CRORE = 5_000_000_000;
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
@@ -102,6 +102,30 @@ function hsnSummary(invoices, credits, chargesHsn) {
     .map((r) => ({ ...r, ...split(r.tax), value: r.taxable + r.tax }));
 }
 
+// Advances on restaurant service are taxable when received (receipt voucher), and that tax is set off when the bill is made:
+// GSTR-1 Table 11A (advances received in the period, not yet billed) and 11B (advances adjusted against bills in the period).
+// The tax inside an advance is the same share of it as the bill's tax is of the bill, split by rate.
+function advanceShare(o, amount) {
+  const summary = (o.tax_snapshot && o.tax_snapshot.taxSummary) || [];
+  const total = o.total || 0;
+  return summary.filter((r) => r.rate > 0).map((r) => {
+    const gross = total ? Math.round((amount * (r.taxable + r.tax)) / total) : 0;
+    const tax = Math.round((gross * r.rate) / (100 + r.rate));
+    return { rate: r.rate, taxable: gross - tax, tax };
+  });
+}
+function advanceTables(advances, invoices) {
+  const byRate = (list) => {
+    const m = new Map();
+    for (const x of list) for (const r of x) { const g = m.get(r.rate) || { rate: r.rate, taxable: 0, tax: 0 }; m.set(r.rate, { rate: r.rate, taxable: g.taxable + r.taxable, tax: g.tax + r.tax }); }
+    return [...m.values()].sort((a, b) => a.rate - b.rate).map((r) => ({ ...r, ...split(r.tax) }));
+  };
+  const received = advances.filter((a) => !a.invoice_no).map((a) => advanceShare(a, a.amount));
+  const adjusted = invoices.filter((o) => o.advance > 0 && o.receipt_no && !isApp(o)).map((o) => advanceShare(o, o.advance));
+  return { received: byRate(received), adjusted: byRate(adjusted),
+    note: "Received: advances taken in this period for bills not made yet (Table 11A). Adjusted: advances set off against bills made in this period (Table 11B)." };
+}
+
 // Orders from delivery apps: the app collects and pays the GST (section 9(5)), so only the taxable value is shown.
 function ecoSummary(invoices, credits) {
   const map = new Map();
@@ -133,7 +157,7 @@ function docRange(nature, numbers) {
 /**
  * @param {{ invoices: object[], credits: object[], receipts: string[], settings: object }} data
  */
-export function buildGstReport(from, to, { invoices, credits, receipts = [], settings }, turnover) {
+export function buildGstReport(from, to, { invoices, credits, receipts = [], advances = [], settings }, turnover) {
   const place = stateLabel(settings);
   const own = invoices.filter((o) => !isApp(o));
   const b2bInv = own.filter((o) => o.customer_gstin);
@@ -174,7 +198,11 @@ export function buildGstReport(from, to, { invoices, credits, receipts = [], set
     },
     b2b: { rows: b2b, totals: b2bTotals },
     b2cs: { rows: b2csRows, totals: b2csTotals },
-    hsn: { rows: hsnSummary(own, ownCredits, settings.charges?.hsn || "996331"), note: "Orders from delivery apps are not included here (see the app section)." },
+    hsn: { rows: hsnSummary(own, ownCredits, settings.charges?.hsn || "996331"),
+      b2b: hsnSummary(b2bInv, ownCredits.filter((o) => o.customer_gstin), settings.charges?.hsn || "996331"),
+      b2c: hsnSummary(b2csInv, ownCredits.filter((o) => !o.customer_gstin), settings.charges?.hsn || "996331"),
+      note: "GSTR-1 Table 12 wants B2B and B2C separately (the CSV has both). Orders from delivery apps are not included here (see the app section)." },
+    advances: advanceTables(advances, invoices),
     cdnr: { rows: cdnr, totals: { ...flat(cdnr), value: sum(cdnr, "value"), n: cdnr.length } },
     cdnur: { rows: cdnurRows, notes: cdnurDocs, totals: { ...totalsOf(cdnurRows), value: sum(cdnurDocs, "value"), n: cdnurDocs.length } },
     eco: { rows: eco, taxableTotal: ecoTaxable, note: "GST on these sales is collected and paid by the delivery app (section 9(5)). Only the taxable value is shown." },
@@ -204,11 +232,13 @@ export async function loadGstData(db, store, from, to) {
       db.prepare("SELECT COALESCE(SUM(total), 0) AS v FROM orders WHERE invoice_no IS NOT NULL AND invoice_date BETWEEN ?1 AND ?2").bind(fy.start, fy.end),
       db.prepare("SELECT COALESCE(SUM(total), 0) AS v FROM orders WHERE credit_note_no IS NOT NULL AND credit_note_date BETWEEN ?1 AND ?2").bind(fy.start, fy.end),
     ]),
-    db.prepare(`SELECT o.receipt_no AS no FROM payments p JOIN orders o ON o.id = p.order_id
+    db.prepare(`SELECT o.receipt_no AS no, p.amount, o.total, o.tax_snapshot, o.invoice_no, o.invoice_date FROM payments p JOIN orders o ON o.id = p.order_id
       WHERE p.kind = 'advance' AND o.receipt_no IS NOT NULL AND date(p.at, '+330 minutes') BETWEEN ?1 AND ?2`).bind(from, to).all(),
   ]);
+  // an advance counts as "not billed yet" if its bill was made after the end of this period (or not at all)
+  const advances = receipts.results.map((r) => ({ ...r, tax_snapshot: JSON.parse(r.tax_snapshot || "{}"), invoice_no: r.invoice_no && r.invoice_date <= to ? r.invoice_no : null }));
   return {
-    invoices, credits, receipts: receipts.results.map((r) => r.no),
+    invoices, credits, receipts: receipts.results.map((r) => r.no), advances,
     turnover: { fyStart: fy.start, fyEnd: fy.end, invoiced: turn[0].results[0].v, credited: turn[1].results[0].v },
   };
 }
@@ -226,8 +256,14 @@ export function gstCsv(report, part) {
       ...report.b2cs.rows.map((r) => ["OE", r.placeOfSupply, ...rateCols(r)])];
   }
   if (part === "hsn") {
-    return [["HSN / SAC", "Unit", "Quantity", "GST rate %", "Taxable value", "CGST", "SGST", "Total value"],
-      ...report.hsn.rows.map((r) => [r.hsn, "NOS", r.qty, r.rate, rs(r.taxable), rs(r.cgst), rs(r.sgst), rs(r.value)])];
+    return [["Type", "HSN / SAC", "Unit", "Quantity", "GST rate %", "Taxable value", "CGST", "SGST", "Total value"],
+      ...report.hsn.b2b.map((r) => ["B2B", r.hsn, "NOS", r.qty, r.rate, rs(r.taxable), rs(r.cgst), rs(r.sgst), rs(r.value)]),
+      ...report.hsn.b2c.map((r) => ["B2C", r.hsn, "NOS", r.qty, r.rate, rs(r.taxable), rs(r.cgst), rs(r.sgst), rs(r.value)])];
+  }
+  if (part === "adv") {
+    return [["Table", "Place of supply", "GST rate %", "Taxable value", "CGST", "SGST"],
+      ...report.advances.received.map((r) => ["11A advance received", report.seller.placeOfSupply, ...rateCols(r)]),
+      ...report.advances.adjusted.map((r) => ["11B advance adjusted", report.seller.placeOfSupply, ...rateCols(r)])];
   }
   if (part === "cdnr") {
     const rows = [["Receiver", "GSTIN of customer", "Note type", "Credit note number", "Credit note date", "Against invoice", "Invoice date", "Note value", "GST rate %", "Taxable value", "CGST", "SGST"]];

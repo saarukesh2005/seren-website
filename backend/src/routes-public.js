@@ -171,9 +171,9 @@ export async function orderPayments(db, orderId) {
 }
 
 export function snapshot(settings, priced) {
-  const { storeName, legalName, gstin, address, stateName, phone, email, pricesIncludeGst, invoiceNote, fssaiNo } = settings;
+  const { storeName, legalName, gstin, gstScheme, address, stateName, phone, email, pricesIncludeGst, invoiceNote, fssaiNo } = settings;
   return {
-    seller: { storeName, legalName, gstin, address, stateName, phone, email, pricesIncludeGst, invoiceNote, fssaiNo },
+    seller: { storeName, legalName, gstin, gstScheme, address, stateName, phone, email, pricesIncludeGst, invoiceNote, fssaiNo },
     delivery: priced.delivery,
     charges: priced.charges || [],
     roundOff: priced.roundOff || 0,

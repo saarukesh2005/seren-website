@@ -106,6 +106,8 @@ function payParts(body, total, settings) {
 const quoteOf = (p, settings) => ({
   total: p.priced.total, subtotal: p.priced.subtotal, discount: p.priced.discount, pointsUsed: p.usedPoints, couponCode: p.coupon ? p.coupon.code : "",
   charges: p.priced.charges.map((x) => ({ name: x.name, amount: x.gross })), roundOff: p.priced.roundOff,
+  gst: p.priced.taxSummary.reduce((n, r) => n + r.tax, 0), // shown live on the counter: "incl. GST ₹x"
+  gstAdded: !settings.pricesIncludeGst,
   lines: p.priced.lines.map((l) => ({ id: l.id, name: l.name, qty: l.qty, amount: l.gross })),
   // the UPI ID always comes from the server, never from what the counter PC remembers
   upi: { id: settings.upiId, name: settings.upiName },
@@ -161,6 +163,7 @@ export async function counterSale(c) {
   const notes = [
     offlineAt ? `Billed offline at ${offlineAt.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}${rungBy && rungBy !== user.name ? ` by ${rungBy}` : ""}` : "",
     p.manual ? `Staff discount ${rupees(p.manual)}${p.approvedBy && p.approvedBy !== user.name ? ` (OK by ${p.approvedBy})` : ""}` : "",
+    clean(body.notes, 200),
   ].filter(Boolean).join(" · ");
   const order = {
     code, tokenHash: await sha256hex(randomToken()), source: "counter", status: "awaiting_payment",
@@ -176,8 +179,13 @@ export async function counterSale(c) {
     ...(p.usedPoints ? spendPointsStmts(env.DB, phone, p.usedPoints, code) : []),
   ];
   const how = pay.parts ? pay.parts.map((x) => `${x.method} ${rupees(x.amount)}`).join(" + ") : pay.method;
-  const paid = await saveAndPay(c, order, { extra, pay, settings, audits: ["counter bill", `${how}${p.usedPoints ? ` · ${p.usedPoints} points of ${phone}` : ""}${p.approvedBy && p.approvedBy !== user.name ? ` · OK by ${p.approvedBy}` : ""}`] });
-  if (!paid) return alreadySaved(env, clientRef, p.cart);
+  const paidNow = await saveAndPay(c, order, { extra, pay, settings, audits: ["counter bill", `${how}${p.usedPoints ? ` · ${p.usedPoints} points of ${phone}` : ""}${p.approvedBy && p.approvedBy !== user.name ? ` · OK by ${p.approvedBy}` : ""}`] });
+  if (!paidNow) return alreadySaved(env, clientRef, p.cart);
+  // only ready-made items (from the display) and not for a table: handed over right now, nothing for the kitchen
+  let paid = paidNow;
+  if (mode === "counter" && paid.lines.every((l) => !settings.madeToOrder.includes(l.category))) {
+    if (await store.moveStatus(env.DB, paid, "completed", "Handed over at the counter", "system")) paid = await store.getOrder(env.DB, paid.code);
+  }
   return json({ order: paid }, 201);
 }
 

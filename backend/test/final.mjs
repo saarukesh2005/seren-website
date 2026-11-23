@@ -136,7 +136,7 @@ const manager = session();
   const booked = r.data.order || {};
   check("cake order booked with an advance receipt", r.status === 201 && booked.status === "booked" && /RV\/\d{4}\/\d{5}/.test(booked.receipt_no) && booked.advance === 20000, JSON.stringify(r.data).slice(0, 300));
   r = await owner("GET", `/receipt/${booked.code}`);
-  check("advance receipt prints", r.status === 200 && /Advance Receipt/.test(r.data) && /Happy 60th Appa/.test(r.data));
+  check("advance receipt prints", r.status === 200 && /Advance Receipt|Receipt Voucher/.test(r.data) && /Happy 60th Appa/.test(r.data));
   r = await cashier("GET", "/api/admin/kitchen");
   check("the kitchen sees tomorrow's cake with its message", r.data.orders.some((o) => o.code === booked.code && o.cakeMessage === "Happy 60th Appa"));
   r = await cashier("POST", `/api/admin/orders/${booked.code}/confirm`, { method: "upi", utr: String(Date.now()).slice(-12) });
@@ -224,6 +224,51 @@ const manager = session();
   check("oversized requests are refused", r.status === 413, JSON.stringify(r.data));
   r = await pub("GET", "/api/menu");
   check("the website sees item options", r.data.products.some((p) => p.id === cake && p.options.length === 2));
+
+  /* GST in real life: regular (tax invoice), composition (bill of supply), unregistered (bill) */
+  const cats = (await owner("GET", "/api/admin/settings")).data.categories;
+  const tax = Object.fromEntries(Object.keys(cats).map((k) => [k, { hsn: "", rate: 0 }]));
+  r = await owner("POST", "/api/admin/settings", { gstin: "33ABCDE1234F1Z5", legalName: "Seren Foods", gstScheme: "regular", tax, address: "" });
+  check("GST on with 0% sections and no address is flagged", r.status === 200 && r.data.gstWarnings.some((w) => /0%/.test(w)) && r.data.gstWarnings.some((w) => /address/.test(w)), JSON.stringify(r.data.gstWarnings));
+  const cafe = Object.fromEntries(Object.keys(cats).map((k) => [k, { hsn: "996331", rate: 5 }]));
+  r = await owner("POST", "/api/admin/settings", { tax: cafe, address: "12 Anna Salai, Chennai", stateName: "Tamil Nadu", fssaiNo: "12345678901234", pricesIncludeGst: true, charges: { packing: 0, servicePercent: 0, roundOff: true, hsn: "996331" } });
+  check("café 5% setup with address and FSSAI clears the warnings", r.status === 200 && r.data.gstWarnings.length === 0, JSON.stringify(r.data.gstWarnings));
+  r = await cashier("POST", "/api/admin/counter/quote", { items: [{ id: cake, qty: 1, opts: ["size-regular"] }] });
+  check("counter quote shows the GST inside the price", r.data.quote.gst === Math.round(45050 - (45050 * 100) / 105) || Math.abs(r.data.quote.gst - 2145) <= 2, JSON.stringify(r.data.quote));
+  r = await cashier("POST", "/api/admin/counter", { items: [{ id: cake, qty: 1, opts: ["size-regular"] }], method: "cash" });
+  const gstBill = r.data.order;
+  check("5% bill: CGST + SGST add up to the GST in the price", gstBill.tax_snapshot.taxSummary.some((t) => t.rate === 5 && t.cgst + t.sgst === t.tax && t.tax > 0), JSON.stringify(gstBill.tax_snapshot.taxSummary));
+  r = await owner("GET", `/invoice/${gstBill.code}`);
+  check("tax invoice has GSTIN, SAC, place of supply with code, reverse charge, FSSAI, signatory", /Tax Invoice/.test(r.data) && /996331/.test(r.data) && /33-Tamil Nadu/.test(r.data) && /reverse charge: No/.test(r.data) && /FSSAI Lic\. No\.<\/b> 12345678901234/.test(r.data) && /Authorised signatory/.test(r.data), r.data.slice(0, 200));
+  // an item with its own GST (e.g. a packed chocolate sold as goods)
+  r = await owner("POST", `/api/admin/products/${cake}`, { tax: { hsn: "1806", rate: 18 } });
+  r = await cashier("POST", "/api/admin/counter/quote", { items: [{ id: cake, qty: 1, opts: ["size-regular"] }] });
+  check("an item's own GST rate wins over its section", Math.abs(r.data.quote.gst - Math.round(45050 - (45050 * 100) / 118)) <= 2, JSON.stringify(r.data.quote.gst));
+  r = await owner("POST", `/api/admin/products/${cake}`, { tax: { hsn: "19", rate: 5 } });
+  check("item GST codes are checked", r.status === 400);
+  await owner("POST", `/api/admin/products/${cake}`, { tax: null });
+  // a cake advance: the GST inside the advance is on the receipt voucher and in the GST pack (Table 11A)
+  r = await cashier("POST", "/api/admin/counter/advance", { items: [{ id: cake, qty: 1, opts: ["size-regular"] }], name: "Meera", phone: phone(), date: tomorrow, time: "16:00", advance: { method: "cash", amount: 21000 } });
+  const adv = r.data.order;
+  r = await owner("GET", `/receipt/${adv.code}`);
+  check("advance receipt voucher shows the GST in the advance", /Receipt Voucher/.test(r.data) && /GST in the advance/.test(r.data), r.data.slice(0, 300));
+  const today = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
+  r = await owner("GET", `/api/admin/gst?from=${today}&to=${today}`);
+  const gr = r.data.report || {};
+  check("GST pack: HSN split B2B / B2C, and advances received (11A)", Array.isArray(gr.hsn && gr.hsn.b2c) && gr.hsn.b2c.some((h) => h.hsn === "996331") && gr.advances.received.some((a) => a.rate === 5 && a.tax > 0), JSON.stringify({ b2c: gr.hsn && gr.hsn.b2c, adv: gr.advances }).slice(0, 300));
+  r = await owner("GET", `/api/admin/gst.csv?from=${today}&to=${today}&part=adv`);
+  check("advances CSV for the accountant", r.status === 200 && /11A advance received/.test(r.data), String(r.data).slice(0, 200));
+  // composition: a bill of supply, no GST charged
+  await owner("POST", "/api/admin/settings", { gstScheme: "composition" });
+  r = await cashier("POST", "/api/admin/counter", { items: [{ id: cake, qty: 1, opts: ["size-regular"] }], method: "cash" });
+  const comp = r.data.order;
+  r = await owner("GET", `/invoice/${comp.code}`);
+  check("composition: Bill of Supply, no GST charged, with the required wording", comp.tax_snapshot.taxSummary.every((t) => t.tax === 0) && /Bill of Supply/.test(r.data) && /not eligible to collect tax on supplies/.test(r.data) && !/Tax Invoice/.test(r.data), r.data.slice(0, 200));
+  // not registered: a plain bill
+  r = await owner("POST", "/api/admin/settings", { gstin: "", gstScheme: "regular" });
+  r = await cashier("POST", "/api/admin/counter", { items: [{ id: cake, qty: 1, opts: ["size-regular"] }], method: "cash" });
+  r = await owner("GET", `/invoice/${r.data.order.code}`);
+  check("not registered: a plain bill with no GSTIN", /<h1>Bill<\/h1>/.test(r.data) && !/GSTIN/.test(r.data), r.data.slice(0, 200));
 
   // a burst of guesses at the same moment: each one is counted before it's checked (runs last: it locks this manager's approvals for an hour)
   const burst = await Promise.all(Array.from({ length: 12 }, (_, i) => cashier("POST", "/api/admin/counter/quote", { items: [{ id: cake, qty: 1, opts: ["size-regular"] }], discount: { percent: 20 }, approval: { name: mgr, pin: String(200000 + i) } })));

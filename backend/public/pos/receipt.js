@@ -18,7 +18,10 @@
     const tax = offline ? [] : ((bill.tax_snapshot && bill.tax_snapshot.taxSummary) || []).filter((r) => r.rate > 0);
     const at = new Date(offline ? bill.at : bill.paid_at || bill.created_at || Date.now());
     return {
-      title: offline ? "ORDER SLIP" : shop.gstin ? "TAX INVOICE" : "BILL",
+      // regular GST: tax invoice · composition: bill of supply (no GST) · no GSTIN: bill · app orders: the app bills the GST
+      title: offline ? "ORDER SLIP" : snap.platform ? "BILL" : !shop.gstin ? "BILL" : shop.gstScheme === "composition" ? "BILL OF SUPPLY" : "TAX INVOICE",
+      composition: Boolean(shop.gstin) && shop.gstScheme === "composition",
+      place: shop.gstin && shop.stateName ? `${shop.gstin.slice(0, 2)}-${shop.stateName}` : "",
       shop: { name: shop.storeName || "SEREN", legal: shop.legalName || "", gstin: shop.gstin || "", address: shop.address || "", phone: shop.phone || "", fssai: shop.fssaiNo || "" },
       number: offline ? "" : bill.invoice_no || "",
       ref: offline ? bill.ref : bill.code,
@@ -60,6 +63,7 @@
         ${m.shop.address ? `<div class="muted">${esc(m.shop.address)}</div>` : ""}
         ${m.shop.phone ? `<div class="muted">${esc(m.shop.phone)}</div>` : ""}
         ${m.shop.gstin && m.number ? `<div class="muted">GSTIN ${esc(m.shop.gstin)}</div>` : ""}
+        ${m.place && m.number ? `<div class="muted">Place of supply: ${esc(m.place)}</div>` : ""}
         ${m.shop.fssai ? `<div class="muted">FSSAI Lic. No. ${esc(m.shop.fssai)}</div>` : ""}
         <div class="t">${esc(m.title)}</div></div>
       <hr>
@@ -81,6 +85,7 @@
       ${m.app ? `<div class="c muted">${esc(m.app)} order · GST paid by the app</div>` : ""}
       ${m.tendered ? row("Cash given", esc(money(m.tendered))) + row("Change", esc(money(m.change))) : ""}
       ${m.number === "" && m.title === "ORDER SLIP" ? `<div class="slip">NOT A TAX INVOICE</div>` : ""}
+      ${m.composition && m.number ? `<div class="c muted"><b>Composition taxable person, not eligible to collect tax on supplies.</b></div>` : ""}
       <hr>
       <div class="c muted">${esc(m.note)}</div>
       ${m.cashier ? `<div class="c muted">Served by ${esc(m.cashier)}</div>` : ""}

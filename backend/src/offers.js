@@ -182,6 +182,21 @@ export async function updateCustomer(db, phone, body) {
   if (!row) throw new HttpError(404, "Customer not found");
   const notes = body.notes === undefined ? row.notes : String(body.notes).slice(0, 300);
   const optIn = body.opt_in === undefined ? row.opt_in : body.opt_in ? 1 : 0;
-  await db.prepare("UPDATE customers SET notes = ?1, opt_in = ?2, opt_in_at = CASE WHEN ?2 = 1 THEN COALESCE(opt_in_at, ?3) ELSE NULL END WHERE phone = ?4")
-    .bind(notes, optIn, now(), phone).run();
+  let birthday = row.birthday || "";
+  if (body.birthday !== undefined) {
+    birthday = String(body.birthday || "");
+    const m = /^(\d{2})-(\d{2})$/.exec(birthday);
+    const ok = birthday === "" || (m && Number(m[1]) >= 1 && Number(m[1]) <= 12 && Number(m[2]) >= 1 && Number(m[2]) <= [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][Number(m[1]) - 1]);
+    if (!ok) throw new HttpError(400, "Birthday: pick a day and month");
+  }
+  await db.prepare("UPDATE customers SET notes = ?1, opt_in = ?2, opt_in_at = CASE WHEN ?2 = 1 THEN COALESCE(opt_in_at, ?3) ELSE NULL END, birthday = ?5 WHERE phone = ?4")
+    .bind(notes, optIn, now(), phone, birthday).run();
+}
+
+// Customers with a birthday in the next `days` days (India dates), soonest first.
+export async function upcomingBirthdays(db, days = 7) {
+  const start = Date.now() + 330 * 60000;
+  const wanted = Array.from({ length: days }, (_, i) => new Date(start + i * 86400000).toISOString().slice(5, 10));
+  const { results } = await db.prepare(`SELECT phone, name, birthday, opt_in, orders, spent FROM customers WHERE birthday IN (${wanted.map((_, i) => `?${i + 1}`).join(",")})`).bind(...wanted).all();
+  return results.map((r) => ({ ...r, inDays: wanted.indexOf(r.birthday) })).sort((a, b) => a.inDays - b.inDays);
 }

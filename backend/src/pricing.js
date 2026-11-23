@@ -1,4 +1,5 @@
 // Turns a cart into priced bill lines with GST. Pure functions, all money in paise.
+import { itemTax, taxMode } from "./settings.js";
 
 const MAX_LINES = 40;
 const MAX_QTY = 50;
@@ -67,7 +68,7 @@ export function pickOptions(item, opts = []) {
  *        discounts in paise (what the customer pays); packing/service switch the shop's charges on or off for this bill
  */
 export function priceOrder(cart, catalog, prices, settings, mode, offers = {}) {
-  const gst = Boolean(settings.gstin);
+  const gst = taxMode(settings) === "regular"; // composition and unregistered shops charge no GST
   const inclusive = settings.pricesIncludeGst;
   const base = [];
   for (const { id, qty, opts } of cart) {
@@ -77,7 +78,9 @@ export function priceOrder(cart, catalog, prices, settings, mode, offers = {}) {
     if (!p || !p.available) return { error: `${item.name} isn't available right now` };
     const picked = pickOptions(item, opts);
     if (picked.error) return { error: picked.error };
-    const t = gst ? settings.tax[item.category] || { hsn: "", rate: 0 } : { hsn: "", rate: 0 };
+    // the HSN / SAC code is printed on every bill (bills of supply too); the rate only counts when GST is charged
+    const own = itemTax(settings, item);
+    const t = { hsn: own.hsn || "", rate: gst ? Number(own.rate) || 0 : 0 };
     const extra = picked.value.reduce((n, o) => n + o.price, 0);
     const name = picked.value.length ? `${item.name} (${picked.value.map((o) => o.name).join(", ")})` : item.name;
     base.push({ id, name, category: item.category, unit: p.unit, qty, price: p.price + extra, hsn: t.hsn, rate: t.rate, list: (p.price + extra) * qty,
@@ -137,7 +140,7 @@ export function priceOrder(cart, catalog, prices, settings, mode, offers = {}) {
  * Service charge is never forced: the owner switches it on, and staff remove it if the guest asks.
  */
 export function billExtras(settings, lines, mode, { packing, service, before = [], afterDiscount } = {}) {
-  const gst = Boolean(settings.gstin);
+  const gst = taxMode(settings) === "regular";
   const inclusive = settings.pricesIncludeGst;
   const ch = settings.charges || {};
   const charges = [];

@@ -1,7 +1,7 @@
 // Dashboard API: staff, activity log, customers, coupons, feedback and WhatsApp broadcast lists.
 import { setOwnerPin } from "./auth.js";
 import { HttpError, json, readJson } from "./http.js";
-import { checkCouponInput, favourites, listCoupons, listCustomers, saveCoupon, updateCustomer } from "./offers.js";
+import { checkCouponInput, favourites, listCoupons, listCustomers, saveCoupon, upcomingBirthdays, updateCustomer } from "./offers.js";
 import { addStaff, audit, listAudit, listStaff, logoutEveryone, updateStaff } from "./staff.js";
 import { waMeLink } from "./whatsapp.js";
 
@@ -51,6 +51,10 @@ export async function customers({ env, url }) {
 export async function points({ env, params }) {
   const c = await env.DB.prepare("SELECT name, points FROM customers WHERE phone = ?1").bind(params[0]).first();
   return json({ customer: c || null });
+}
+
+export async function birthdays({ env }) {
+  return json({ birthdays: await upcomingBirthdays(env.DB, 7) });
 }
 
 export async function changeCustomer({ env, params, request, user }) {

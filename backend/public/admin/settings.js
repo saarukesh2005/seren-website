@@ -10,12 +10,14 @@ SA.settings = (function () {
 
   const WA_LABELS = { paid: "Payment received", preparing: "Being made", ready: "Ready", out_for_delivery: "On the way", feedback: "Ask for feedback" };
   const HAS = { wa: false, telegram: false };
+  let GSTWARN = [];
   const checkObj = (name, label, on) => `<label class="check"><input type="checkbox" name="${name}" ${on ? "checked" : ""}> ${esc(label)}</label>`;
   const rupeeObj = (name, label, paise) => `<label>${esc(label)}<span class="money"><input name="${name}" inputmode="decimal" value="${esc(toRupees(paise))}"></span></label>`;
 
   async function load() {
     const data = await api("/settings");
     HAS.wa = data.hasWhatsappToken; HAS.telegram = data.hasTelegram;
+    GSTWARN = data.gstWarnings || [];
     SA.state.settings = data.settings;
     categories = data.categories;
     return data.settings;
@@ -68,6 +70,16 @@ SA.settings = (function () {
         ${num("preorderNoticeDays", "Notice needed (days)", s)}
       </fieldset>
       <fieldset><legend>Bills &amp; GST</legend>
+        ${GSTWARN.length ? `<div class="full gst-warn" role="status"><b>Check before you bill:</b><ul>${GSTWARN.map((w) => `<li>${esc(w)}</li>`).join("")}</ul></div>` : ""}
+        <div class="full"><span class="help">How you are registered for GST — this decides what your bills say</span>
+          <fieldset class="seg"><legend class="sr-only">GST type</legend>
+            <label><input type="radio" name="gstType" value="none" ${!s.gstin ? "checked" : ""}><span>Not registered</span></label>
+            <label><input type="radio" name="gstType" value="regular" ${s.gstin && s.gstScheme !== "composition" ? "checked" : ""}><span>Regular GST</span></label>
+            <label><input type="radio" name="gstType" value="composition" ${s.gstin && s.gstScheme === "composition" ? "checked" : ""}><span>Composition</span></label>
+          </fieldset>
+          <span class="help">Not registered: a plain bill, no GST. Regular: a <b>Tax Invoice</b> with CGST + SGST. Composition: a <b>Bill of Supply</b> — you pay a flat 5% yourself and must not charge GST to customers.</span></div>
+        <div class="full"><button class="btn ghost small" type="button" id="cafePreset">Café setup: restaurant service 5% (SAC 996331) for every section</button>
+          <span class="help">The usual GST for food a café serves — dine-in, takeaway and delivery (CBIC circular 164/2021). Ask your CA if some items are sold as packed goods instead; you can set those per item in Menu.</span></div>
         <p class="full help">Leave GSTIN empty for a simple bill without GST. Ask your accountant for the right HSN codes and GST rates.</p>
         ${text("legalName", "Legal business name", s)}
         ${text("gstin", "GSTIN", s, "15 characters", 'maxlength="15" autocomplete="off"')}
@@ -116,6 +128,8 @@ SA.settings = (function () {
         <div class="full">${checkObj("lowStockAlerts", "Tell me on Telegram when a raw material runs low", { v: s.lowStockAlerts }.v)}</div>
       </fieldset>
       <fieldset><legend>Kitchen stations</legend>
+        <div class="full"><span class="help">Made fresh when ordered — counter bills with these go to the kitchen screen. Bills with only ready-made items (from the display) are marked handed over at once.</span>
+          <div class="days">${Object.entries(categories).map(([k, l]) => `<label class="check"><input type="checkbox" name="madeToOrder" value="${esc(k)}" ${(s.madeToOrder || []).includes(k) ? "checked" : ""}> ${esc(l)}</label>`).join("")}</div></div>
         <label class="full">Stations <span class="help">comma-separated, e.g. Kitchen, Bakery, Drinks. Each gets its own kitchen screen and tickets.</span><input name="stations.list" value="${esc(s.stations.list.join(", "))}"></label>
         <div class="full taxgrid"><b>Category</b><b>Made at</b><b></b>
           ${Object.entries(categories).map(([k, l]) => `<span>${esc(l)}</span><select name="station:${esc(k)}">${s.stations.list.map((st) => `<option ${(s.stations.byCategory[k] || s.stations.list[0]) === st ? "selected" : ""}>${esc(st)}</option>`).join("")}</select><span></span>`).join("")}
@@ -142,6 +156,11 @@ SA.settings = (function () {
         SA.state.settings = settings;
         toast("Old table cards no longer work. Print the new ones.");
       } catch (ex) { toast(ex.message, true); }
+    });
+    f.querySelector("#cafePreset").addEventListener("click", () => {
+      Object.keys(categories).forEach((k) => { f.elements.namedItem(`hsn:${k}`).value = "996331"; f.elements.namedItem(`rate:${k}`).value = "5"; });
+      f.elements.namedItem("charges.hsn").value = "996331";
+      toast("Every section set to 5% restaurant service. Press Save settings.");
     });
     f.querySelector("#savePin").addEventListener("click", async () => {
       const pin = f.querySelector("#ownerPin").value.trim();
@@ -183,6 +202,11 @@ SA.settings = (function () {
     out.charges = { packing: packing || 0, servicePercent: Number(el("charges.servicePercent").value) || 0, roundOff: el("charges.roundOff").checked, hsn: el("charges.hsn").value.trim() };
     out.approvals = { discountPercent: Number(el("approvals.discountPercent").value) || 0, points: Number(el("approvals.points").value) || 0, counterUpiNeedsRef: el("approvals.counterUpiNeedsRef").checked };
     out.lowStockAlerts = el("lowStockAlerts").checked;
+    const gstType = (f.querySelector('[name="gstType"]:checked') || {}).value || "regular";
+    if (gstType === "none") out.gstin = "";
+    else if (!out.gstin) throw new Error("Type your GSTIN, or choose \"Not registered\"");
+    out.gstScheme = gstType === "composition" ? "composition" : "regular";
+    out.madeToOrder = [...f.querySelectorAll('[name="madeToOrder"]:checked')].map((c) => c.value);
     const list = el("stations.list").value.split(",").map((x) => x.trim()).filter(Boolean);
     out.stations = { list, byCategory: Object.fromEntries(Object.keys(categories).map((k) => [k, el(`station:${k}`) ? el(`station:${k}`).value : list[0]]).filter(([, v]) => list.includes(v))) };
     const apps = [];
@@ -199,9 +223,11 @@ SA.settings = (function () {
     const err = $("#setErr");
     err.textContent = "";
     try {
-      const { settings } = await api("/settings", collect(e.target));
+      const { settings, gstWarnings } = await api("/settings", collect(e.target));
       SA.state.settings = settings;
-      toast("Settings saved");
+      GSTWARN = gstWarnings || [];
+      toast(GSTWARN.length ? "Saved. A few GST details still need you (see the list)." : "Settings saved");
+      render();
       document.dispatchEvent(new CustomEvent("sa:settings"));
     } catch (ex) {
       err.textContent = ex.message;

@@ -47,6 +47,22 @@ Walk-in customers: use **New bill** in the dashboard. Pick products, take cash /
 - **Tables**: a 4-digit **table PIN** is made when staff seat guests (tell it to them; pay-at-the-end needs it), **move or join tables**, and **waiters take orders on their phone** (Tables → Take order).
 - **WhatsApp bill**: after a counter bill with the customer's mobile, one tap opens WhatsApp with their bill link ready.
 
+## GST, in plain words
+
+Set it once in **Settings → Bills & GST**:
+
+- **Not registered** (small turnover): bills say *Bill* and charge no GST.
+- **Regular GST**: bills are **Tax Invoices** with CGST + SGST, the place of supply (e.g. *33-Tamil Nadu*), *reverse charge: No*, HSN/SAC per line and an authorised-signatory line.
+- **Composition scheme**: bills are **Bills of Supply** that say *"Composition taxable person, not eligible to collect tax on supplies"*; no GST is added to the customer's bill.
+
+Food a café serves — dine-in, takeaway or delivery — is normally **restaurant service at 5% (SAC 996331)** (CBIC circular 164/2021); the **Café setup** button fills that in for every section. If something is sold as packed goods at a different rate, set **GST for this item** in Menu → Edit. Since GST 2.0 (22 Sep 2025) cakes, pastries, cookies, chocolates and ice cream sold as goods are mostly 5% and plain bread is nil — **confirm every rate with your CA**.
+
+- Swiggy / Zomato orders carry no GST on your bill: the app pays it (section 9(5)); they appear in the GST pack as app sales (GSTR-1 Table 14).
+- Cake advances: the advance receipt is a **receipt voucher** showing the GST inside the advance (tax on service advances is due when received); the GST pack lists advances received (Table 11A) and adjusted (11B).
+- The GST pack (Reports) gives your accountant B2B, B2CS, HSN (split B2B/B2C), credit notes, app sales, advances and documents issued, as CSV files.
+- The FSSAI licence number is printed on every bill and shown on the website.
+- Settings warns you about anything missing (0% sections, no HSN, no address, no FSSAI number).
+
 ## The dashboard
 
 `https://<your-worker>.workers.dev/admin/`, protected by the owner password.

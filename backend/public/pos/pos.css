@@ -51,14 +51,21 @@ input:focus,select:focus{outline:none;border-color:var(--plum);box-shadow:0 0 0 
 .chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}
 .chips button{flex:none;border:1.5px solid var(--line);background:var(--paper);border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px;cursor:pointer}
 .chips button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--butter)}
-.grid{overflow:auto;padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-content:start}
-.tile{position:relative;display:grid;grid-template-rows:auto 1fr auto;gap:4px;text-align:left;border:1px solid var(--line);background:var(--paper);border-radius:16px;padding:8px 8px 10px;cursor:pointer;min-height:96px;transition:transform .12s var(--ease),box-shadow .2s}
+.grid{overflow:auto;padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));grid-auto-rows:max-content;gap:10px;align-content:start}
+.tile{position:relative;display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--line);background:var(--paper);border-radius:16px;padding:8px 8px 10px;cursor:pointer;min-height:96px;transition:transform .12s var(--ease),box-shadow .2s}
 .tile:hover{box-shadow:0 8px 20px -12px rgba(20,12,14,.5)}
 .tile:active{transform:scale(.96)}
 .tile:disabled{opacity:.45;cursor:not-allowed}
-.tile img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:var(--cream)}
-.tile .nm{font-weight:600;font-size:13.5px;line-height:1.25}
-.tile .pr{font-weight:700;color:var(--plum)}
+.tile img{width:100%;aspect-ratio:16/11;object-fit:cover;border-radius:10px;background:var(--cream);flex:none}
+/* the name never pushes the price away: at most two lines, the price always sits at the bottom */
+.tile .nm{font-weight:600;font-size:13.5px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}
+.tile .pr{font-weight:700;color:var(--plum);margin-top:auto}
+/* compact mode (photos off): more products on screen, faster to scan */
+.grid.compact{grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.grid.compact .tile{min-height:76px;padding:10px}
+.grid.compact .tile img{display:none}
+.grid.compact .tile .left{position:static;align-self:flex-start;margin-bottom:2px}
+.tools .view{border:1px solid var(--line);background:var(--paper);border-radius:99px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
 .tile .q{position:absolute;top:6px;right:6px;background:var(--plum);color:var(--butter);border-radius:99px;min-width:26px;height:26px;display:grid;place-items:center;font-size:13px;box-shadow:0 4px 10px -4px rgba(0,0,0,.5)}
 .tile .left{position:absolute;top:6px;left:6px;font-style:normal;font-size:11px;font-weight:700;background:var(--paper);border-radius:99px;padding:2px 8px}
 .tile .left.low{background:var(--bad);color:#fff}
@@ -135,7 +142,7 @@ label.check input{width:auto}
 /* ---------- options, split, more orders, manager OK ---------- */
 .opt-mark{position:absolute;left:8px;top:8px;font-style:normal;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--butter,#EBCB8B);color:var(--ink);border-radius:99px;padding:2px 7px}
 .lines .ch{display:block;font-style:normal;font-size:12px;color:var(--plum);font-weight:600}
-.morebtns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:0 16px 12px}
+.morebtns{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 16px 12px}
 .morebtns .btn{font-size:13px;padding:8px 6px;line-height:1.15}
 .morebtns .hold{margin:0;width:auto}
 .after-sale{display:flex;align-items:center;gap:8px;margin:0 16px 12px;padding:8px 10px;border-radius:12px;background:#e7f3ea;font-size:13px}
@@ -151,3 +158,6 @@ label.check input{width:auto}
 .dlg .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fields .check{grid-column:1/-1;display:flex;gap:8px;align-items:center}
 @media (max-width:900px){.morebtns{grid-template-columns:1fr}.paybtns{grid-template-columns:repeat(2,1fr)}}
+.find-row{display:flex;gap:8px;align-items:center}
+.find-row input{flex:1;min-width:0}
+.fields .wide{grid-column:1/-1}

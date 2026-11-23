@@ -7,6 +7,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   storeName: "SEREN Entremets",
   legalName: "",            // business name as registered for GST
   gstin: "",                // empty = simple bill without GST
+  gstScheme: "regular",     // "regular" (tax invoice, collects GST) or "composition" (bill of supply, no GST collected)
   address: "",
   stateName: "",
   phone: "",
@@ -57,6 +58,9 @@ export const DEFAULT_SETTINGS = Object.freeze({
   approvals: { discountPercent: 10, points: 100, counterUpiNeedsRef: false },
   // kitchen stations: each category goes to one screen / printer
   stations: { list: ["Kitchen", "Bakery", "Drinks"], byCategory: {} },
+  // sections made fresh when ordered: counter bills with these go to the kitchen screen;
+  // counter bills with only ready-made items (from the display) are handed over at once
+  madeToOrder: ["bomboloni", "gelato", "focaccia"],
   // delivery apps (Swiggy, Zomato, ONDC…): their commission, to show what you really receive
   platforms: [
     { id: "swiggy", name: "Swiggy", commission: 25 },
@@ -88,6 +92,7 @@ export function checkSettings(input, current = DEFAULT_SETTINGS) {
     storeName: text(s.storeName, 80) || DEFAULT_SETTINGS.storeName,
     legalName: text(s.legalName, 120),
     gstin: text(s.gstin, 15).toUpperCase(),
+    gstScheme: s.gstScheme === "composition" ? "composition" : "regular",
     address: text(s.address, 300),
     stateName: text(s.stateName, 40),
     phone: text(s.phone, 20),
@@ -130,6 +135,7 @@ export function checkSettings(input, current = DEFAULT_SETTINGS) {
     approvals: null,
     stations: null,
     platforms: null,
+    madeToOrder: null,
     lowStockAlerts: s.lowStockAlerts === undefined ? true : Boolean(s.lowStockAlerts),
   };
   const extras = checkExtras(s);
@@ -166,6 +172,7 @@ export function checkSettings(input, current = DEFAULT_SETTINGS) {
   if (out.openTime >= out.closeTime) return { error: "Closing time must be after opening time" };
   if (out.gstin && !GSTIN.test(out.gstin)) return { error: "That GSTIN doesn't look right (15 characters, like 33ABCDE1234F1Z5)" };
   if (out.gstin && !out.legalName) return { error: "Add the legal business name to print GST invoices" };
+  if (out.gstin && out.stateName === "" ) out.stateName = STATE_BY_CODE[out.gstin.slice(0, 2)] || "";
   if (out.upiId && !UPI_ID.test(out.upiId)) return { error: "That UPI ID doesn't look right (like seren@okhdfcbank)" };
   if (!/^[A-Z0-9]{1,4}$/.test(out.invoicePrefix)) return { error: "Invoice prefix: 1 to 4 letters or digits" };
   const pins = out.deliveryPincodes.split(",").map((p) => p.trim()).filter(Boolean);
@@ -216,7 +223,50 @@ function checkExtras(s) {
     if (!/^[a-z0-9-]{2,20}$/.test(id) || !name || !(commission >= 0 && commission <= 60)) return { error: "Delivery apps: a short id, a name and a commission between 0 and 60%" };
     if (!platforms.some((x) => x.id === id)) platforms.push({ id, name, commission });
   }
-  return { value: { charges, approvals, stations: { list, byCategory }, platforms } };
+  const made = Array.isArray(s.madeToOrder) ? s.madeToOrder : d.madeToOrder;
+  const madeToOrder = [...new Set(made.filter((c) => typeof c === "string" && Object.hasOwn(CATEGORIES, c)))];
+  return { value: { charges, approvals, stations: { list, byCategory }, platforms, madeToOrder } };
+}
+
+// How this shop bills tax:
+//  "regular"      tax invoice, GST charged (CGST + SGST)
+//  "composition"  bill of supply, no GST charged ("composition taxable person, not eligible to collect tax on supplies")
+//  "unregistered" a plain bill, no GSTIN, no GST
+export function taxMode(s) {
+  if (!s || !s.gstin) return "unregistered";
+  return s.gstScheme === "composition" ? "composition" : "regular";
+}
+
+// GST state codes (the first two digits of a GSTIN), for "place of supply: 33-Tamil Nadu".
+export const STATE_BY_CODE = Object.freeze({
+  "01": "Jammu and Kashmir", "02": "Himachal Pradesh", "03": "Punjab", "04": "Chandigarh", "05": "Uttarakhand", "06": "Haryana", "07": "Delhi",
+  "08": "Rajasthan", "09": "Uttar Pradesh", "10": "Bihar", "11": "Sikkim", "12": "Arunachal Pradesh", "13": "Nagaland", "14": "Manipur",
+  "15": "Mizoram", "16": "Tripura", "17": "Meghalaya", "18": "Assam", "19": "West Bengal", "20": "Jharkhand", "21": "Odisha", "22": "Chhattisgarh",
+  "23": "Madhya Pradesh", "24": "Gujarat", "26": "Dadra and Nagar Haveli and Daman and Diu", "27": "Maharashtra", "29": "Karnataka", "30": "Goa",
+  "31": "Lakshadweep", "32": "Kerala", "33": "Tamil Nadu", "34": "Puducherry", "35": "Andaman and Nicobar Islands", "36": "Telangana",
+  "37": "Andhra Pradesh", "38": "Ladakh",
+});
+
+// The GST of one product: its own setting if the owner gave it one, otherwise its section's.
+export function itemTax(settings, item) {
+  const own = item && item.tax && typeof item.tax === "object" && Number.isFinite(Number(item.tax.rate)) ? item.tax : null;
+  return own || settings.tax[item.category] || { hsn: "", rate: 0 };
+}
+
+// Setup problems a real GST bill would have (shown in Settings and on the dashboard).
+export function gstWarnings(s, categories) {
+  const mode = taxMode(s);
+  const out = [];
+  if (mode === "regular") {
+    const zero = Object.keys(categories).filter((k) => !(s.tax[k] && s.tax[k].rate > 0));
+    if (zero.length) out.push(`GST is on, but these sections charge 0%: ${zero.map((k) => categories[k]).join(", ")}. A café's food is normally restaurant service at 5% (SAC 996331) — ask your CA, then set it in Settings → Bills & GST.`);
+    const noCode = Object.keys(categories).filter((k) => !(s.tax[k] && s.tax[k].hsn));
+    if (noCode.length) out.push(`Add the HSN / SAC code for: ${noCode.map((k) => categories[k]).join(", ")} (needed on GST bills and in GSTR-1).`);
+    if (!s.address) out.push("Add the shop address: it must be printed on every GST bill.");
+  }
+  if (mode === "composition" && !s.address) out.push("Add the shop address: it must be printed on every bill of supply.");
+  if (!s.fssaiNo) out.push("Add your 14-digit FSSAI licence number: it must be printed on every bill.");
+  return out;
 }
 
 // Which kitchen station makes this category.
@@ -255,7 +305,7 @@ export function publicSettings(s) {
     whatsapp: s.whatsappNumber,
     googleReviewUrl: s.googleReviewUrl,
     charges: { packing: s.charges.packing, servicePercent: s.charges.servicePercent, roundOff: s.charges.roundOff },
-    taxesAdded: Boolean(s.gstin) && !s.pricesIncludeGst,
+    taxesAdded: taxMode(s) === "regular" && !s.pricesIncludeGst,
     fssaiNo: s.fssaiNo, // the website says whether GST is on top of its prices
     loyalty: s.loyalty.enabled ? { earnEvery: s.loyalty.earnEvery, pointValue: s.loyalty.pointValue } : null,
   };

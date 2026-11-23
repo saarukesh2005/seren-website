@@ -15,12 +15,18 @@ const METHOD = { cash: "Cash", upi: "UPI", card: "Card", platform: "Delivery app
  */
 export function invoiceHtml(order, { size = "a4", credit = false, payments = [], advance = false } = {}) {
   const seller = order.tax_snapshot.seller;
-  const gst = Boolean(seller.gstin);
+  // regular GST: tax invoice · composition: bill of supply, no GST collected · no GSTIN: a plain bill
+  const mode = !seller.gstin ? "unregistered" : seller.gstScheme === "composition" ? "composition" : "regular";
+  const gst = mode === "regular";
+  const showHsn = mode !== "unregistered"; // HSN / SAC is printed on tax invoices and bills of supply
+  const stateCode = seller.gstin ? seller.gstin.slice(0, 2) : "";
   const paid = Boolean(order.invoice_no); // only orders whose payment was confirmed have a bill number
   const isCredit = credit && Boolean(order.credit_note_no);
   const app = order.tax_snapshot.platform || null;
   const isAdvance = advance && Boolean(order.receipt_no);
-  const title = isCredit ? "Credit Note" : isAdvance ? "Advance Receipt" : !paid ? (order.status === "booked" ? "Booking (balance due)" : "Order summary (not paid yet)") : gst && !app ? "Tax Invoice" : "Bill";
+  const title = isCredit ? "Credit Note" : isAdvance ? (gst ? "Receipt Voucher (advance)" : "Advance Receipt")
+    : !paid ? (order.status === "booked" ? "Booking (balance due)" : "Order summary (not paid yet)")
+    : app ? "Bill" : mode === "regular" ? "Tax Invoice" : mode === "composition" ? "Bill of Supply" : "Bill";
   const docNo = isCredit ? order.credit_note_no : isAdvance ? order.receipt_no : order.invoice_no;
   const advanceRow = payments.find((p) => p.kind === "advance");
   const docDate = isCredit ? order.credit_note_date : isAdvance ? (advanceRow ? advanceRow.at.slice(0, 10) : order.created_at.slice(0, 10)) : order.invoice_date;
@@ -32,7 +38,7 @@ export function invoiceHtml(order, { size = "a4", credit = false, payments = [],
   const lineRows = rows.map((l, i) => `<tr>
       <td>${i + 1}</td>
       <td>${esc(l.name)}${l.unit ? `<small>${esc(l.unit)}</small>` : ""}</td>
-      ${gst && !narrow ? `<td>${esc(l.hsn || "")}</td>` : ""}
+      ${showHsn && !narrow ? `<td>${esc(l.hsn || "")}</td>` : ""}
       <td class="r">${Number(l.qty) || 0}</td>
       ${gst && !narrow ? `<td class="r">${money(l.taxable)}</td><td class="r">${l.rate}%</td>` : ""}
       <td class="r">${money(l.listAmount ?? l.gross)}</td>
@@ -68,6 +74,7 @@ export function invoiceHtml(order, { size = "a4", credit = false, payments = [],
   th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)} .r{text-align:right;white-space:nowrap}
   .totals td{border:0;padding:3px 4px} .grand td{font-size:${narrow ? "16px" : "18px"};font-weight:800;border-top:2px solid var(--ink);padding-top:8px}
   .stamp{display:inline-block;border:2px solid var(--plum);color:var(--plum);padding:2px 10px;font-weight:800;letter-spacing:.1em;transform:rotate(-4deg)}
+  .sign{margin-top:22px;text-align:right;font-size:12px;color:var(--muted)}
   .foot{margin-top:18px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:12px;${narrow ? "flex-direction:column" : ""}}
   .bar{max-width:${narrow ? "80mm" : "210mm"};margin:16px auto 0;display:flex;gap:8px;justify-content:flex-end;padding:0 8px}
   .bar button,.bar a{font:inherit;border:0;border-radius:99px;padding:8px 16px;background:var(--plum);color:#fff;cursor:pointer;text-decoration:none}
@@ -82,7 +89,7 @@ export function invoiceHtml(order, { size = "a4", credit = false, payments = [],
       ${seller.legalName ? `<div>${esc(seller.legalName)}</div>` : ""}
       ${seller.address ? `<div class="muted">${esc(seller.address)}</div>` : ""}
       ${seller.phone ? `<div class="muted">${esc(seller.phone)}</div>` : ""}
-      ${gst ? `<div><b>GSTIN</b> ${esc(seller.gstin)}</div>` : ""}
+      ${seller.gstin ? `<div><b>GSTIN</b> ${esc(seller.gstin)}</div>` : ""}
       ${seller.fssaiNo ? `<div><b>FSSAI Lic. No.</b> ${esc(seller.fssaiNo)}</div>` : ""}
     </div>
     <div ${narrow ? "" : 'style="text-align:right"'}>
@@ -99,13 +106,14 @@ export function invoiceHtml(order, { size = "a4", credit = false, payments = [],
     <div><small>${{ delivery: "Delivery", pickup: "Pickup", dinein: "Dine-in", counter: "At the counter" }[order.mode]}</small>
       ${order.table_no ? `Table ${esc(order.table_no)}<br>` : ""}
       ${order.slot_date ? `${esc(fmtDate(order.slot_date))} · ${esc(order.slot_time)}<br>` : ""}
-      ${gst && seller.stateName ? `Place of supply: ${esc(seller.stateName)}<br>` : ""}
+      ${seller.gstin && seller.stateName ? `Place of supply: ${esc(stateCode)}-${esc(seller.stateName)}<br>` : ""}
+      ${gst && !app ? `Tax payable on reverse charge: No<br>` : ""}
       ${paid || isAdvance ? `Payment: ${esc(payWord)}${order.utr && !app ? ` · Ref ${esc(order.utr)}` : ""}` : ""}
       ${order.cake_message ? `<br>On the cake: “${esc(order.cake_message)}”` : ""}
       ${isCredit ? `<br>Refund: ${esc(String(order.refund_method).toUpperCase())}${order.refund_ref ? ` · ${esc(order.refund_ref)}` : ""}` : ""}</div>
   </div>
   <table>
-    <thead><tr><th>#</th><th>Item</th>${gst && !narrow ? "<th>HSN</th>" : ""}<th class="r">Qty</th>${gst && !narrow ? '<th class="r">Taxable</th><th class="r">GST</th>' : ""}<th class="r">Amount</th></tr></thead>
+    <thead><tr><th>#</th><th>Item</th>${showHsn && !narrow ? "<th>HSN / SAC</th>" : ""}<th class="r">Qty</th>${gst && !narrow ? '<th class="r">Taxable</th><th class="r">GST</th>' : ""}<th class="r">Amount</th></tr></thead>
     <tbody>${lineRows}</tbody>
   </table>
   <table class="totals" style="margin-top:8px">
@@ -118,10 +126,25 @@ export function invoiceHtml(order, { size = "a4", credit = false, payments = [],
     ${isAdvance ? `<tr class="grand"><td>Advance received</td><td class="r">${money(order.advance)}</td></tr><tr><td>Balance to pay at pickup</td><td class="r">${money(order.total - order.advance)}</td></tr>` : dueRow}
   </table>
   ${app ? `<p class="muted">${esc(app.note)}</p>` : ""}
-  ${isAdvance ? `<p class="muted">This is a receipt for the advance, not a tax invoice. The bill is made when you collect your order.</p>` : ""}
+  ${isAdvance ? advanceTax(order, gst) : ""}
+  ${mode === "composition" && !isCredit ? `<p class="muted"><b>Composition taxable person, not eligible to collect tax on supplies.</b></p>` : ""}
   <div class="foot">
     <span>${esc(seller.invoiceNote || "")}</span>
-    <span>${gst && !isAdvance ? `This is a computer-generated ${isCredit ? "credit note" : "invoice"}.` : esc(STATUS[order.status] || "")}</span>
+    <span>${mode !== "unregistered" ? `This is a computer-generated ${isCredit ? "credit note" : isAdvance ? "receipt voucher" : mode === "composition" ? "bill of supply" : "invoice"}.` : esc(STATUS[order.status] || "")}</span>
   </div>
+  ${mode !== "unregistered" && (paid || isAdvance || isCredit) ? `<div class="sign">For ${esc(seller.legalName || seller.storeName)}<br><br>Authorised signatory</div>` : ""}
 </main></body></html>`;
+}
+
+// GST on an advance for a service (restaurant service) is due when the money is received (receipt voucher, Rule 50).
+// The tax inside the advance is the same share of it as the bill's tax is of the bill.
+function advanceTax(order, gst) {
+  const lines = [`<p class="muted">The tax invoice is made when you collect your order; this advance is adjusted against it.</p>`];
+  if (!gst) return lines.join("");
+  const tax = (order.tax_snapshot.taxSummary || []).reduce((n, r) => n + r.tax, 0);
+  const inAdvance = order.total ? Math.round((order.advance * tax) / order.total) : 0;
+  if (!inAdvance) return lines.join("");
+  const cgst = Math.floor(inAdvance / 2);
+  return `<table class="totals"><tr><td>Taxable value of the advance</td><td class="r">${money(order.advance - inAdvance)}</td></tr>
+    <tr><td>GST in the advance</td><td class="r">CGST ${money(cgst)} · SGST ${money(inAdvance - cgst)}</td></tr></table>${lines.join("")}`;
 }

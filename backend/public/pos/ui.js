@@ -10,6 +10,7 @@ window.POSUI = (function () {
   let cat = "fav";
   let query = "";
   let quoteTotal = null;  // exact total from the order system (after coupon / points), when known
+  let quoteGst = "";      // "incl. GST ₹17.14", live from the order system
   let toastTimer;
 
   const items = () => POS.sellable();
@@ -39,6 +40,7 @@ window.POSUI = (function () {
       phone: $("#phone").value.trim(), name: $("#cname").value.trim(), table: $("#table").value.trim(),
       coupon: $("#coupon").value.trim(), points: Number(($("#usePoints") || {}).value || 0) || 0,
       packing: Boolean(($("#packing") || {}).checked),
+      notes: (($("#knote") || {}).value || "").trim(),
       discount: pct > 0 ? { percent: Math.min(pct, 100) } : amt > 0 ? { amount: amt } : null,
     };
   };
@@ -73,6 +75,9 @@ window.POSUI = (function () {
 
   function renderGrid() {
     const list = visible();
+    const compact = POS.prefs().compact === true;
+    $("#grid").classList.toggle("compact", compact);
+    if ($("#viewBtn")) { $("#viewBtn").textContent = compact ? "Photos: off" : "Photos: on"; $("#viewBtn").setAttribute("aria-pressed", String(compact)); }
     $("#grid").innerHTML = list.length
       ? list.map((i) => {
           const src = photo(i);
@@ -92,15 +97,76 @@ window.POSUI = (function () {
     const { [key]: old, ...rest } = cart;
     if (!old) return;
     cart = qty > 0 ? { ...rest, [key]: { ...old, qty: Math.min(qty, 50) } } : rest;
-    quoteTotal = null;
-    render();
+    changed();
   }
   function addLine(id, opts) {
     const key = keyOf(id, opts);
     const prev = cart[key];
     cart = { ...cart, [key]: { id, opts: [...opts].sort(), qty: Math.min((prev ? prev.qty : 0) + 1, 50) } };
-    quoteTotal = null;
-    render();
+    changed();
+  }
+  /* the bill on screen is kept on this PC, so a reload, a crash or a power cut never loses it */
+  const OPEN_KEY = "seren-pos-open-bill";
+  function keepBill() {
+    try {
+      if (Object.keys(cart).length) localStorage.setItem(OPEN_KEY, JSON.stringify({ cart, extras: extras(), at: Date.now() }));
+      else localStorage.removeItem(OPEN_KEY);
+    } catch (e) { /* storage full or blocked */ }
+  }
+  function restoreBill() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(OPEN_KEY)); } catch (e) { saved = null; }
+    if (!saved || !saved.cart || Date.now() - saved.at > 12 * 3600000) return;
+    cart = normal(saved.cart);
+    const ex = saved.extras || {};
+    [["#phone", ex.phone], ["#cname", ex.name], ["#table", ex.table], ["#coupon", ex.coupon], ["#knote", ex.notes]].forEach(([sel, v]) => { if ($(sel) && v) $(sel).value = v; });
+    if (Object.keys(cart).length) toast("The bill you were making is back");
+  }
+
+  /* "repeat last bill" (F9): the last bill's items again, for regulars */
+  const LAST_KEY = "seren-pos-last-items";
+  function rememberLast(items) { try { localStorage.setItem(LAST_KEY, JSON.stringify(items || [])); } catch (e) { /* storage blocked */ } }
+  function repeatLast() {
+    let items = [];
+    try { items = JSON.parse(localStorage.getItem(LAST_KEY)) || []; } catch (e) { items = []; }
+    const known = byId();
+    const ok = items.filter((i) => known.has(i.id));
+    if (!ok.length) { toast("No previous bill to repeat"); return; }
+    ok.forEach((i) => { const opts = Array.isArray(i.opts) ? i.opts : []; const key = keyOf(i.id, opts); cart = { ...cart, [key]: { id: i.id, opts: [...opts].sort(), qty: Math.min((cart[key] ? cart[key].qty : 0) + i.qty, 50) } }; });
+    changed();
+    toast("Last bill's items added");
+  }
+
+  // after a tap: only the count badges and the bill change (the product grid and its photos stay put)
+  function changed() {
+    quoteTotal = null; quoteGst = "";
+    document.querySelectorAll("#grid .tile[data-add]").forEach((t) => {
+      const n = countOf(t.dataset.add);
+      let q = t.querySelector(".q");
+      if (n && !q) { q = document.createElement("b"); q.className = "q"; t.append(q); }
+      if (q) { if (n) q.textContent = n; else q.remove(); }
+    });
+    renderBill();
+    liveQuote();
+  }
+
+  // The exact total (packing, round-off, discount) from the order system, a moment after the bill changes.
+  // Quietly skipped when offline or when a manager's OK would be needed (that is asked at payment).
+  let quoteTimer;
+  let quoteSeq = 0;
+  function liveQuote() {
+    clearTimeout(quoteTimer);
+    const ls = lines();
+    if (!ls.length || !POS.online) return;
+    const seq = ++quoteSeq;
+    quoteTimer = setTimeout(async () => {
+      const ex = extras();
+      try {
+        const { quote } = await POS.api("/counter/quote", { items: ls.map((l) => (l.opts.length ? { id: l.id, qty: l.qty, opts: l.opts } : { id: l.id, qty: l.qty })),
+          phone: ex.phone, table: ex.table, coupon: ex.coupon, points: ex.points, packing: ex.packing, ...(ex.discount ? { discount: ex.discount } : {}) });
+        if (seq === quoteSeq) { quoteTotal = quote.total; quoteGst = quote.gst ? `${quote.gstAdded ? "+" : "incl."} GST ${money(quote.gst)}` : ""; renderBill(); }
+      } catch (e) { /* shown at payment instead */ }
+    }, 350);
   }
   // items with sizes / add-ons ask which ones first
   async function add(id) {
@@ -113,6 +179,7 @@ window.POSUI = (function () {
 
   function renderBill() {
     const ls = lines();
+    keepBill();
     $("#lines").innerHTML = ls.length
       ? ls.map((l) => `<li><span class="n">${esc(l.name)}${l.choices.length ? `<em class="ch">${esc(l.choices.join(", "))}</em>` : ""}<small>${esc(money(l.price))}${l.unit ? ` · ${esc(l.unit)}` : ""}</small></span>
           <span class="qty"><button type="button" data-q="${esc(l.key)}" data-d="-1" aria-label="One fewer">−</button><b>${Number(l.qty)}</b><button type="button" data-q="${esc(l.key)}" data-d="1" aria-label="One more">+</button></span>
@@ -123,7 +190,7 @@ window.POSUI = (function () {
     const ex = extras();
     const needsQuote = ex.coupon || ex.points || ex.discount || ex.packing || ((POS.settings || {}).charges || {}).roundOff;
     $("#total").textContent = money(quoteTotal ?? estimate());
-    $("#estNote").textContent = needsQuote && quoteTotal === null ? "exact total at payment" : "";
+    $("#estNote").textContent = ls.length && needsQuote && quoteTotal === null ? (POS.online ? "working out…" : "exact total at payment") : quoteTotal !== null && ls.length ? quoteGst : "";
     document.querySelectorAll("[data-pay]").forEach((b) => { b.disabled = !ls.length; });
     $("#holdBtn").disabled = !ls.length;
     broadcast({ type: "cart", lines: ls.map((l) => ({ name: l.choices.length ? `${l.name} (${l.choices.join(", ")})` : l.name, qty: l.qty, amount: l.price * l.qty })), total: quoteTotal ?? estimate() });
@@ -133,7 +200,7 @@ window.POSUI = (function () {
 
   function clear() {
     cart = {}; quoteTotal = null;
-    ["#phone", "#cname", "#table", "#coupon", "#discPct", "#discAmt"].forEach((s) => { if ($(s)) $(s).value = ""; });
+    ["#phone", "#cname", "#table", "#coupon", "#discPct", "#discAmt", "#knote"].forEach((s) => { if ($(s)) $(s).value = ""; });
     if ($("#packing")) $("#packing").checked = false;
     $("#loyal").hidden = true; $("#loyal").innerHTML = "";
     $("#extras").open = false;
@@ -245,11 +312,14 @@ window.POSUI = (function () {
   }
 
   function start() {
+    restoreBill();
     renderCats(); render(); renderStatus();
+    if ($("#repeatBtn")) $("#repeatBtn").addEventListener("click", repeatLast);
     $("#cats").addEventListener("click", (e) => { const b = e.target.closest("[data-cat]"); if (!b) return; cat = b.dataset.cat; query = ""; $("#search").value = ""; renderCats(); renderGrid(); });
     $("#search").addEventListener("input", (e) => { query = e.target.value.trim().toLowerCase(); renderGrid(); });
     $("#search").addEventListener("keydown", (e) => { if (e.key === "Enter") { const first = visible()[0]; if (first) { add(first.id); e.target.select(); } } });
     $("#grid").addEventListener("click", (e) => { const t = e.target.closest("[data-add]"); if (t) add(t.dataset.add); });
+    if ($("#viewBtn")) $("#viewBtn").addEventListener("click", () => { POS.setPrefs({ compact: !(POS.prefs().compact === true) }); renderGrid(); });
     $("#grid").addEventListener("error", (e) => { if (e.target.tagName === "IMG") e.target.remove(); }, true); // offline: no photo, just the name
     $("#lines").addEventListener("click", (e) => { const b = e.target.closest("[data-q]"); if (b && cart[b.dataset.q]) setQty(b.dataset.q, cart[b.dataset.q].qty + Number(b.dataset.d)); });
     $("#clearBtn").addEventListener("click", () => { if (!lines().length || window.confirm("Clear this bill?")) clear(); });
@@ -259,7 +329,8 @@ window.POSUI = (function () {
     $("#printerBtn").addEventListener("click", showPrinter);
     $("#status").addEventListener("click", showQueue);
     $("#phone").addEventListener("input", lookup);
-    ["#coupon", "#phone", "#discPct", "#discAmt", "#packing"].forEach((s) => { if ($(s)) $(s).addEventListener("input", () => { quoteTotal = null; renderBill(); }); });
+    ["#coupon", "#phone", "#discPct", "#discAmt", "#packing"].forEach((s) => { if ($(s)) $(s).addEventListener("input", () => { quoteTotal = null; renderBill(); liveQuote(); }); });
+    ["#cname", "#table", "#knote"].forEach((s) => { if ($(s)) $(s).addEventListener("input", keepBill); });
     $("#extras").addEventListener("input", (e) => { if (e.target.id === "usePoints") { quoteTotal = null; renderBill(); } });
     document.addEventListener("click", (e) => {
       if (e.target.closest("[data-close]")) e.target.closest("dialog").close();
@@ -275,5 +346,5 @@ window.POSUI = (function () {
     $("#heldCount").textContent = POS.held().length;
   }
 
-  return { start, render, renderCats, clear, hold, showHeld, toast, lines, extras, estimate, broadcast, setQuote: (t) => { quoteTotal = t; renderBill(); }, focusSearch: () => $("#search").focus() };
+  return { start, render, renderCats, clear, hold, showHeld, toast, lines, extras, estimate, broadcast, rememberLast, repeatLast, setQuote: (t) => { quoteTotal = t; renderBill(); }, focusSearch: () => $("#search").focus() };
 })();

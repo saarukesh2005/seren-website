@@ -78,6 +78,7 @@ const ADMIN = [
   ["GET", "/stock/vendors", "stock", stockApi.vendors],
   ["POST", "/stock/vendors", "stock", stockApi.saveVendor],
   ["GET", "/customers", "customers", people.customers],
+  ["GET", "/customers/birthdays", "customers", people.birthdays],
   ["POST", "/customers/(\\d{10})", "customers", people.changeCustomer],
   ["GET", "/customers/(\\d{10})/points", "counter", people.points],
   ["POST", "/broadcast", "offers", people.broadcast],

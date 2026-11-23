@@ -94,11 +94,11 @@ window.POSApp = (function () {
   });
   POS.on("logout", () => showLogin("Please log in again."));
 
-  // keyboard: F1 cash · F2 UPI · F3 card · F4 hold · F5 split · F6 held bills · F8 reprint last · / search · Esc clear
+  // keyboard: F1 cash · F2 UPI · F3 card · F4 hold · F5 split · F6 held bills · F9 repeat last bill · F8 reprint last · / search · Esc clear
   document.addEventListener("keydown", (e) => {
     if ($("#app").hidden) return;
     const open = document.querySelector("dialog[open]");
-    const keys = { F1: () => POSPay.start("cash"), F2: () => POSPay.start("upi"), F3: () => POSPay.start("card"), F4: POSUI.hold, F5: () => POSPay.start("split"), F6: POSUI.showHeld,
+    const keys = { F1: () => POSPay.start("cash"), F2: () => POSPay.start("upi"), F3: () => POSPay.start("card"), F4: POSUI.hold, F5: () => POSPay.start("split"), F6: POSUI.showHeld, F9: POSUI.repeatLast,
       F8: () => (window.POSLast ? POSPrint.printReceipt(window.POSLast) : POSUI.toast("No receipt to reprint yet")) };
     if (keys[e.key] && !open) { e.preventDefault(); keys[e.key](); return; }
     if (e.key === "/" && !open && document.activeElement.tagName !== "INPUT") { e.preventDefault(); POSUI.focusSearch(); }

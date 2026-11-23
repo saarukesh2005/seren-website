@@ -77,7 +77,7 @@ export async function deleteExpense({ env, params, user }) {
 async function report(env, url) {
   const { from, to } = dateRange(url, istParts().date, 30);
   const [data, settings] = await Promise.all([loadGstData(env.DB, store, from, to), store.getSettings(env.DB)]);
-  return buildGstReport(from, to, { invoices: data.invoices, credits: data.credits, receipts: data.receipts, settings }, data.turnover);
+  return buildGstReport(from, to, { invoices: data.invoices, credits: data.credits, receipts: data.receipts, advances: data.advances, settings }, data.turnover);
 }
 
 export async function gst({ env, url }) {

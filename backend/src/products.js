@@ -11,20 +11,26 @@ const MIME = { "image/webp": [0x52, 0x49, 0x46, 0x46], "image/jpeg": [0xff, 0xd8
 
 /** Every product with dashboard edits applied: { id, name, category, img, photo, veg, description, hidden, custom } */
 export async function loadCatalog(db) {
-  const { results } = await db.prepare("SELECT id, category, name, description, img, veg, hidden, custom, name_ta, description_ta, options FROM products").all();
+  const { results } = await db.prepare("SELECT id, category, name, description, img, veg, hidden, custom, name_ta, description_ta, options, tax FROM products").all();
   const edits = new Map(results.map((r) => [r.id, r]));
   const base = CATALOG.map((c) => {
     const e = edits.get(c.id);
     return e
-      ? { ...c, name: e.name, description: e.description, photo: e.img, veg: e.veg === null ? c.veg : Boolean(e.veg), hidden: Boolean(e.hidden), custom: false, edited: true, nameTa: e.name_ta, descriptionTa: e.description_ta, options: readOptions(e.options) }
-      : { ...c, description: "", photo: null, hidden: false, custom: false, edited: false, nameTa: "", descriptionTa: "", options: [] };
+      ? { ...c, name: e.name, description: e.description, photo: e.img, veg: e.veg === null ? c.veg : Boolean(e.veg), hidden: Boolean(e.hidden), custom: false, edited: true, nameTa: e.name_ta, descriptionTa: e.description_ta, options: readOptions(e.options), tax: readTax(e.tax) }
+      : { ...c, description: "", photo: null, hidden: false, custom: false, edited: false, nameTa: "", descriptionTa: "", options: [], tax: null };
   });
   const extra = results.filter((r) => r.custom).map((r) => ({
     id: r.id, name: r.name, category: r.category, img: null, photo: r.img, veg: r.veg === null ? null : Boolean(r.veg),
-    description: r.description, hidden: Boolean(r.hidden), custom: true, edited: true, nameTa: r.name_ta, descriptionTa: r.description_ta, options: readOptions(r.options),
+    description: r.description, hidden: Boolean(r.hidden), custom: true, edited: true, nameTa: r.name_ta, descriptionTa: r.description_ta, options: readOptions(r.options), tax: readTax(r.tax),
   }));
   return [...base, ...extra];
 }
+
+// An item's own GST, or null to use its section's.
+function readTax(raw) {
+  try { const v = JSON.parse(raw || "null"); return v && typeof v === "object" && Number.isFinite(Number(v.rate)) ? { hsn: String(v.hsn || ""), rate: Number(v.rate) } : null; } catch { return null; }
+}
+const GST_RATES = [0, 0.25, 3, 5, 12, 18, 28, 40];
 
 function readOptions(raw) {
   try { const v = JSON.parse(raw || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
@@ -77,6 +83,16 @@ function checkProduct(body, { requireAll }) {
   if (body.veg !== undefined) out.veg = body.veg === null ? null : body.veg ? 1 : 0;
   if (body.hidden !== undefined) out.hidden = body.hidden ? 1 : 0;
   if (body.options !== undefined) out.options = JSON.stringify(checkOptions(body.options));
+  if (body.tax !== undefined) {
+    if (body.tax === null) out.tax = "";
+    else {
+      const hsn = text(body.tax && body.tax.hsn, 8);
+      const rate = Number(body.tax && body.tax.rate);
+      if (!/^(\d{4}|\d{6}|\d{8})$/.test(hsn)) throw new HttpError(400, "Item GST: the HSN / SAC code is 4, 6 or 8 digits");
+      if (!GST_RATES.includes(rate)) throw new HttpError(400, `Item GST: the rate must be one of ${GST_RATES.join(", ")}%`);
+      out.tax = JSON.stringify({ hsn, rate });
+    }
+  }
   if (body.img !== undefined) {
     if (body.img !== null && !/^[A-Z0-9]{12}$/.test(String(body.img))) throw new HttpError(400, "Unknown photo");
     out.img = body.img;
@@ -89,21 +105,21 @@ export async function editProduct(db, catalog, id, body) {
   const current = catalog.find((c) => c.id === id);
   if (!current) throw new HttpError(404, "Unknown product");
   const p = { name: current.name, category: current.category, description: current.description, img: current.photo, veg: current.veg === null ? null : current.veg ? 1 : 0, hidden: current.hidden ? 1 : 0,
-    nameTa: current.nameTa || "", descriptionTa: current.descriptionTa || "", options: JSON.stringify(current.options || []), ...checkProduct(body, { requireAll: false }) };
+    nameTa: current.nameTa || "", descriptionTa: current.descriptionTa || "", options: JSON.stringify(current.options || []), tax: current.tax ? JSON.stringify(current.tax) : "", ...checkProduct(body, { requireAll: false }) };
   if (!current.custom) p.category = current.category; // website products stay in their section
-  await db.prepare(`INSERT INTO products (id, category, name, description, img, veg, hidden, custom, updated_at, name_ta, description_ta, options) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+  await db.prepare(`INSERT INTO products (id, category, name, description, img, veg, hidden, custom, updated_at, name_ta, description_ta, options, tax) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
     ON CONFLICT (id) DO UPDATE SET category = excluded.category, name = excluded.name, description = excluded.description, img = excluded.img,
-    veg = excluded.veg, hidden = excluded.hidden, updated_at = excluded.updated_at, name_ta = excluded.name_ta, description_ta = excluded.description_ta, options = excluded.options`)
-    .bind(id, p.category, p.name, p.description, p.img ?? null, p.veg, p.hidden, current.custom ? 1 : 0, now(), p.nameTa, p.descriptionTa, p.options).run();
+    veg = excluded.veg, hidden = excluded.hidden, updated_at = excluded.updated_at, name_ta = excluded.name_ta, description_ta = excluded.description_ta, options = excluded.options, tax = excluded.tax`)
+    .bind(id, p.category, p.name, p.description, p.img ?? null, p.veg, p.hidden, current.custom ? 1 : 0, now(), p.nameTa, p.descriptionTa, p.options, p.tax).run();
   return p.name;
 }
 
 export async function addProduct(db, body) {
-  const p = { description: "", img: null, veg: null, hidden: 0, nameTa: "", descriptionTa: "", options: "[]", ...checkProduct(body, { requireAll: true }) };
+  const p = { description: "", img: null, veg: null, hidden: 0, nameTa: "", descriptionTa: "", options: "[]", tax: "", ...checkProduct(body, { requireAll: true }) };
   const slug = p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "item";
   const id = `x-${slug}-${randomCode(4).toLowerCase()}`;
-  await db.prepare("INSERT INTO products (id, category, name, description, img, veg, hidden, custom, updated_at, name_ta, description_ta, options) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10, ?11)")
-    .bind(id, p.category, p.name, p.description, p.img, p.veg, p.hidden, now(), p.nameTa, p.descriptionTa, p.options).run();
+  await db.prepare("INSERT INTO products (id, category, name, description, img, veg, hidden, custom, updated_at, name_ta, description_ta, options, tax) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10, ?11, ?12)")
+    .bind(id, p.category, p.name, p.description, p.img, p.veg, p.hidden, now(), p.nameTa, p.descriptionTa, p.options, p.tax).run();
   return { id, name: p.name };
 }
 

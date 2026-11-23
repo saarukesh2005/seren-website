@@ -11,7 +11,7 @@ window.POSPay = (function () {
     const ex = POSUI.extras();
     return {
       items: POSUI.lines().map((l) => (l.opts.length ? { id: l.id, qty: l.qty, opts: l.opts } : { id: l.id, qty: l.qty })), method,
-      name: ex.name, phone: ex.phone, table: ex.table, coupon: ex.coupon, points: ex.points, packing: ex.packing,
+      name: ex.name, phone: ex.phone, table: ex.table, coupon: ex.coupon, points: ex.points, packing: ex.packing, notes: ex.notes,
       ...(ex.discount ? { discount: ex.discount } : {}),
     };
   }
@@ -51,7 +51,9 @@ window.POSPay = (function () {
     const head = `<div class="dlg-head"><h2 id="payTitle">${{ cash: "Cash", upi: "UPI", card: "Card" }[method]}</h2><button class="x" type="button" data-close aria-label="Close">×</button></div>
       <p class="due"><span>To pay</span><b>${esc(money(amount.total))}</b></p>${amount.exact ? "" : `<p class="hint">Offline: shelf prices. The bill number is given when it syncs.</p>`}`;
     if (method === "cash") {
-      const quick = [...new Set([amount.total, ...[10000, 20000, 50000, 200000].filter((v) => v > amount.total)])].slice(0, 4);
+      // what customers actually hand over: exact, then the next ₹10, ₹50, ₹100 and ₹500 above the bill
+      const up = (step) => Math.ceil(amount.total / step) * step;
+      const quick = [...new Set([amount.total, up(1000), up(5000), up(10000), up(50000)].filter((v) => v >= amount.total))].slice(0, 5);
       d.innerHTML = `<form class="dlg-in pay-cash">${head}
         <label>Cash given (₹)<input id="tendered" inputmode="decimal" autocomplete="off" value="${(amount.total / 100).toFixed(0)}"></label>
         <div class="quick">${quick.map((v) => `<button class="btn ghost small" type="button" data-tender="${v}">${esc(money(v))}</button>`).join("")}</div>
@@ -153,6 +155,7 @@ window.POSPay = (function () {
         try { await POSPrint.printReceipt(model); } catch (e) { POSUI.toast(`Bill saved, but printing failed: ${e.message}`, true); }
       }
       window.POSLast = model; // for "reprint last receipt"
+      POSUI.rememberLast(body.items);
       if (!res.offline && res.order.customer_phone && window.POSX) POSX.offerWhatsApp(res.order);
     } catch (e) {
       POSUI.toast(e.message, true);

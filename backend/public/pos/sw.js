@@ -1,6 +1,6 @@
 /* Offline helper for SEREN Counter: keeps the counter's own files on this PC so it opens without internet.
    Bills and prices are never cached here (the app keeps those itself); the order system is always asked first. */
-const CACHE = "seren-pos-v3";
+const CACHE = "seren-pos-v4";
 // pages use their short addresses ("./", "display"): the server redirects "x.html" to "x", and a redirect can't be replayed offline
 const SHELL = ["./", "display", "pos.css", "receipt.js", "core.js", "print.js", "ui.js", "pay.js", "extras.js", "app.js", "display.js",
   "vendor/qrcode.min.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];

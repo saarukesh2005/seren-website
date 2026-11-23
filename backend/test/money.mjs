@@ -308,7 +308,7 @@ async function browserCheck() {
     await page.click('[data-tab="reports"]');
     await page.waitForFunction(() => document.querySelector("#gstBox") && /bills issued/i.test(document.querySelector("#gstBox").innerText), { timeout: 15000 });
     const links = await page.$$eval("#gstBox .gst-links a", (as) => as.map((a) => a.getAttribute("href")));
-    check("browser: Reports shows the GST block with six downloads", links.length === 6 && links.every((h) => /\/api\/admin\/gst\.csv\?from=.*part=/.test(h)), JSON.stringify(links));
+    check("browser: Reports shows the GST block with seven downloads (incl. cake advances)", links.length === 7 && links.every((h) => /\/api\/admin\/gst\.csv\?from=.*part=/.test(h)), JSON.stringify(links));
     check("browser: no console or page errors", errors.length === 0, errors.join(" | "));
   } catch (e) {
     check("browser: Cash tab click-through", false, `${e.message} ${errors.join(" | ")}`);
