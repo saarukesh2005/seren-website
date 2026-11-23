@@ -15,6 +15,7 @@
   input:focus{outline:none;border-color:#662937}
   button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:14px;background:#140C0E;color:#EBCB8B;cursor:pointer}
   button:disabled{opacity:.5}
+  button.ghost{background:transparent;color:#140C0E;border:2px solid #140C0E;margin-top:10px}
   .err{color:#c0392b;font-weight:700;min-height:1.4em}
 </style>
 </head>
@@ -27,6 +28,7 @@
   <input id="url" placeholder="https://seren-orders.yourname.workers.dev" autocomplete="off" spellcheck="false" required>
   <div class="err" id="err" role="alert"></div>
   <button type="submit" id="go">Connect</button>
+  <button type="button" id="cancel" class="ghost" hidden>Cancel, keep the current shop</button>
 </form>
 <script src="setup.js"></script>
 </body>

@@ -50,11 +50,19 @@ function guardNavigation(wc, { allowMain }) {
   wc.on("will-redirect", (e) => { if (!allowed(e.url, e.isMainFrame)) e.preventDefault(); });
   wc.on("will-frame-navigate", (e) => { if (!e.isMainFrame && !allowed(e.url, false)) e.preventDefault(); });
   wc.setWindowOpenHandler(({ url }) => {
-    if (allowMain && isFromServer(url) && ["/pos/display", "/pos/display.html"].includes(new URL(url).pathname)) openDisplay(url);
+    if (allowMain && isFromServer(url) && ["/pos/display", "/pos/display.html"].includes(new URL(url).pathname)) { openDisplay(url); return { action: "deny" }; }
+    // the shop's own pages that open "in a new tab" (bills, kitchen screen, table cards, day closing)
+    // open in their own window here; closing that window brings you straight back
+    if (allowMain && isFromServer(url)) {
+      return { action: "allow", overrideBrowserWindowOptions: { width: 1100, height: 800, autoHideMenuBar: true, backgroundColor: "#ffffff", icon: path.join(__dirname, "build", "icon.png"),
+        webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webviewTag: false, disableBlinkFeatures: NO_AUXCLICK } } };
+    }
     // the one outside address the counter may open: a WhatsApp message to a customer (opens in WhatsApp / the browser)
-    else if (allowMain && isFromServer(wc.getURL()) && isWhatsAppLink(url)) shell.openExternal(url);
+    if (allowMain && isFromServer(wc.getURL()) && isWhatsAppLink(url)) shell.openExternal(url);
     return { action: "deny" };
   });
+  // windows opened that way follow the same rules (stay on the shop's pages)
+  wc.on("did-create-window", (child) => guardNavigation(child.webContents, { allowMain: true }));
 }
 
 // Only https://wa.me/<digits>?text=… (nothing else gets to the operating system).
@@ -187,11 +195,27 @@ ipcMain.handle("set-server", async (event, raw) => {
 ipcMain.handle("get-server", () => server() || "");
 ipcMain.handle("retry", (event) => { if (event.senderFrame && event.senderFrame.url.startsWith("file://")) loadApp(); });
 
+// Opens one of the shop's own pages in the main window (only when a shop server is set).
+function goTo(pathname) {
+  const s = server();
+  if (s) win.loadURL(`${s}${pathname}`);
+  else win.loadFile(path.join(__dirname, "setup.html"));
+}
+
 function menu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: "SEREN", submenu: [
       { label: "Change shop server…", click: () => win.loadFile(path.join(__dirname, "setup.html")) },
       { role: "reload" }, { type: "separator" }, { role: "quit" },
+    ] },
+    // there is no browser bar in the app, so moving around is here (and on the keyboard)
+    { label: "Go", submenu: [
+      { label: "Back", accelerator: process.platform === "darwin" ? "Cmd+[" : "Alt+Left", click: () => { if (win.webContents.navigationHistory.canGoBack()) win.webContents.navigationHistory.goBack(); } },
+      { label: "Forward", accelerator: process.platform === "darwin" ? "Cmd+]" : "Alt+Right", click: () => { if (win.webContents.navigationHistory.canGoForward()) win.webContents.navigationHistory.goForward(); } },
+      { type: "separator" },
+      { label: "Counter", accelerator: "CmdOrCtrl+1", click: () => goTo("/pos/") },
+      { label: "Dashboard", accelerator: "CmdOrCtrl+2", click: () => goTo("/admin/") },
+      { label: "Kitchen screen", accelerator: "CmdOrCtrl+3", click: () => goTo("/admin/kitchen") },
     ] },
     // copy / paste / undo in text boxes (on a Mac these shortcuts only work when the Edit menu exists)
     { role: "editMenu" },

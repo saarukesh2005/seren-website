@@ -129,6 +129,6 @@ export function dayCloseHtml(d, storeName, by) {
     <tr><td>Cash added to the drawer today (after refunds and pay-outs)</td><td class="r">${esc(rupees(d.cashExpected))}</td></tr>
   </table>
   <div class="sign"><span>Prepared by ${esc(by)}</span><span>Signature ____________</span></div>
-  <div class="bar"><button id="printBtn">Print</button></div><script>document.getElementById("printBtn").addEventListener("click", () => print());</script>
+  <div class="bar"><button id="printBtn">Print</button><button id="closeBtn" type="button">Close</button></div><script>document.getElementById("printBtn").addEventListener("click", () => print());document.getElementById("closeBtn").addEventListener("click", () => { window.close(); setTimeout(() => { if (history.length > 1) history.back(); else location.href = "/admin/"; }, 150); });</script>
 </main></body></html>`;
 }

@@ -74,7 +74,7 @@ export function invoiceHtml(order, { size = "a4", credit = false, payments = [],
   .bar a{background:#fff;color:var(--ink)}
   @media print{body{background:#fff}.sheet{box-shadow:none;margin:0;max-width:none}.bar{display:none}@page{size:${narrow ? "80mm auto" : "A4"};margin:${narrow ? "2mm" : "12mm"}}}
 </style></head><body>
-<div class="bar"><a href="?${new URLSearchParams({ ...(order._token ? { t: order._token } : {}), size: narrow ? "a4" : "80mm" })}">${narrow ? "A4 size" : "Receipt size"}</a><button id="printBtn">Print / Save PDF</button></div><script>document.getElementById("printBtn").addEventListener("click", () => print());</script>
+<div class="bar"><a href="?${new URLSearchParams({ ...(order._token ? { t: order._token } : {}), size: narrow ? "a4" : "80mm" })}">${narrow ? "A4 size" : "Receipt size"}</a><button id="printBtn">Print / Save PDF</button>${order._token ? "" : '<button id="closeBtn" type="button">Close</button>'}</div><script>document.getElementById("printBtn").addEventListener("click", () => print());${order._token ? "" : 'document.getElementById("closeBtn").addEventListener("click", () => { window.close(); setTimeout(() => { if (history.length > 1) history.back(); else location.href = "/admin/"; }, 150); });'}</script>
 <main class="sheet">
   <div class="top">
     <div>

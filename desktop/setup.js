@@ -4,7 +4,10 @@
   const f = document.getElementById("f");
   if (f) {
     const url = document.getElementById("url");
-    window.serenSetup.getServer().then((s) => { if (s) url.value = s; });
+    const cancel = document.getElementById("cancel");
+    // changing the shop server later: a way back to the counter without changing anything
+    window.serenSetup.getServer().then((s) => { if (s) { url.value = s; cancel.hidden = false; } });
+    cancel.addEventListener("click", () => window.serenSetup.retry());
     f.addEventListener("submit", async (e) => {
       e.preventDefault();
       const go = document.getElementById("go");

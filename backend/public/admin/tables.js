@@ -28,5 +28,6 @@
     }
   }
   $("#print").addEventListener("click", () => window.print());
+  $("#close").addEventListener("click", () => { window.close(); setTimeout(() => { location.href = "./"; }, 150); });
   start();
 })();
