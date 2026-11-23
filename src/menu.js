@@ -3,6 +3,7 @@
 window.SEREN_CONFIG = {
   instagram: "seren",          // shown as @seren
   whatsapp: "",                // e.g. "919876543210" (country code, no +). Empty hides the WhatsApp button.
+  fssai: "",                   // 14-digit FSSAI licence number, shown in the footer (the dashboard's number wins once ordering is on)
   phone: "",                   // shown as text in the Visit section
   address: "",                 // store address
   hours: "",                   // e.g. "Tue–Sun · 11am–11pm"

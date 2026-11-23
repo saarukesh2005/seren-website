@@ -107,7 +107,7 @@
         </fieldset>
         <label>Your name<input name="name" autocomplete="name" maxlength="60" required value="${esc(f.name)}"></label>
         <label class="tbl" ${f.mode === "dinein" ? "" : "hidden"}>Table number<input name="table" maxlength="10" autocomplete="off" value="${esc(f.table || table)}" ${table ? "readonly" : ""} placeholder="The number on your table"></label>
-        <label>Mobile number <span class="opt dine-opt" ${f.mode === "dinein" ? "" : "hidden"}>(optional, for your bill on WhatsApp)</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel-national" maxlength="14" value="${esc(f.phone)}" placeholder="10-digit mobile"></label>
+        <label>Mobile number <span class="opt dine-opt" ${f.mode === "dinein" ? "" : "hidden"}>(optional, for your bill on WhatsApp)</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel-national" maxlength="14" value="${esc(f.phone)}" placeholder="10-digit mobile"><span class="hint privacy">Used only for this order${"" /* and offers, if you tick the box below */} — never shared.</span></label>
         <div class="addr" ${f.mode === "delivery" ? "" : "hidden"}>
           <label>Delivery address<textarea name="address" rows="3" maxlength="300" autocomplete="street-address">${esc(f.address)}</textarea></label>
           <label>Pincode<input name="pincode" inputmode="numeric" autocomplete="postal-code" maxlength="6" value="${esc(f.pincode)}"></label>
@@ -133,7 +133,7 @@
         <label class="optin"><input type="checkbox" name="optIn" ${f.optIn ? "checked" : ""}><span>Send me SEREN offers on WhatsApp <span class="opt">(you can stop any time)</span></span></label>
         <ul class="co-break" hidden></ul>
         <div class="co-total"><span>Total</span><b></b></div>
-        <p class="hint est-hint" hidden>Estimated total. The final amount is confirmed when you place your order.</p>
+        <p class="hint est-hint" hidden>${s.taxesAdded ? "GST is added to these prices. The final amount is confirmed when you place your order." : "Taxes included. The final amount is confirmed when you place your order."}</p>
         <p class="err" role="alert"></p>
         <button class="pill fill" type="submit">${submitLabel(f)}</button>
         ${s.whatsapp ? `<button class="pill wa" type="button" data-wa>Order on WhatsApp instead</button>` : ""}
@@ -225,18 +225,20 @@
     const fee = f.mode === "delivery" && s.deliveryFee && !(s.freeDeliveryAbove && sub >= s.freeDeliveryAbove) ? s.deliveryFee : 0;
     const off = coupon && !laterChosen(f) ? Math.min(coupon.discount, sub) : 0;
     const est = estimate(f, sub, fee, off);
-    const extras = [fee ? `incl. ${money(fee)} delivery` : "", off ? `${money(off)} off` : ""].filter(Boolean).join(", ");
-    fm.querySelector(".co-total b").textContent = money(est.total) + (extras ? ` (${extras})` : "");
-    const rows = [];
+    // a full, itemised bill (like a delivery app), so the total is never a surprise
+    const count = BOX.items().reduce((n, i) => n + (Number(i.qty) | 0), 0);
+    const rows = [[`Items (${count})`, money(sub)]];
+    if (off) rows.push([`Discount${coupon ? ` · ${coupon.code}` : ""}`, `−${money(off)}`]);
+    if (fee) rows.push(["Delivery", money(fee)]);
     if (est.packing) rows.push(["Packing", money(est.packing)]);
     if (est.servicePct) rows.push([`Service charge ${est.servicePct}% (optional — ask staff to remove)`, est.later ? "on your final bill" : money(est.service)]);
     if (est.rounding) rows.push(["Round-off", `${est.rounding > 0 ? "+" : "−"}${money(Math.abs(est.rounding))}`]);
     const list = fm.querySelector(".co-break");
-    list.hidden = !rows.length;
+    list.hidden = false;
     list.innerHTML = rows.map(([k, v]) => `<li><span>${esc(k)}</span><b>${esc(v)}</b></li>`).join("");
-    const estimated = rows.length > 0;
-    fm.querySelector(".co-total span").textContent = estimated ? "Estimated total" : "Total";
-    fm.querySelector(".est-hint").hidden = !estimated;
+    fm.querySelector(".co-total span").textContent = "Total";
+    fm.querySelector(".co-total b").textContent = money(est.total);
+    fm.querySelector(".est-hint").hidden = false;
   }
 
   // form.elements.namedItem, because form.name is the form's own name attribute

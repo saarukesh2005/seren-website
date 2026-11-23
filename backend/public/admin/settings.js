@@ -73,6 +73,7 @@ SA.settings = (function () {
         ${text("gstin", "GSTIN", s, "15 characters", 'maxlength="15" autocomplete="off"')}
         ${text("stateName", "State (place of supply)", s, "", 'placeholder="Tamil Nadu"')}
         ${text("invoicePrefix", "Bill number prefix", s, "e.g. SRN → SRN/2627/00001", 'maxlength="4"')}
+        ${text("fssaiNo", "FSSAI licence number", s, "14 digits; must be printed on every bill and shown online", 'inputmode="numeric" maxlength="14" autocomplete="off"')}
         <div class="full">${check("pricesIncludeGst", "My prices already include GST", s)}</div>
         <div class="full taxgrid"><b>Category</b><b>HSN / SAC</b><b>GST</b>
           ${Object.entries(categories).map(([k, l]) => `<span>${esc(l)}</span><input name="hsn:${esc(k)}" value="${esc(s.tax[k]?.hsn || "")}" inputmode="numeric" maxlength="8" aria-label="${esc(l)} HSN">${rateSelect(`rate:${k}`, s.tax[k]?.rate || 0)}`).join("")}
@@ -153,7 +154,7 @@ SA.settings = (function () {
   function collect(f) {
     const el = (n) => f.elements.namedItem(n);
     const out = {};
-    ["upiId", "upiName", "storeName", "phone", "address", "deliveryPincodes", "dineInTables", "siteUrl", "openTime", "closeTime", "legalName", "gstin", "stateName", "invoicePrefix", "invoiceNote"].forEach((k) => { out[k] = el(k).value.trim(); });
+    ["upiId", "upiName", "storeName", "phone", "address", "deliveryPincodes", "dineInTables", "siteUrl", "openTime", "closeTime", "legalName", "gstin", "stateName", "invoicePrefix", "invoiceNote", "fssaiNo"].forEach((k) => { out[k] = el(k).value.trim(); });
     ["paymentMinutes", "slotMinutes", "prepMinutes", "maxDaysAhead", "preorderNoticeDays"].forEach((k) => { out[k] = Number(el(k).value); });
     ["acceptingOrders", "dineIn", "pickup", "delivery", "pricesIncludeGst"].forEach((k) => { out[k] = el(k).checked; });
     for (const k of MONEY) {

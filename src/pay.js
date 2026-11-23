@@ -103,6 +103,17 @@ window.SerenPay = (function () {
    * Draws the "pay with UPI" panel into `el`.
    * pay = { code, token, total, upi, upiId, upiName, expiresAt }; onSubmitted runs after the customer sends their UPI ref.
    */
+  // iPhones have no "open with" chooser for upi:// links, so offer the popular apps by name too
+  // (same payment details; each app's own link scheme).
+  function isIOS() {
+    return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+  function iosApps(upi) {
+    const q = String(upi).split("?")[1] || "";
+    const apps = [["Google Pay", `gpay://upi/pay?${q}`], ["PhonePe", `phonepe://pay?${q}`], ["Paytm", `paytmmp://pay?${q}`]];
+    return `<p class="pay-apps"><span>Or open</span>${apps.map(([n, href]) => `<a class="pill" href="${esc(href)}">${esc(n)}</a>`).join("")}</p>`;
+  }
+
   function payPanel(el, pay, onSubmitted) {
     const upi = checkedUpiLink(pay);
     if (!upi) {
@@ -115,6 +126,7 @@ window.SerenPay = (function () {
         <p class="pay-amt"><span>Pay</span> ${esc(money(pay.total))}</p>
         <p class="pay-note">Order <b>${esc(pay.code)}</b>${mins ? ` · please pay within ${mins} min` : ""}</p>
         ${isPhone() ? `<a class="pill fill pay-app" href="${esc(upi)}">Pay with GPay, PhonePe or any UPI app</a>` : ""}
+        ${isIOS() ? iosApps(upi) : ""}
         <div class="pay-qr" aria-label="UPI QR code for ${esc(money(pay.total))}"><span class="hand">Loading QR…</span></div>
         <p class="pay-id">${isPhone() ? "Or pay" : "Scan with any UPI app, or pay"} to <b>${esc(pay.upiId)}</b> (${esc(pay.upiName)})
           <button type="button" class="linkish" data-copy="${esc(pay.upiId)}">Copy UPI ID</button></p>

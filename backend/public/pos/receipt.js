@@ -19,7 +19,7 @@
     const at = new Date(offline ? bill.at : bill.paid_at || bill.created_at || Date.now());
     return {
       title: offline ? "ORDER SLIP" : shop.gstin ? "TAX INVOICE" : "BILL",
-      shop: { name: shop.storeName || "SEREN", legal: shop.legalName || "", gstin: shop.gstin || "", address: shop.address || "", phone: shop.phone || "" },
+      shop: { name: shop.storeName || "SEREN", legal: shop.legalName || "", gstin: shop.gstin || "", address: shop.address || "", phone: shop.phone || "", fssai: shop.fssaiNo || "" },
       number: offline ? "" : bill.invoice_no || "",
       ref: offline ? bill.ref : bill.code,
       when: at.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }),
@@ -60,6 +60,7 @@
         ${m.shop.address ? `<div class="muted">${esc(m.shop.address)}</div>` : ""}
         ${m.shop.phone ? `<div class="muted">${esc(m.shop.phone)}</div>` : ""}
         ${m.shop.gstin && m.number ? `<div class="muted">GSTIN ${esc(m.shop.gstin)}</div>` : ""}
+        ${m.shop.fssai ? `<div class="muted">FSSAI Lic. No. ${esc(m.shop.fssai)}</div>` : ""}
         <div class="t">${esc(m.title)}</div></div>
       <hr>
       ${m.number ? row("Bill no.", esc(m.number)) : ""}

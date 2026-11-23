@@ -83,6 +83,7 @@ export function invoiceHtml(order, { size = "a4", credit = false, payments = [],
       ${seller.address ? `<div class="muted">${esc(seller.address)}</div>` : ""}
       ${seller.phone ? `<div class="muted">${esc(seller.phone)}</div>` : ""}
       ${gst ? `<div><b>GSTIN</b> ${esc(seller.gstin)}</div>` : ""}
+      ${seller.fssaiNo ? `<div><b>FSSAI Lic. No.</b> ${esc(seller.fssaiNo)}</div>` : ""}
     </div>
     <div ${narrow ? "" : 'style="text-align:right"'}>
       <h1>${esc(title)}</h1>

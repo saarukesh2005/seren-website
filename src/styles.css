@@ -277,7 +277,9 @@ footer .base{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
 .drawer li img{width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--card)}
 .drawer li .n{font-weight:600;font-size:14px;line-height:1.25}
 .qty{display:flex;align-items:center;gap:6px}
-.qty button{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--ink);background:transparent;cursor:pointer;font-weight:700}
+.qty button{position:relative;width:38px;height:38px;border-radius:50%;border:1.5px solid var(--ink);background:transparent;cursor:pointer;font-weight:700;font-size:18px}
+.qty button::after{content:"";position:absolute;inset:-4px} /* 46 px tap area */
+.qty b{min-width:22px;text-align:center}
 .drawer .empty{flex:1;display:grid;place-content:center;text-align:center;gap:6px;color:var(--muted-dark)}
 .drawer .empty .hand{font-size:30px;color:var(--plum)}
 .drawer footer{background:none;color:var(--ink);display:grid;gap:10px;padding-top:14px}
@@ -291,3 +293,31 @@ footer .base{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
   .spin,.marquee .track,.cake .layer:first-child{animation:none}
   *{transition-duration:.01ms!important}
 }
+
+/* − n + on a product card once it's in the box (big, thumb-friendly targets) */
+.step{display:inline-flex;align-items:center;gap:4px;background:var(--ink);color:var(--butter);border-radius:999px;padding:3px}
+.step button{width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:inherit;font-size:22px;line-height:1;cursor:pointer;transition:background .2s}
+.step button:hover,.step button:focus-visible{background:color-mix(in srgb,var(--butter) 18%,transparent)}
+.step button:disabled{opacity:.35;cursor:not-allowed}
+.step b{min-width:26px;text-align:center;font-size:16px}
+
+/* "Goes well with" inside the box */
+.also{padding:6px 0 4px;border-top:1px dashed var(--line,rgba(0,0,0,.12))}
+.also-h{font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin:10px 0 8px;opacity:.7}
+.also ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.also li{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center}
+.also img{width:56px;height:56px;object-fit:cover;border-radius:12px}
+.also-n{display:grid;line-height:1.25} .also-n small{opacity:.7}
+.coupon input::placeholder{text-transform:none}
+
+/* sticky "View box" bar on phones */
+.boxbar{display:none}
+@media (max-width:760px){
+  .boxbar:not([hidden]){position:fixed;z-index:60;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:0 20px;border:0;border-radius:999px;background:var(--ink);color:var(--butter);font:inherit;font-weight:700;font-size:16px;box-shadow:0 14px 34px -12px rgba(0,0,0,.6);cursor:pointer;animation:bbIn .4s var(--ease) both}
+  .boxbar .bb-go{font-size:15px}
+  html.box-open .boxbar{display:none}
+  html.has-boxbar .pal-btn{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  html.has-boxbar body{padding-bottom:84px}
+}
+@keyframes bbIn{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.boxbar{animation:none}}

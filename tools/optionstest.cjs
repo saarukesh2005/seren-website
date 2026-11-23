@@ -166,7 +166,7 @@ const pick = (p, text) => p.evaluate((t) => { const l = [...document.querySelect
     hint: !document.querySelector("#checkout .est-hint").hidden,
   }));
   // 18000+5000+3000 + 18050 + 1000 packing = 45050 -> 45100 (rounded to the rupee)
-  check("checkout shows packing, round-off and an estimated total (rounded)", est.rows.some((r) => /Packing₹10/.test(r)) && est.rows.some((r) => /Round-off\+₹0\.50/.test(r)) && est.total === "₹451" && est.label === "Estimated total" && est.hint, JSON.stringify(est));
+  check("checkout shows an itemised bill: items, packing, round-off, total (rounded)", est.rows.some((r) => /^Items \(2\)₹440\.50$/.test(r)) && est.rows.some((r) => /Packing₹10/.test(r)) && est.rows.some((r) => /Round-off\+₹0\.50/.test(r)) && est.total === "₹451" && est.label === "Total" && est.hint, JSON.stringify(est));
   await p.screenshot({ path: `${out}/x-checkout.jpg`, type: "jpeg", quality: 60 });
   await p.evaluate(() => document.querySelector("#checkout .co-form").requestSubmit());
   await p.waitForSelector("#checkout .pay-qr", { timeout: 10000 }).catch(async () => { throw new Error("order not placed: " + (await p.$eval("#checkout .err", (e) => e.textContent).catch(() => "?"))); });
@@ -180,7 +180,7 @@ const pick = (p, text) => p.evaluate((t) => { const l = [...document.querySelect
   await p.goto(`${SITE}order.html#${saved.code}.${saved.token}`, { waitUntil: "networkidle0" });
   await wait(1200);
   const op = await p.evaluate(() => ({ lines: document.querySelector(".op-lines").textContent, overflow: document.documentElement.scrollWidth > innerWidth + 1 }));
-  check("order page shows the choices, the charges row and the total", /\(Large, Nutella\)/.test(op.lines) && /Packing, service charge & round-off/.test(op.lines) && /₹451/.test(op.lines) && !op.overflow, op.lines);
+  check("order page shows the choices, each charge on its own line, and the total", /\(Large, Nutella\)/.test(op.lines) && /Packing₹10/.test(op.lines) && /Round-off₹0\.50/.test(op.lines) && /₹451/.test(op.lines) && !op.overflow, op.lines);
   await p.screenshot({ path: `${out}/x-order.jpg`, type: "jpeg", quality: 60, fullPage: true });
 
   // ---- Tamil: the choices sheet, the bag and the order page leave no English

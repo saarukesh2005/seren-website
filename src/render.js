@@ -261,6 +261,8 @@
         <span class="n">${esc(i.name)}${choiceList(i)}${linePrice(i)}</span>
         <span class="qty"><button type="button" data-q="${esc(i.key)}" data-d="-1" aria-label="One fewer ${esc(lineText(i))}">−</button><b>${esc(Number(i.qty) | 0)}</b><button type="button" data-q="${esc(i.key)}" data-d="1" aria-label="One more ${esc(lineText(i))}">+</button></span></li>`).join("");
     }
+    suggest(items);
+    boxBar(items);
     const wa = $("#waBtn");
     const hasWa = Boolean(CFG.whatsapp) && items.length > 0;
     wa.hidden = !hasWa;
@@ -278,10 +280,58 @@
       b.classList.toggle("off", b.disabled);
       const few = p && p.left !== undefined && p.left <= 5 ? ` · ${p.left} left` : "";
       const from = groupsOf(id).length ? "from " : ""; // the price grows with the choices
-      b.textContent = inBox ? `✓ In box (${qtyOf(id)})` : blocked ? (soldOut ? "Sold out today" : p ? "Sold out" : "Coming soon") : p ? `+ Add · ${from}${money(p.price)}${few}` : "+ Add to box";
+      const hasChoices = groupsOf(id).length > 0;
+      // simple items in the box get a − n + stepper right on the card (like the big delivery apps);
+      // items with choices keep an "add another" button, because each pick can be different
+      const step = !hasChoices && inBox && box[lineKey(id, [])];
+      b.hidden = Boolean(step);
+      let st = b.nextElementSibling && b.nextElementSibling.classList.contains("step") ? b.nextElementSibling : null;
+      if (step) {
+        if (!st) { st = document.createElement("span"); st.className = "step"; b.after(st); }
+        const key = lineKey(id, []);
+        const label = esc(b.closest("[data-pid]")?.querySelector("h3")?.textContent || "");
+        st.innerHTML = `<button type="button" data-q="${esc(key)}" data-d="-1" aria-label="One fewer ${label}">−</button><b aria-live="polite">${esc(Number(step.qty) | 0)}</b><button type="button" data-q="${esc(key)}" data-d="1" aria-label="One more ${label}" ${step.qty >= MAX_QTY ? "disabled" : ""}>+</button>`;
+      } else if (st) st.remove();
+      b.textContent = inBox ? `✓ ${qtyOf(id)} in box · add another` : blocked ? (soldOut ? "Sold out today" : p ? "Sold out" : "Coming soon") : p ? `+ Add · ${from}${money(p.price)}${few}` : "+ Add to box";
     });
     document.dispatchEvent(new CustomEvent("seren:box"));
   }
+  // The bottom bar on phones: "2 items · ₹360   View box →" (the total uses the shop's live prices when known).
+  function boxBar(items) {
+    const bar = $("#boxBar");
+    if (!bar) return;
+    const count = items.reduce((n, i) => n + (Number(i.qty) | 0), 0);
+    const priced = window.SEREN_SHOP && window.SEREN_SHOP.live ? items.map((i) => (unitPrice(i) === null ? null : unitPrice(i) * i.qty)) : [];
+    const total = priced.length && priced.every((x) => x !== null) ? priced.reduce((a, b) => a + b, 0) : null;
+    $("#boxBarSum").textContent = total === null ? `${count} item${count === 1 ? "" : "s"}` : `${count} item${count === 1 ? "" : "s"} · ${money(total)}`;
+    bar.hidden = !count;
+    document.documentElement.classList.toggle("has-boxbar", count > 0);
+  }
+
+  // "Goes well with": up to three small add-ons from sections not yet in the box (one per section),
+  // only things that can be ordered right now. Made-to-order cakes are never suggested.
+  function suggest(items) {
+    const el = $("#boxAlso");
+    if (!el) return;
+    const shop = window.SEREN_SHOP;
+    const inBox = new Set(items.map((i) => i.id));
+    const taken = new Set(items.map((i) => (CAT.get(i.id) || {}).category));
+    const orderable = (c) => !shop || !shop.live || Boolean(shop.prices[c.id] && shop.prices[c.id].available && shop.prices[c.id].left !== 0);
+    const pick = [];
+    for (const c of CAT.values()) {
+      if (pick.length >= 3) break;
+      if (inBox.has(c.id) || taken.has(c.category) || c.category === "entremets" || !orderable(c) || groupsOf(c.id).length) continue;
+      taken.add(c.category);
+      pick.push(c);
+    }
+    el.hidden = !items.length || !pick.length;
+    el.innerHTML = el.hidden ? "" : `<h3 class="also-h">Goes well with</h3><ul>${pick.map((c) => {
+      const p = shop && shop.prices[c.id];
+      return `<li data-pid="${esc(c.id)}">${c.img ? `<img src="${esc(img(c.img))}" alt="" loading="lazy" width="56" height="56">` : ""}
+        <span class="also-n"><b>${esc(c.name)}</b>${p ? `<small>${esc(money(p.price))}</small>` : ""}</span>${addBtn(c.id)}</li>`;
+    }).join("")}</ul>`;
+  }
+
   // the choices of a bag line, under its name (one span each, so each can be translated)
   function choiceList(i) {
     const names = lineChoices(i);
@@ -430,6 +480,7 @@
       if (q) { const key = q.dataset.q; setQty(key, (box[key]?.qty || 0) + Number(q.dataset.d)); }
     });
     $("#boxBtn").addEventListener("click", openBox);
+    if ($("#boxBar")) $("#boxBar").addEventListener("click", openBox);
     $("#openBox2").addEventListener("click", openBox);
     $("#closeBox").addEventListener("click", closeBox);
     $("#scrim").addEventListener("click", closeBox);
@@ -460,7 +511,17 @@
     const keep = Object.entries(box).filter(([, l]) => CAT.has(l.id) || live.has(l.id));
     if (keep.length !== Object.keys(box).length) saveBox(Object.fromEntries(keep));
   }
-  document.addEventListener("seren:shop", dropUnknownCustom);
+  document.addEventListener("seren:shop", () => { dropUnknownCustom(); renderBox(); showFssai(); }); // prices are known now: totals, bar, suggestions
+  // FSSAI licence number in the footer (food businesses selling online must show it)
+  function showFssai() {
+    const el = $("#fssai");
+    const shop = window.SEREN_SHOP;
+    const no = String((shop && shop.settings && shop.settings.fssaiNo) || CFG.fssai || "").replace(/\D/g, "");
+    if (!el || !/^\d{14}$/.test(no)) return;
+    el.textContent = `FSSAI Lic. No. ${no}`;
+    el.hidden = false;
+  }
+  showFssai();
 
   // the online-ordering scripts (checkout.js, products.js) use these
   window.SEREN_BOX = { items: () => Object.values(box), clear: () => saveBox({}), rerender: renderBox, addBtn, updateItem, photoUrl, unitPrice, lineText, groupsOf };

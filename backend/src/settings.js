@@ -50,6 +50,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   waApi: { enabled: false, phoneNumberId: "", version: "v23.0", lang: "en", paidTemplate: "", readyTemplate: "" },
   loyalty: { enabled: false, earnEvery: 10000, pointValue: 100 }, // 1 point per ₹100 spent, 1 point = ₹1 off
   googleReviewUrl: "",
+  fssaiNo: "",              // 14-digit FSSAI licence / registration number: printed on every bill (FSSAI order, 2021)
   // bill extras
   charges: { packing: 0, servicePercent: 0, roundOff: true, hsn: "996331" }, // packing in paise per takeaway order
   // what staff may do without a manager's PIN
@@ -124,6 +125,7 @@ export function checkSettings(input, current = DEFAULT_SETTINGS) {
     waApi: null,
     loyalty: null,
     googleReviewUrl: text(s.googleReviewUrl, 300),
+    fssaiNo: String(s.fssaiNo ?? "").replace(/\s+/g, ""),
     charges: null,
     approvals: null,
     stations: null,
@@ -136,6 +138,7 @@ export function checkSettings(input, current = DEFAULT_SETTINGS) {
   if (out.tableKeyVersion === null) return { error: "tableKeyVersion is not valid" };
   if (out.whatsappNumber && !/^91[6-9]\d{9}$/.test(out.whatsappNumber)) return { error: "WhatsApp number: 91 followed by the 10-digit mobile, e.g. 919876543210" };
   if (out.googleReviewUrl && !/^https:\/\/[^\s"'<>]+$/.test(out.googleReviewUrl)) return { error: "Google review link must start with https://" };
+  if (out.fssaiNo && !/^\d{14}$/.test(out.fssaiNo)) return { error: "FSSAI licence number is 14 digits" };
   const tpl = s.waTemplates && typeof s.waTemplates === "object" ? s.waTemplates : {};
   for (const k of Object.keys(DEFAULT_SETTINGS.waTemplates)) out.waTemplates[k] = text(tpl[k] ?? DEFAULT_SETTINGS.waTemplates[k], 500) || DEFAULT_SETTINGS.waTemplates[k];
   const api = { ...DEFAULT_SETTINGS.waApi, ...(s.waApi && typeof s.waApi === "object" ? s.waApi : {}) };
@@ -252,6 +255,8 @@ export function publicSettings(s) {
     whatsapp: s.whatsappNumber,
     googleReviewUrl: s.googleReviewUrl,
     charges: { packing: s.charges.packing, servicePercent: s.charges.servicePercent, roundOff: s.charges.roundOff },
+    taxesAdded: Boolean(s.gstin) && !s.pricesIncludeGst,
+    fssaiNo: s.fssaiNo, // the website says whether GST is on top of its prices
     loyalty: s.loyalty.enabled ? { earnEvery: s.loyalty.earnEvery, pointValue: s.loyalty.pointValue } : null,
   };
 }

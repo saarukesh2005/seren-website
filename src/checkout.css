@@ -1,7 +1,7 @@
 /* ---------- online ordering: prices, checkout form, UPI payment (order box + order page) ---------- */
 .add.off{opacity:.55;cursor:not-allowed;text-decoration:none}
 .drawer li .n small{display:block;font-weight:500;color:var(--muted-dark);font-size:13px;margin-top:2px}
-.drawer.co-on #boxList,.drawer.co-on > footer{display:none}
+.drawer.co-on #boxList,.drawer.co-on #boxAlso,.drawer.co-on > footer{display:none}
 .drawer .sum{display:flex;justify-content:space-between;align-items:baseline;font-size:15px}
 .drawer .sum b{font-family:var(--display);font-weight:400;font-size:28px;letter-spacing:.01em}
 .drawer .sum .warn{color:var(--nonveg);font-size:13px;line-height:1.35}
@@ -142,3 +142,7 @@ body:has(.tablebar) .pal-btn{bottom:calc(84px + env(safe-area-inset-bottom,0px))
 .done-total b{font-family:var(--display);font-weight:400;font-size:28px}
 .pin-form .utr-row{flex-wrap:wrap}
 .pin-form .utr-row input{flex:1 1 9em;min-width:9em}
+.pay-apps{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin:8px 0 0}
+.pay-apps span{width:100%;text-align:center;font-size:13px;opacity:.7}
+.pay-apps .pill{min-height:44px;padding:0 16px;display:inline-flex;align-items:center}
+.privacy{display:block;font-weight:400;font-size:12px;margin-top:4px}

@@ -194,14 +194,17 @@
 
 <footer>
   <p class="big" aria-hidden="true"><span>S</span><span>E</span><span>R</span><span>E</span><span>N</span></p>
-  <div class="wrap base"><span>SEREN Entremets</span><span>Bomboloni · Cookies · Entremets · Gelato · Chocolates · Kitchen</span></div>
+  <div class="wrap base"><span>SEREN Entremets</span><span>Bomboloni · Cookies · Entremets · Gelato · Chocolates · Kitchen</span><span class="fssai" id="fssai" hidden></span></div>
 </footer>
 
+<!-- phones: a bar at the bottom (thumb reach) once something is in the box -->
+<button class="boxbar" id="boxBar" type="button" hidden><span class="bb-sum" id="boxBarSum"></span><span class="bb-go">View box →</span></button>
 <!-- order box -->
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true" inert data-lenis-prevent>
   <header><h2 id="drawerTitle">Your box</h2><button class="close" id="closeBox" type="button" aria-label="Close your box">×</button></header>
   <ul id="boxList"></ul>
+  <div class="also" id="boxAlso" hidden></div>
   <div class="co" id="checkout" hidden></div>
   <footer>
     <div class="sum" id="boxSum" hidden></div>

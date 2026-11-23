@@ -10,9 +10,9 @@ def read(p):
 PAGES = {
     # page: (template, stylesheets, scripts)
     "index.html": ("index.html", ["styles.css", "effects.css", "checkout.css", "i18n.css"],
-                   ["menu.js", "i18n-ta.js", "i18n.js", "catalog.js", "palettes.js", "render.js", "motion.js", "interactions.js", "pay.js", "checkout.js", "products.js", "table.js"]),
+                   ["menu.js", "i18n-ta.js", "i18n.js", "catalog.js", "palettes.js", "render.js", "motion.js", "interactions.js", "vendor-qrcode.js", "pay.js", "checkout.js", "products.js", "table.js"]),
     "order.html": ("order.html", ["styles.css", "effects.css", "checkout.css", "order.css", "i18n.css"],
-                   ["menu.js", "i18n-ta.js", "i18n.js", "palettes.js", "pay.js", "order.js"]),
+                   ["menu.js", "i18n-ta.js", "i18n.js", "palettes.js", "vendor-qrcode.js", "pay.js", "order.js"]),
 }
 
 # https:// for any host; plain http:// only for a server running on this computer (local testing)

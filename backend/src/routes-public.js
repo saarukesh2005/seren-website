@@ -171,9 +171,9 @@ export async function orderPayments(db, orderId) {
 }
 
 export function snapshot(settings, priced) {
-  const { storeName, legalName, gstin, address, stateName, phone, email, pricesIncludeGst, invoiceNote } = settings;
+  const { storeName, legalName, gstin, address, stateName, phone, email, pricesIncludeGst, invoiceNote, fssaiNo } = settings;
   return {
-    seller: { storeName, legalName, gstin, address, stateName, phone, email, pricesIncludeGst, invoiceNote },
+    seller: { storeName, legalName, gstin, address, stateName, phone, email, pricesIncludeGst, invoiceNote, fssaiNo },
     delivery: priced.delivery,
     charges: priced.charges || [],
     roundOff: priced.roundOff || 0,
@@ -214,6 +214,9 @@ export async function viewOrder({ env, params, url }) {
       discount: order.discount,
       coupon: order.coupon_code,
       deliveryFee: order.delivery_fee,
+      // packing, service charge and round-off, each on its own line
+      charges: [...(order.tax_snapshot.charges || []).map((c) => ({ name: c.name, amount: c.gross })),
+        ...(order.tax_snapshot.roundOff ? [{ name: "Round-off", amount: order.tax_snapshot.roundOff }] : [])],
       total: order.total,
       utr: order.utr,
       invoiceNo: order.invoice_no,

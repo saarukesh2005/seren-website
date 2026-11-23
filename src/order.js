@@ -73,7 +73,9 @@
       <div class="op-pay"></div>
       <ul class="op-lines">${o.lines.map((l) => `<li><span>${esc(Number(l.qty) | 0)} × ${esc(l.name)}${l.unit ? ` <small>${esc(l.unit)}</small>` : ""}</span><b>${esc(money(l.amount))}</b></li>`).join("")}
         ${o.deliveryFee ? `<li><span>Delivery</span><b>${esc(money(o.deliveryFee))}</b></li>` : ""}
-        ${charges ? `<li><span>Packing, service charge &amp; round-off</span><b>${esc(charges > 0 ? money(charges) : `−${money(-charges)}`)}</b></li>` : ""}
+        ${Array.isArray(o.charges)
+          ? o.charges.map((c) => `<li><span>${esc(c.name)}</span><b>${esc(Number(c.amount) < 0 ? `−${money(-Number(c.amount))}` : money(Number(c.amount) || 0))}</b></li>`).join("")
+          : charges ? `<li><span>Packing, service charge &amp; round-off</span><b>${esc(charges > 0 ? money(charges) : `−${money(-charges)}`)}</b></li>` : ""}
         ${o.discount ? `<li class="off"><span>Discount${o.coupon ? ` (${esc(o.coupon)})` : ""}</span><b>−${esc(money(o.discount))}</b></li>` : ""}
         <li class="tot"><span>Total</span><b>${esc(money(o.total))}</b></li></ul>
       ${data.canReview && o.status === "completed" ? reviewBlock(data) : ""}
